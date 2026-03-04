@@ -1,0 +1,40 @@
+defaults:
+  embedding_model_name: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  embedding_local_path: null
+  local_files_only: true
+  chunk_size_chars: 1200
+  chunk_overlap_chars: 200
+  index_backend: auto
+  default_top_k: 6
+  max_pack_chars: 8000
+
+domains:
+  store_verify:
+    top_k_per_step:
+      "01": 8
+      "02": 6
+      "03": 8
+      "04": 5
+      "05": 5
+      "06": 6
+    step_queries:
+      "01":
+        - "store verification states statuses transitions approve reject resubmit pending review verified"
+        - "actors who can approve reject submit resubmit store verification"
+        - "unknown ambiguous transition rules store verification"
+      "02":
+        - "allowed disallowed transitions guards actors actions store verification"
+        - "approve reject resubmit invalid transitions verification workflow"
+      "03":
+        - "store verification API endpoints required documents validation permissions duplicate submit idempotency"
+        - "approve reject resubmit timeout SLA invalid transitions store verification"
+        - "critical edge cases manual review missing documents status mismatch"
+      "04":
+        - "high risk store verification edge cases approve reject resubmit permissions invalid transitions"
+        - "missing documents duplicate submissions manual review audit logging"
+      "05":
+        - "high risk store verification regression smoke approve reject resubmit permissions"
+        - "critical path status transitions errors and negative flows store verification"
+      "06":
+        - "store verification smoke checklist regression checklist release monitoring audit logs rollback"
+        - "approval rejection resubmission operational checks alerts dashboards"
