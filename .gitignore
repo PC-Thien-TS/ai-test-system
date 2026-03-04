@@ -8,6 +8,10 @@ requirements/**/**/*.pptx
 
 # outputs
 outputs/
+outputs/**/evidence/
+
+# local source-evidence config
+evidence_sources.yaml
 
 # python cache
 __pycache__/
@@ -15,3 +19,6 @@ __pycache__/
 
 # KB built index artifacts (generated)
 kb/index/
+
+# generated source-backed code facts
+requirements/**/code_facts/*.md

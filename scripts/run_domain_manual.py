@@ -431,12 +431,31 @@ class ManualDomainRunner:
     def run(self) -> Path:
         self.ensure_required_files()
         self.run_dir.mkdir(parents=True, exist_ok=True)
+        self.collect_domain_evidence()
         self.write_run_meta()
         self.write_run_guide()
         self.ensure_output_placeholders()
         self.write_kb_context_files()
         self.write_prompt_files()
         return self.run_dir
+
+    def collect_domain_evidence(self) -> None:
+        if self.domain != "didaunao_release_audit":
+            return
+        try:
+            from scripts.collect_release_evidence import collect_release_evidence
+        except Exception as exc:  # pragma: no cover - defensive import guard
+            safe_print(f"[WARN] Failed to load source evidence collector: {exc}")
+            return
+
+        try:
+            result = collect_release_evidence(self.run_dir)
+        except Exception as exc:
+            safe_print(f"[WARN] Source evidence collection skipped: {exc}")
+            return
+
+        for warning in result.warnings:
+            safe_print(f"[WARN] {warning}")
 
     def ensure_required_files(self) -> None:
         required_paths = [step.prompt_template for step in self.steps]
@@ -545,7 +564,15 @@ class ManualDomainRunner:
             return
 
         for step in self.steps:
-            content = generate_prompt_pack(self.domain, f"{step.number:02d}")
+            try:
+                content = generate_prompt_pack(self.domain, f"{step.number:02d}")
+            except Exception as exc:
+                if not self.allow_incomplete:
+                    raise
+                safe_print(
+                    f"[WARN] Failed to build KB context for {self.domain} step {step.number:02d}: {exc}"
+                )
+                content = self.pending_kb_runtime_message(exc)
             self.kb_context_path(step.number).write_text(content, encoding="utf-8")
 
     def kb_index_ready(self) -> bool:
@@ -566,6 +593,15 @@ class ManualDomainRunner:
                 f"[PENDING INPUT: KB index for domain '{self.domain}' is not built yet.]",
                 f"Run: python kb/build_kb.py --domain {self.domain}",
                 "Then rerun the manual runner to refresh the KB context files.",
+            ]
+        )
+
+    def pending_kb_runtime_message(self, exc: Exception) -> str:
+        return "\n".join(
+            [
+                f"[PENDING INPUT: KB context generation failed for domain '{self.domain}'.]",
+                f"Runtime error: {exc}",
+                "If you need complete KB-backed prompts, fix the local model/runtime issue and rerun the manual runner.",
             ]
         )
 
