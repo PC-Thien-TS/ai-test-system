@@ -1,0 +1,5 @@
+- Always test: loading, empty, error (4xx/5xx), timeout, retry
+- Always include: positive + negative + boundary
+- Always check permission: User vs Merchant vs Admin
+- No state skip: trạng thái chỉ được chuyển theo FSM
+- Logs must contain request_id / order_id for trace

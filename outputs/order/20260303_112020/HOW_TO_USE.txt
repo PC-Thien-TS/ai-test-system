@@ -1,0 +1,16 @@
+Manual Order pipeline run: 20260303_112020
+
+Workflow:
+1. Open the next step_XX_prompt.txt file in this folder.
+2. Paste the full prompt into ChatGPT or Codex.
+3. Replace the matching output file contents with only the model output.
+4. Rerun: python scripts/run_order_manual.py --run-id 20260303_112020
+5. Validate testcase JSON with: python scripts/validate_outputs.py outputs/order/20260303_112020
+
+Output files for this run:
+01_state_machine.json
+02_rule_matrix.json
+03_testcases_raw.json
+04_testcases_refined.json
+05_regression_suite.json
+06_release_checklist.md

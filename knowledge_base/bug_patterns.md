@@ -1,0 +1,5 @@
+- Duplicate order do double tap / retry
+- Race: user cancel vs merchant accept
+- Late webhook success when order already terminal
+- Payment paid but order not updated (inconsistency)
+- Wrong totals/snapshot mismatch

@@ -1,0 +1,8 @@
+- Order: Đơn hàng
+- OrderItem: Món trong đơn
+- Merchant: Cửa hàng
+- Payment Attempt: Lần thanh toán
+- Webhook: Callback từ cổng thanh toán
+- Idempotency-Key: Key chống tạo lặp khi retry/double click
+- Refund: Hoàn tiền
+- SLA: Thời gian cam kết xử lý

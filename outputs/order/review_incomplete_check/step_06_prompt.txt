@@ -1,0 +1,30 @@
+You are a QA lead. Create a release checklist in Markdown for Order system.
+
+Must include sections:
+1) Smoke checklist (10–20 items)
+2) Regression checklist groups:
+   - Order creation & snapshot
+   - Payment attempt & expiry
+   - Webhook (signature/dedupe/late)
+   - Merchant operations (accept/reject/status chain)
+   - Cancellation & refund
+   - SLA jobs (10', 15')
+   - Admin/ops observability checks
+3) Data verification checklist (DB/log fields, request_id/order_id correlation)
+4) Monitoring checklist (alerts, dashboards, runbook readiness)
+5) Risks & rollback notes
+
+STATE_MACHINE_JSON:
+[PENDING INPUT: 01_state_machine.json is not filled yet.]
+Replace outputs/order/review_incomplete_check/01_state_machine.json with the model output from step 01.
+Then rerun: python scripts/run_order_manual.py --run-id review_incomplete_check
+
+REGRESSION_JSON:
+[PENDING INPUT: 05_regression_suite.json is not filled yet.]
+Replace outputs/order/review_incomplete_check/05_regression_suite.json with the model output from step 05.
+Then rerun: python scripts/run_order_manual.py --run-id review_incomplete_check
+
+TESTCASES_REFINED_JSON:
+[PENDING INPUT: 04_testcases_refined.json is not filled yet.]
+Replace outputs/order/review_incomplete_check/04_testcases_refined.json with the model output from step 04.
+Then rerun: python scripts/run_order_manual.py --run-id review_incomplete_check

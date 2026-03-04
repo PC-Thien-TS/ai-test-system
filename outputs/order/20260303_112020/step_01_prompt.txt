@@ -1,0 +1,379 @@
+You are a careful QA/BA analyst.
+
+Input includes:
+- STATE_MACHINE_DOC (human draft)
+- API_CONTRACT_DOC (human draft)
+- RULES_DOC (human draft)
+
+Task:
+1) Normalize order states list (unique, uppercase).
+2) Extract transitions with fields: from, to, actor, condition, source (doc name).
+3) Identify unknowns / ambiguities and list them explicitly. DO NOT invent missing details.
+4) Output ONLY valid JSON.
+
+OUTPUT JSON SCHEMA:
+{
+  "states": ["..."],
+  "transitions": [
+    {
+      "from": "STATE",
+      "to": "STATE",
+      "actor": "user|merchant|admin|system|UNKNOWN",
+      "condition": "string",
+      "source": "state_machine|api_contract|rules"
+    }
+  ],
+  "terminal_states": ["..."],
+  "invariants": ["..."],
+  "unknowns": ["..."]
+}
+
+STATE_MACHINE_DOC:
+# Order State Machine (v1 - Source of Truth)
+
+Tài liệu này mô tả FSM (finite state machine) cho Order và các chuyển trạng thái hợp lệ.
+Backend là source of truth. PAID chỉ được set từ webhook. :contentReference[oaicite:1]{index=1}
+
+---
+
+## A. Order Status (Core)
+
+### States
+- CREATED
+- PAYMENT_PENDING
+- PAID
+- ACCEPTED
+- PREPARING
+- READY
+- COMPLETED
+- CANCELLED
+- REJECTED
+- EXPIRED
+
+> Ghi chú:
+- “PAID only from webhook” (client không thể set PAID). 
+- Merchant app chỉ thao tác đơn đã PAID và không được skip state. 
+
+---
+
+## B. Payment Attempt Status (per order)
+
+### States
+- PENDING
+- SUCCEEDED
+- FAILED
+- EXPIRED
+
+### Constraints
+- One successful payment per order (unique). :contentReference[oaicite:4]{index=4}
+- Payment amount = order.total_amount snapshot. :contentReference[oaicite:5]{index=5}
+
+---
+
+## C. Refund Status (v1)
+
+### States
+- NONE
+- REQUESTED
+- SUCCEEDED
+- FAILED
+
+### Constraints
+- v1 refund: 100% only. :contentReference[oaicite:6]{index=6}
+- One refund record per order (unique). :contentReference[oaicite:7]{index=7}
+
+---
+
+## D. Valid Transitions (Order)
+
+### User flow
+1) CREATED
+   - -> PAYMENT_PENDING (user creates payment attempt)
+2) PAYMENT_PENDING
+   - -> PAID (webhook success)
+   - -> CREATED (webhook failed)
+   - -> EXPIRED (job timeout 10')
+3) PAID
+   - -> CANCELLED (user cancel hợp lệ: PAID & not ACCEPTED)
+   - -> ACCEPTED (merchant accept)
+   - -> REJECTED (merchant reject + reason)
+   - -> CANCELLED (job SLA 15' auto cancel + refund)
+4) ACCEPTED -> PREPARING -> READY -> COMPLETED (merchant status chain only)
+
+### Terminal states
+- COMPLETED
+- CANCELLED
+- REJECTED
+- EXPIRED
+
+---
+
+## E. Transition Rules (Guards)
+
+### Eligibility guard (before side-effects)
+- Eligibility must be enforced by backend (flags/whitelist/verified/active). 
+
+### Idempotency guard (side-effects)
+- POST /orders requires Idempotency-Key (required). 
+- POST /orders/{id}/payments requires Idempotency-Key (required). :contentReference[oaicite:10]{index=10}
+- Cancel/reject/refund phải idempotent theo order_id hoặc (order_id + action). 
+
+### No skip state (merchant)
+- Allowed chain only: ACCEPTED→PREPARING→READY→COMPLETED. 
+
+### PAID truth rule (client rendering)
+- UI chỉ show “Đã thanh toán” khi GET order status=PAID. 
+
+---
+
+## F. Background Jobs (System transitions)
+
+### Job 10' payment timeout
+- PAYMENT_PENDING older than expires_at -> order EXPIRED, payment EXPIRED. 
+
+### Job 15' merchant SLA auto cancel/refund
+- PAID older than paid_at + 15' and not ACCEPTED -> order CANCELLED + refund 100%. 
+
+---
+
+## G. Late Webhook Rule (Critical)
+Nếu webhook success đến sau khi order đã terminal (EXPIRED/CANCELLED/REJECTED/COMPLETED):
+- Record payment SUCCEEDED
+- Create refund 100% immediately (idempotent)
+- Emit audit + alert.
+
+API_CONTRACT_DOC:
+# Order API Contract (v1 - Minimum)
+
+Chuẩn response:
+- Success: { data, meta(request_id, server_time) }
+- Error: { error(code, message, details?), request_id } :contentReference[oaicite:17]{index=17}
+
+---
+
+## A. Public (User)
+
+### 1) Create Order Snapshot
+POST /orders
+Headers:
+- Idempotency-Key (required)
+
+Request:
+- store_id
+- items: [{ sku_id, quantity, note? }]
+
+Success data:
+- order_id
+- status = CREATED
+- snapshot_items: [{ sku_id, name, unit_price, quantity, note, line_total }]
+- totals: { subtotal, fees_total(0), total_amount }
+- created_at
+
+Errors (examples):
+- ORDERING_DISABLED / WHITELIST_REQUIRED / STORE_NOT_VERIFIED / STORE_INACTIVE 
+- ITEM_UNAVAILABLE / INVALID_QUANTITY / ITEM_PRICE_CHANGED 
+
+Notes:
+- Snapshot uses SKU price & availability at creation. 
+
+---
+
+### 2) Create Payment Attempt (Stripe)
+POST /orders/{id}/payments
+Headers:
+- Idempotency-Key (required)
+
+Pre-condition:
+- order.status == CREATED
+
+Success data:
+- payment_attempt_id
+- payment_status = PENDING
+- order_status = PAYMENT_PENDING
+- expires_at = now + 10 minutes
+- stripe_client_secret (or checkout_url)
+
+Errors (examples):
+- PAYMENT_DISABLED 
+- ORDER_INVALID_STATE / PAYMENT_EXPIRED / PAYMENT_ALREADY_SUCCEEDED :contentReference[oaicite:22]{index=22}
+- IDEMPOTENCY_REPLAY_MISMATCH :contentReference[oaicite:23]{index=23}
+
+---
+
+### 3) Get Order Detail
+GET /orders/{id}
+
+Success data (minimum):
+- order_id, store_id, user_id
+- status
+- snapshot_items, totals
+- created_at, paid_at?, expires_at?
+- payment_status (latest)
+- refund_status?
+
+Client rules:
+- UI show “paid” only when status=PAID. 
+- PAYMENT_PENDING polling nhanh hơn (3–5s). :contentReference[oaicite:25]{index=25}
+
+---
+
+### 4) Cancel Order (User)
+POST /orders/{id}/cancel
+Headers:
+- Idempotency-Key (khuyến nghị, hoặc backend idempotent by order_id)
+
+Pre-condition:
+- order.status == PAID
+- order NOT ACCEPTED
+
+Success:
+- status = CANCELLED
+- refund_status updated (REQUESTED/SUCCEEDED/FAILED)
+
+Errors:
+- ORDER_INVALID_STATE
+- REFUND_ALREADY_DONE 
+
+---
+
+## B. Merchant
+
+### 1) Accept Order
+POST /merchant/orders/{id}/accept
+Pre-condition:
+- order.status == PAID
+
+Success:
+- status = ACCEPTED
+
+Errors:
+- ORDER_NOT_PAID / ORDER_INVALID_STATE 
+
+---
+
+### 2) Reject Order (Reason required)
+POST /merchant/orders/{id}/reject
+Request:
+- reason_code (required)
+- note? (optional)
+
+Pre-condition:
+- order.status == PAID
+
+Success:
+- status = REJECTED
+- refund 100% triggered
+
+Errors:
+- REJECT_REASON_REQUIRED
+- ORDER_NOT_PAID / ORDER_INVALID_STATE 
+
+---
+
+### 3) Update Fulfillment Status
+POST /merchant/orders/{id}/status
+Request:
+- next_status in { PREPARING, READY, COMPLETED }
+
+Pre-condition:
+- Only chain: ACCEPTED→PREPARING→READY→COMPLETED (no skip)
+
+Errors:
+- STATUS_SEQUENCE_INVALID
+- STORE_SCOPE_FORBIDDEN 
+
+---
+
+## C. Webhooks
+
+### Stripe Webhook
+POST /webhooks/stripe
+Rules:
+- Verify signature header (invalid -> 400). :contentReference[oaicite:30]{index=30}
+- Dedupe by stripe_event_id (duplicate -> 200 OK no-op). :contentReference[oaicite:31]{index=31}
+- Success: PAYMENT_PENDING -> set payment SUCCEEDED + order PAID. :contentReference[oaicite:32]{index=32}
+- Failed: PAYMENT_PENDING -> set payment FAILED + order CREATED. :contentReference[oaicite:33]{index=33}
+
+Late webhook:
+- If order terminal -> auto refund 100% + audit + alert. 
+
+---
+
+## D. Admin/Ops (Read-only + Controls)
+
+GET /admin/orders
+- filters: date range, store_id, status, payment status, refund status, keyword q
+- columns: order_id/code, store_id, status, total_amount, created_at, paid_at, refund_status 
+
+GET /admin/orders/{id}
+- must show: snapshot items/totals, payment attempts, refund record, audit timeline 
+
+(Optional) Runtime controls (pilot):
+- POST /admin/flags (ORDERING_ENABLED, PAYMENT_ENABLED)
+- POST /admin/whitelist (store_ids, user_ids, whitelist_mode)
+All changes must be audited.
+
+RULES_DOC:
+# Order Rules (v1)
+
+---
+
+## A. Gating / Eligibility (Hard Guard)
+Backend MUST enforce eligibility, không dựa client. 
+
+### Reason codes (standard)
+- ORDERING_DISABLED
+- PAYMENT_DISABLED
+- STORE_NOT_VERIFIED
+- STORE_INACTIVE
+- WHITELIST_REQUIRED
+- (optional) STORE_CLOSED_NOW :contentReference[oaicite:39]{index=39}
+
+---
+
+## B. Menu / SKU Rules (Downstream safety)
+- Price chỉ tồn tại ở SKU; create order snapshot lấy unit_price từ SKU tại thời điểm tạo. 
+- Nếu bất kỳ SKU unavailable -> reject ITEM_UNAVAILABLE. 
+- qty integer >=1 (<=99 ở UI). 
+
+---
+
+## C. Idempotency (must-have)
+- POST /orders và POST /orders/{id}/payments: Idempotency-Key required. 
+- Idempotency record lưu fingerprint để phát hiện mismatch (IDEMPOTENCY_REPLAY_MISMATCH). :contentReference[oaicite:44]{index=44}
+- “Retry network” phải safe, không tạo double order/payment. 
+
+---
+
+## D. Payment Consistency (money safety)
+- One successful payment per order. :contentReference[oaicite:46]{index=46}
+- PAID only from webhook; client không set. 
+- Payment pending expiry = 10 minutes (expires_at). 
+- Job payment timeout: PAYMENT_PENDING quá hạn -> EXPIRED. :contentReference[oaicite:49]{index=49}
+
+---
+
+## E. Cancellation / Refund (v1)
+- User cancel chỉ hợp lệ khi order PAID và chưa ACCEPTED. 
+- Merchant reject yêu cầu reason_code (bắt buộc). 
+- Refund v1: 100% only; unique refund record per order. :contentReference[oaicite:52]{index=52}
+
+---
+
+## F. Merchant SLA
+- Nếu PAID quá 15 phút và chưa ACCEPTED -> auto cancel + refund. 
+
+---
+
+## G. Late Webhook (critical incident prevention)
+Nếu order đã terminal nhưng webhook success đến:
+- record payment SUCCEEDED
+- auto refund 100% immediately (idempotent)
+- audit + alert. 
+
+---
+
+## H. Notification Model (minimum transactional)
+- Event types tối thiểu: ORDER_CREATED, PAYMENT_INITIATED, ORDER_PAID, PAYMENT_FAILED, ORDER_ACCEPTED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_EXPIRED, REFUND_REQUESTED, REFUND_SUCCEEDED, REFUND_FAILED. :contentReference[oaicite:55]{index=55}
+- Merchant “New order” push chỉ phát khi ORDER_PAID (không phát khi chưa PAID). 
+- Notification at-least-once; client phải dedupe bằng dedupe_key. :contentReference[oaicite:57]{index=57}

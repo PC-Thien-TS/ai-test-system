@@ -1,0 +1,26 @@
+﻿{
+  "feature": {
+    "name": "Order System",
+    "scope": "state-machine-first"
+  },
+  "testcases": [
+    {
+      "id": "TC-ORDER-001",
+      "title": "Create order succeeds",
+      "preconditions": ["Store is active"],
+      "steps": [
+        "Send POST /orders with valid items and Idempotency-Key",
+        "Observe 200 response with CREATED status",
+        "Fetch GET /orders/{id} and confirm snapshot"
+      ],
+      "expected": [
+        "Order is created in CREATED state",
+        "Snapshot totals are returned"
+      ],
+      "priority": "P0",
+      "type": "smoke",
+      "tags": ["API", "Data"],
+      "notes": "Minimal validator smoke fixture"
+    }
+  ]
+}

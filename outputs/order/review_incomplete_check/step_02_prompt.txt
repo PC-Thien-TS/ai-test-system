@@ -1,0 +1,30 @@
+You are a strict QA designing a rules matrix for an Order State Machine.
+
+Given STATE_MACHINE_JSON:
+- Create a transition rule matrix.
+- Include BOTH allowed and disallowed transitions for coverage.
+- For disallowed transitions, set allowed=false and explain reason.
+- Add action_name for each transition (e.g., CREATE_ORDER, CREATE_PAYMENT, WEBHOOK_SUCCESS, MERCHANT_ACCEPT, USER_CANCEL, JOB_EXPIRE, MERCHANT_STATUS_UPDATE).
+- Output ONLY valid JSON.
+
+OUTPUT JSON:
+{
+  "matrix": [
+    {
+      "from": "STATE",
+      "action": "ACTION_NAME",
+      "actor": "user|merchant|admin|system|UNKNOWN",
+      "allowed": true,
+      "to": "STATE|UNCHANGED|UNKNOWN",
+      "guards": ["..."],
+      "reason": "..."
+    }
+  ],
+  "coverage_notes": ["..."],
+  "high_risk_rules": ["..."]
+}
+
+STATE_MACHINE_JSON:
+[PENDING INPUT: 01_state_machine.json is not filled yet.]
+Replace outputs/order/review_incomplete_check/01_state_machine.json with the model output from step 01.
+Then rerun: python scripts/run_order_manual.py --run-id review_incomplete_check

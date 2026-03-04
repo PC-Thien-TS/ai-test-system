@@ -1,0 +1,11 @@
+MANUAL OUTPUT PLACEHOLDER
+
+Step 06 output belongs here.
+Prompt file: step_06_prompt.txt
+Expected format: Markdown
+
+Instructions:
+1. Open step_06_prompt.txt from this run folder.
+2. Paste the full prompt into ChatGPT or Codex.
+3. Replace this entire file with only the model output.
+4. Rerun: python scripts/run_order_manual.py --run-id review_failfast_check

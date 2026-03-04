@@ -1,0 +1,1258 @@
+You are a QA lead. Create a release checklist in Markdown for Order system.
+
+Must include sections:
+1) Smoke checklist (10–20 items)
+2) Regression checklist groups:
+   - Order creation & snapshot
+   - Payment attempt & expiry
+   - Webhook (signature/dedupe/late)
+   - Merchant operations (accept/reject/status chain)
+   - Cancellation & refund
+   - SLA jobs (10', 15')
+   - Admin/ops observability checks
+3) Data verification checklist (DB/log fields, request_id/order_id correlation)
+4) Monitoring checklist (alerts, dashboards, runbook readiness)
+5) Risks & rollback notes
+
+STATE_MACHINE_JSON:
+[PENDING INPUT: 01_state_machine.json is not filled yet.]
+Replace outputs/order/20260303_112034/01_state_machine.json with the model output from step 01.
+Then rerun: python scripts/run_order_manual.py --run-id 20260303_112034
+
+REGRESSION_JSON:
+{"feature":{"name":"Order System"},"regression_ids":["TC-ORDER-001","TC-ORDER-004","TC-ORDER-005","TC-ORDER-006","TC-ORDER-007","TC-ORDER-008","TC-ORDER-009","TC-ORDER-010","TC-ORDER-013","TC-ORDER-014","TC-ORDER-015","TC-ORDER-016","TC-ORDER-017","TC-ORDER-018","TC-ORDER-019","TC-ORDER-020","TC-ORDER-021","TC-ORDER-023","TC-ORDER-024","TC-ORDER-025","TC-ORDER-026","TC-ORDER-027","TC-ORDER-028","TC-ORDER-029","TC-ORDER-030","TC-ORDER-031","TC-ORDER-032","TC-ORDER-033","TC-ORDER-036","TC-ORDER-037","TC-ORDER-038","TC-ORDER-041","TC-ORDER-042","TC-ORDER-044","TC-ORDER-051","TC-ORDER-055","TC-ORDER-056"],"notes":"Selected all 37 P0 tests because the prompt requires every P0; this conflicts with the 25%-40% target since 37 of 56 tests (66%) are P0. This is the minimal feasible suite and it still exceeds the required coverage for negative/error handling, state transitions, payment/webhook flows, and cancel/refund behavior."}
+
+TESTCASES_REFINED_JSON:
+{
+  "feature": {
+    "name": "Order System",
+    "scope": "state-machine-first"
+  },
+  "testcases": [
+    {
+      "id": "TC-ORDER-001",
+      "title": "Create order successfully with one available SKU",
+      "preconditions": [
+        "Store A is active, verified, ordering-enabled, and not restricted by whitelist.",
+        "SKU S1 is available at unit price 100."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K1 and body {store_id:\"StoreA\", items:[{sku_id:\"S1\", quantity:1}]}.",
+        "Capture order_id, snapshot_items, totals, and meta.request_id from the response.",
+        "Call GET /orders/{order_id} as the same user."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 201 with order status CREATED and a new order_id.",
+        "snapshot_items contains S1 with unit_price 100, quantity 1, and line_total 100; totals.subtotal and totals.total_amount are 100 and fees_total is 0.",
+        "GET /orders/{order_id} returns HTTP 200 with the same CREATED order data."
+      ],
+      "priority": "P0",
+      "type": "smoke",
+      "tags": ["API", "Data"],
+      "notes": "Baseline order creation."
+    },
+    {
+      "id": "TC-ORDER-002",
+      "title": "Create order successfully with multiple items and correct totals",
+      "preconditions": [
+        "Store A is active, verified, and ordering-enabled.",
+        "SKU S1 price is 100 and SKU S2 price is 50; both are available."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K2 and body {store_id:\"StoreA\", items:[{sku_id:\"S1\", quantity:2}, {sku_id:\"S2\", quantity:3}]}.",
+        "Capture order_id and the returned snapshot_items and totals.",
+        "Call GET /orders/{order_id}."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 201 with order status CREATED.",
+        "snapshot_items preserves S1 quantity 2 and S2 quantity 3, and totals.subtotal and totals.total_amount equal 350 with fees_total 0.",
+        "GET /orders/{order_id} returns HTTP 200 and matches the creation snapshot and totals."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Validates snapshot math."
+    },
+    {
+      "id": "TC-ORDER-003",
+      "title": "Order snapshot keeps original price after catalog price changes",
+      "preconditions": [
+        "Store A is active and eligible to accept orders.",
+        "SKU S1 is available at unit price 100 before the order is created."
+      ],
+      "steps": [
+        "Create an order with POST /orders using Idempotency-Key K3 for {sku_id:\"S1\", quantity:1}.",
+        "Change the catalog price of SKU S1 to 120 in downstream menu data.",
+        "Call GET /orders/{order_id} for the existing order."
+      ],
+      "expected": [
+        "The create call returns HTTP 201 and the order starts in CREATED.",
+        "GET /orders/{order_id} returns HTTP 200 and snapshot_items[0].unit_price remains 100.",
+        "Order totals remain based on the original snapshot price and do not change to 120."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Protects snapshot immutability."
+    },
+    {
+      "id": "TC-ORDER-004",
+      "title": "Retry create order with the same idempotency key returns the same order",
+      "preconditions": [
+        "Store A is active, verified, ordering-enabled, and SKU S1 is available."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K4 and payload P4.",
+        "Retry POST /orders with the same Idempotency-Key K4 and the identical payload P4.",
+        "Call GET /orders/{order_id} using the order_id returned by both responses."
+      ],
+      "expected": [
+        "Both create responses return the same order_id and do not create a second logical order.",
+        "Only one order row exists for idempotency key K4.",
+        "GET /orders/{order_id} returns one CREATED order with the expected snapshot."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Core create-order retry safety."
+    },
+    {
+      "id": "TC-ORDER-005",
+      "title": "Create order rejects idempotency replay mismatch",
+      "preconditions": [
+        "Store A is active, verified, ordering-enabled, and SKUs S1 and S2 are available."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K5 and payload {store_id:\"StoreA\", items:[{sku_id:\"S1\", quantity:1}]}.",
+        "Replay POST /orders with the same Idempotency-Key K5 but change the payload to {store_id:\"StoreA\", items:[{sku_id:\"S2\", quantity:1}]}.",
+        "Inspect the second response and query the order record created by the first request."
+      ],
+      "expected": [
+        "The second request returns HTTP 409 with error code IDEMPOTENCY_REPLAY_MISMATCH.",
+        "The original order remains unchanged.",
+        "No second order is created for key K5."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security", "Data"],
+      "notes": "High-risk idempotency fingerprint mismatch."
+    },
+    {
+      "id": "TC-ORDER-006",
+      "title": "Create order fails when Idempotency-Key header is missing",
+      "preconditions": [
+        "Store A is active, verified, ordering-enabled, and SKU S1 is available."
+      ],
+      "steps": [
+        "Send POST /orders without Idempotency-Key and with a valid order body.",
+        "Capture the error payload and HTTP status.",
+        "Search order storage for a row matching the submitted request."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 400 with a validation error and request_id.",
+        "No order is created for the request.",
+        "No partial snapshot or totals are persisted."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Idempotency key is required."
+    },
+    {
+      "id": "TC-ORDER-007",
+      "title": "Create order is blocked when ordering is disabled",
+      "preconditions": [
+        "Admin runtime control ORDERING_ENABLED is OFF.",
+        "Store A and the requesting user are otherwise eligible to order."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K7 and a valid body for Store A.",
+        "Capture the error response.",
+        "Verify storage does not contain a new order for the request."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 403 with error code ORDERING_DISABLED.",
+        "No order_id is created.",
+        "The error payload includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security", "Admin"],
+      "notes": "Ordering gate enforcement."
+    },
+    {
+      "id": "TC-ORDER-008",
+      "title": "Create order is blocked when store is not verified",
+      "preconditions": [
+        "Store B exists with verification status false.",
+        "Ordering is enabled globally."
+      ],
+      "steps": [
+        "Send POST /orders for Store B with Idempotency-Key K8 and a valid item list.",
+        "Capture the error response.",
+        "Check persistence for any created order row."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 403 with error code STORE_NOT_VERIFIED.",
+        "No order is created.",
+        "The error payload includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Store eligibility guard."
+    },
+    {
+      "id": "TC-ORDER-009",
+      "title": "Create order is blocked when store is inactive",
+      "preconditions": [
+        "Store C exists with inactive status.",
+        "Ordering is enabled globally."
+      ],
+      "steps": [
+        "Send POST /orders for Store C with Idempotency-Key K9 and a valid body.",
+        "Capture the error response.",
+        "Verify no order record exists for the call."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 403 with error code STORE_INACTIVE.",
+        "No order is created.",
+        "The error payload includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Inactive stores cannot take orders."
+    },
+    {
+      "id": "TC-ORDER-010",
+      "title": "Create order fails when any requested SKU is unavailable",
+      "preconditions": [
+        "Store A is eligible to accept orders.",
+        "SKU S1 is unavailable."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K10 and body {store_id:\"StoreA\", items:[{sku_id:\"S1\", quantity:1}]}.",
+        "Capture the error payload and HTTP status.",
+        "Verify no order row was created."
+      ],
+      "expected": [
+        "POST /orders returns HTTP 409 with error code ITEM_UNAVAILABLE.",
+        "No order is created.",
+        "The error response includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Unavailable items cannot be snapshotted into an order."
+    },
+    {
+      "id": "TC-ORDER-011",
+      "title": "Create order rejects zero and non-integer quantities",
+      "preconditions": [
+        "Store A is eligible to accept orders.",
+        "SKU S1 is available."
+      ],
+      "steps": [
+        "Send POST /orders with Idempotency-Key K11A and quantity 0 for SKU S1.",
+        "Send POST /orders with Idempotency-Key K11B and quantity 1.5 for SKU S1.",
+        "Inspect both responses and verify storage."
+      ],
+      "expected": [
+        "Both requests return HTTP 400 with error code INVALID_QUANTITY.",
+        "No order is created for either invalid request.",
+        "Each error response includes request_id."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Quantity boundary and type validation."
+    },
+    {
+      "id": "TC-ORDER-012",
+      "title": "Get order detail returns contract fields and success envelope metadata",
+      "preconditions": [
+        "An order exists in status CREATED for user U12."
+      ],
+      "steps": [
+        "Call GET /orders/{order_id} as user U12.",
+        "Inspect response fields in data and meta.",
+        "Compare the body against the read-model contract."
+      ],
+      "expected": [
+        "GET /orders/{order_id} returns HTTP 200.",
+        "The response includes order_id, store_id, user_id, status, snapshot_items, totals, created_at, meta.request_id, and meta.server_time.",
+        "payment_status is null or absent until a payment attempt exists."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Read-model contract coverage."
+    },
+    {
+      "id": "TC-ORDER-013",
+      "title": "Get order detail is forbidden for a different user",
+      "preconditions": [
+        "Order O13 belongs to user U13A.",
+        "User U13B is authenticated but is not the order owner."
+      ],
+      "steps": [
+        "Call GET /orders/O13 as user U13B.",
+        "Capture the error response and HTTP status.",
+        "Inspect the body for leaked order content."
+      ],
+      "expected": [
+        "GET /orders/O13 returns HTTP 403.",
+        "The response does not expose snapshot_items, totals, or other order data.",
+        "The error payload includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Ownership enforcement."
+    },
+    {
+      "id": "TC-ORDER-014",
+      "title": "Create payment attempt successfully from a CREATED order",
+      "preconditions": [
+        "Order O14 exists in status CREATED.",
+        "PAYMENT_ENABLED is ON."
+      ],
+      "steps": [
+        "Send POST /orders/O14/payments with Idempotency-Key P14.",
+        "Capture payment_attempt_id, payment_status, expires_at, and order status from the response.",
+        "Call GET /orders/O14."
+      ],
+      "expected": [
+        "POST /orders/O14/payments returns HTTP 201 and creates a payment attempt with payment_status PENDING.",
+        "The order status changes from CREATED to PAYMENT_PENDING and expires_at is about 10 minutes after creation.",
+        "GET /orders/O14 returns HTTP 200 and shows latest payment_status PENDING with order status PAYMENT_PENDING."
+      ],
+      "priority": "P0",
+      "type": "smoke",
+      "tags": ["API", "Data"],
+      "notes": "Entry point to payment flow."
+    },
+    {
+      "id": "TC-ORDER-015",
+      "title": "Retry create payment with the same idempotency key returns the same attempt",
+      "preconditions": [
+        "Order O15 exists in status CREATED.",
+        "PAYMENT_ENABLED is ON."
+      ],
+      "steps": [
+        "Send POST /orders/O15/payments with Idempotency-Key P15.",
+        "Retry POST /orders/O15/payments with the same Idempotency-Key P15 and the same request body.",
+        "Inspect payment_attempt_id values and query payment attempts for O15."
+      ],
+      "expected": [
+        "Both responses resolve to the same payment_attempt_id.",
+        "Only one active PENDING payment attempt exists for O15.",
+        "The order remains in PAYMENT_PENDING."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Core payment retry safety."
+    },
+    {
+      "id": "TC-ORDER-016",
+      "title": "Create payment rejects idempotency replay mismatch",
+      "preconditions": [
+        "Order O16 exists in status CREATED."
+      ],
+      "steps": [
+        "Send POST /orders/O16/payments with Idempotency-Key P16 and payload A.",
+        "Replay POST /orders/O16/payments with the same Idempotency-Key P16 but modified payload B.",
+        "Inspect the second response and the stored payment attempt."
+      ],
+      "expected": [
+        "The second request returns HTTP 409 with error code IDEMPOTENCY_REPLAY_MISMATCH.",
+        "The original payment attempt remains the only attempt tied to key P16.",
+        "The order state is unchanged from the first successful call."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security", "Data"],
+      "notes": "High-risk payment idempotency mismatch."
+    },
+    {
+      "id": "TC-ORDER-017",
+      "title": "Create payment fails when Idempotency-Key header is missing",
+      "preconditions": [
+        "Order O17 exists in status CREATED."
+      ],
+      "steps": [
+        "Send POST /orders/O17/payments without Idempotency-Key.",
+        "Capture the error response and HTTP status.",
+        "Verify that no payment attempt was created."
+      ],
+      "expected": [
+        "POST /orders/O17/payments returns HTTP 400 with a validation error and request_id.",
+        "No payment attempt is created.",
+        "Order O17 remains in CREATED."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Idempotency key is required for payment creation."
+    },
+    {
+      "id": "TC-ORDER-018",
+      "title": "Create payment is blocked when payment is disabled",
+      "preconditions": [
+        "Order O18 exists in status CREATED.",
+        "Admin runtime control PAYMENT_ENABLED is OFF."
+      ],
+      "steps": [
+        "Send POST /orders/O18/payments with Idempotency-Key P18.",
+        "Capture the error response.",
+        "Verify no payment attempt exists for O18."
+      ],
+      "expected": [
+        "POST /orders/O18/payments returns HTTP 403 with error code PAYMENT_DISABLED.",
+        "No payment attempt is created.",
+        "Order O18 remains in CREATED."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security", "Admin"],
+      "notes": "Payment gate enforcement."
+    },
+    {
+      "id": "TC-ORDER-019",
+      "title": "Create payment is blocked for cancelled and already-paid orders",
+      "preconditions": [
+        "Order O19A exists in status CANCELLED.",
+        "Order O19B exists in status PAID with latest payment_status SUCCEEDED."
+      ],
+      "steps": [
+        "Send POST /orders/O19A/payments with Idempotency-Key P19A.",
+        "Send POST /orders/O19B/payments with Idempotency-Key P19B.",
+        "Inspect both responses and query payment attempts for O19A and O19B."
+      ],
+      "expected": [
+        "Both requests return HTTP 409 with ORDER_INVALID_STATE or PAYMENT_ALREADY_SUCCEEDED semantics.",
+        "No new payment attempt is created for either order.",
+        "Order O19A remains CANCELLED and order O19B remains PAID."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Invalid state protection for payment creation."
+    },
+    {
+      "id": "TC-ORDER-020",
+      "title": "Client timeout during payment creation is safe to retry",
+      "preconditions": [
+        "Order O20 exists in status CREATED.",
+        "PAYMENT_ENABLED is ON."
+      ],
+      "steps": [
+        "Send POST /orders/O20/payments with Idempotency-Key P20 and simulate a client-side timeout after the server receives the request.",
+        "Retry POST /orders/O20/payments with the same Idempotency-Key P20.",
+        "Inspect the returned payment_attempt_id and query payment attempts for O20."
+      ],
+      "expected": [
+        "The retry returns the original payment attempt instead of creating a second one.",
+        "Only one active payment attempt exists for O20.",
+        "The recovered order state is PAYMENT_PENDING."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Performance", "Data"],
+      "notes": "Timeout recovery without duplicate money movement."
+    },
+    {
+      "id": "TC-ORDER-021",
+      "title": "Order detail does not show paid state while payment is pending",
+      "preconditions": [
+        "Order O21 is in status PAYMENT_PENDING.",
+        "The latest payment attempt for O21 is in payment_status PENDING."
+      ],
+      "steps": [
+        "Call GET /orders/O21 during the pending window.",
+        "Inspect status, payment_status, paid_at, and any client-facing paid indicator fields.",
+        "Compare the returned values against the read-model rules."
+      ],
+      "expected": [
+        "GET /orders/O21 returns HTTP 200 with order status PAYMENT_PENDING and payment_status PENDING.",
+        "paid_at is null or absent.",
+        "The order is not represented as PAID anywhere in the read model."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "UI", "Web"],
+      "notes": "Prevents premature paid display."
+    },
+    {
+      "id": "TC-ORDER-022",
+      "title": "Payment timeout job does not expire an order before the 10-minute boundary",
+      "preconditions": [
+        "Order O22 is in PAYMENT_PENDING.",
+        "Its latest payment attempt was created 9 minutes 59 seconds ago."
+      ],
+      "steps": [
+        "Run the payment timeout job.",
+        "Call GET /orders/O22.",
+        "Inspect the latest payment attempt and notification records."
+      ],
+      "expected": [
+        "The job does not expire the order before the boundary.",
+        "Order O22 remains PAYMENT_PENDING and the latest payment attempt remains PENDING.",
+        "No ORDER_EXPIRED notification is emitted."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Boundary check before payment expiry."
+    },
+    {
+      "id": "TC-ORDER-023",
+      "title": "Payment timeout job expires a pending payment after 10 minutes",
+      "preconditions": [
+        "Order O23 is in PAYMENT_PENDING.",
+        "Its latest payment attempt is older than 10 minutes."
+      ],
+      "steps": [
+        "Run the payment timeout job.",
+        "Call GET /orders/O23.",
+        "Inspect payment records and emitted notifications."
+      ],
+      "expected": [
+        "The latest payment attempt becomes EXPIRED.",
+        "Order O23 moves to EXPIRED.",
+        "Exactly one ORDER_EXPIRED notification is emitted for O23."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Required 10-minute SLA expiry path."
+    },
+    {
+      "id": "TC-ORDER-024",
+      "title": "Stripe success webhook moves PAYMENT_PENDING order to PAID and keeps read models consistent",
+      "preconditions": [
+        "Order O24 is in PAYMENT_PENDING with one pending payment attempt.",
+        "A valid Stripe signature and success event can be produced for that attempt."
+      ],
+      "steps": [
+        "Send POST /webhooks/stripe with success event E24 for the payment attempt and a valid signature.",
+        "Capture the webhook response.",
+        "Call GET /orders/O24 and inspect the latest payment attempt record."
+      ],
+      "expected": [
+        "The webhook returns HTTP 200.",
+        "The latest payment_status becomes SUCCEEDED, the order status becomes PAID, and paid_at is populated.",
+        "Order totals remain unchanged from the original snapshot and payment and order read models show the same successful outcome."
+      ],
+      "priority": "P0",
+      "type": "smoke",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Core payment-success transition."
+    },
+    {
+      "id": "TC-ORDER-025",
+      "title": "Stripe failed webhook returns PAYMENT_PENDING order to CREATED and keeps read models consistent",
+      "preconditions": [
+        "Order O25 is in PAYMENT_PENDING with one pending payment attempt.",
+        "A valid Stripe signature and failed event can be produced for that attempt."
+      ],
+      "steps": [
+        "Send POST /webhooks/stripe with failed event E25 for the payment attempt and a valid signature.",
+        "Capture the webhook response.",
+        "Call GET /orders/O25 and inspect the latest payment attempt record."
+      ],
+      "expected": [
+        "The webhook returns HTTP 200.",
+        "The latest payment_status becomes FAILED and the order status becomes CREATED.",
+        "paid_at remains null or absent and payment and order read models show the same failed outcome."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Core payment-failure rollback."
+    },
+    {
+      "id": "TC-ORDER-026",
+      "title": "Second payment attempt is blocked after a payment already succeeded",
+      "preconditions": [
+        "Order O26 is already in status PAID.",
+        "The latest payment attempt for O26 has payment_status SUCCEEDED."
+      ],
+      "steps": [
+        "Send POST /orders/O26/payments with Idempotency-Key P26.",
+        "Capture the error response.",
+        "Query payment attempts for O26."
+      ],
+      "expected": [
+        "POST /orders/O26/payments returns HTTP 409 with PAYMENT_ALREADY_SUCCEEDED or ORDER_INVALID_STATE semantics.",
+        "No new payment attempt is created.",
+        "Exactly one successful payment remains linked to O26."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Security"],
+      "notes": "Money safety invariant."
+    },
+    {
+      "id": "TC-ORDER-027",
+      "title": "Stripe webhook rejects invalid signature",
+      "preconditions": [
+        "Order O27 is in PAYMENT_PENDING with a pending payment attempt."
+      ],
+      "steps": [
+        "Send POST /webhooks/stripe with a malformed or invalid signature header.",
+        "Capture the HTTP status and body.",
+        "Call GET /orders/O27 afterward."
+      ],
+      "expected": [
+        "The webhook returns HTTP 400.",
+        "Order O27 remains PAYMENT_PENDING.",
+        "The latest payment attempt remains PENDING and no side effects are emitted."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Required webhook signature verification."
+    },
+    {
+      "id": "TC-ORDER-028",
+      "title": "Webhook dedupe by event id is a no-op for success and failed events",
+      "preconditions": [
+        "Order O28A is in PAYMENT_PENDING and can receive valid success event E28A.",
+        "Order O28B is in PAYMENT_PENDING and can receive valid failed event E28B."
+      ],
+      "steps": [
+        "Send success event E28A twice to POST /webhooks/stripe for O28A.",
+        "Send failed event E28B twice to POST /webhooks/stripe for O28B.",
+        "Inspect order states, payment records, dedupe records, and emitted side effects."
+      ],
+      "expected": [
+        "All webhook deliveries return HTTP 200.",
+        "For each order, only the first delivery changes state and the second delivery with the same event id is a no-op.",
+        "No duplicate notification, audit, refund, or payment side effect is created for either repeated event id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Required webhook dedupe coverage."
+    },
+    {
+      "id": "TC-ORDER-029",
+      "title": "Failed webhook arriving after a success does not regress a paid order",
+      "preconditions": [
+        "Order O29 has already moved to PAID from a valid success webhook.",
+        "A later failed webhook for the same underlying payment attempt is available."
+      ],
+      "steps": [
+        "Confirm O29 is PAID after the valid success webhook.",
+        "Send the later failed webhook for the same payment attempt to POST /webhooks/stripe.",
+        "Inspect the final order state, payment state, and audit timeline."
+      ],
+      "expected": [
+        "The later webhook returns HTTP 200 but does not regress O29.",
+        "Order O29 remains PAID and no refund is created.",
+        "An audit record captures the ignored or reconciled out-of-order event."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Protects against out-of-order webhook state drift."
+    },
+    {
+      "id": "TC-ORDER-030",
+      "title": "Late success webhook for terminal orders triggers immediate full refund",
+      "preconditions": [
+        "Order O30A is terminal in CANCELLED with no prior successful payment recorded.",
+        "Order O30B is terminal in REJECTED with no prior successful payment recorded.",
+        "Order O30C is terminal in EXPIRED with no prior successful payment recorded."
+      ],
+      "steps": [
+        "Send valid late payment-success webhooks for O30A, O30B, and O30C to POST /webhooks/stripe.",
+        "Capture each webhook response.",
+        "Inspect order detail, payment records, refund records, audit entries, and alerting for all three orders."
+      ],
+      "expected": [
+        "Each webhook returns HTTP 200 and records the payment outcome as SUCCEEDED for traceability.",
+        "Each terminal order immediately starts one full refund flow and keeps exactly one refund record.",
+        "All three orders remain terminal, do not re-enter fulfillment, and generate audit and alert artifacts for the late-webhook incident."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Required late-webhook refund handling."
+    },
+    {
+      "id": "TC-ORDER-031",
+      "title": "Duplicate late success webhook does not create a second refund or second alert",
+      "preconditions": [
+        "Order O31 is terminal and has already processed one late success webhook.",
+        "The first late success webhook already started the refund flow for O31."
+      ],
+      "steps": [
+        "Replay the same late success webhook event id for O31.",
+        "Inspect refund records, audit entries, and alert sink for O31.",
+        "Confirm the terminal order state after the replay."
+      ],
+      "expected": [
+        "The replay returns HTTP 200 and is treated as a no-op.",
+        "Only one refund record remains associated with O31.",
+        "No duplicate alert or duplicate audit side effect is created for the repeated event id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Late-webhook dedupe on refund path."
+    },
+    {
+      "id": "TC-ORDER-032",
+      "title": "Burst duplicate success webhook deliveries keep a single financial outcome",
+      "preconditions": [
+        "Order O32 is in PAYMENT_PENDING with one pending payment attempt."
+      ],
+      "steps": [
+        "Fire 20 concurrent copies of the same valid success event id at POST /webhooks/stripe for O32.",
+        "Wait for processing to settle.",
+        "Inspect order status, payment records, refund records, notifications, and dedupe data."
+      ],
+      "expected": [
+        "Order O32 ends in PAID exactly once.",
+        "There is one successful payment outcome and no refund is created.",
+        "Only one ORDER_PAID-style terminal payment notification is emitted."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Performance", "Observability"],
+      "notes": "Concurrency on webhook dedupe path."
+    },
+    {
+      "id": "TC-ORDER-033",
+      "title": "Merchant advances a paid order through the full fulfillment lifecycle",
+      "preconditions": [
+        "Order O33 exists in status PAID.",
+        "Merchant M33 belongs to the same store as O33."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O33/accept.",
+        "Send POST /merchant/orders/O33/status with next_status PREPARING, then READY, then COMPLETED.",
+        "Fetch the final order detail and audit timeline."
+      ],
+      "expected": [
+        "Each merchant action returns HTTP 200.",
+        "The order transitions in order from PAID to ACCEPTED to PREPARING to READY to COMPLETED.",
+        "The audit timeline records each forward state transition exactly once."
+      ],
+      "priority": "P0",
+      "type": "smoke",
+      "tags": ["API", "Data"],
+      "notes": "Primary fulfillment happy path."
+    },
+    {
+      "id": "TC-ORDER-034",
+      "title": "Merchant rejects a paid order with reason and refund is triggered",
+      "preconditions": [
+        "Order O34 exists in status PAID.",
+        "Merchant M34 belongs to the same store as O34."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O34/reject with body {reason_code:\"OUT_OF_STOCK\", note:\"optional\"}.",
+        "Capture the response and order status.",
+        "Inspect refund records and the audit timeline."
+      ],
+      "expected": [
+        "POST /merchant/orders/O34/reject returns HTTP 200 and order status REJECTED.",
+        "A refund workflow starts and exactly one refund record exists for O34.",
+        "The audit timeline captures the reject reason and actor."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Paid-order reject path."
+    },
+    {
+      "id": "TC-ORDER-035",
+      "title": "Merchant reject fails when reason_code is missing",
+      "preconditions": [
+        "Order O35 exists in status PAID.",
+        "Merchant M35 belongs to the same store as O35."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O35/reject without reason_code.",
+        "Capture the error response.",
+        "Inspect order detail and refund records after the call."
+      ],
+      "expected": [
+        "POST /merchant/orders/O35/reject returns HTTP 400 with error code REJECT_REASON_REQUIRED.",
+        "Order O35 remains PAID.",
+        "No refund record is created."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Required-field validation."
+    },
+    {
+      "id": "TC-ORDER-036",
+      "title": "Merchant cannot accept or reject an order that is not paid",
+      "preconditions": [
+        "Order O36 exists in status CREATED.",
+        "Merchant M36 belongs to the same store as O36."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O36/accept.",
+        "Send POST /merchant/orders/O36/reject with a valid reason_code.",
+        "Inspect order detail, refund records, and audit entries."
+      ],
+      "expected": [
+        "Both merchant calls return HTTP 409 with ORDER_NOT_PAID or ORDER_INVALID_STATE semantics.",
+        "Order O36 remains CREATED after both requests.",
+        "No refund record and no merchant terminal action are created."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Invalid merchant transition guard."
+    },
+    {
+      "id": "TC-ORDER-037",
+      "title": "Invalid fulfillment status transitions are rejected",
+      "preconditions": [
+        "Order O37A is in ACCEPTED.",
+        "Order O37B is in READY.",
+        "Order O37C is in PAID.",
+        "Order O37D is in COMPLETED."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O37A/status with next_status READY and then COMPLETED.",
+        "Send POST /merchant/orders/O37B/status with next_status PREPARING, and send POST /merchant/orders/O37C/status with next_status PREPARING.",
+        "Send POST /merchant/orders/O37D/status with any next_status and inspect all affected orders."
+      ],
+      "expected": [
+        "Each invalid transition returns HTTP 409 with STATUS_SEQUENCE_INVALID or ORDER_INVALID_STATE semantics.",
+        "All orders remain in their original statuses.",
+        "No invalid transition is recorded in the audit timeline."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Required invalid-state coverage for fulfillment flow."
+    },
+    {
+      "id": "TC-ORDER-038",
+      "title": "Merchant from another store is forbidden from updating order status",
+      "preconditions": [
+        "Order O38 belongs to Store A and is in ACCEPTED.",
+        "Merchant M38 is authenticated but belongs to Store B."
+      ],
+      "steps": [
+        "Send POST /merchant/orders/O38/status with next_status PREPARING as merchant M38.",
+        "Capture the error response.",
+        "Inspect order detail and audit records."
+      ],
+      "expected": [
+        "The request returns HTTP 403 with error code STORE_SCOPE_FORBIDDEN.",
+        "Order O38 remains ACCEPTED.",
+        "No audit transition is created for the forbidden action."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Store-scope authorization."
+    },
+    {
+      "id": "TC-ORDER-039",
+      "title": "User cancels a paid but not yet accepted order successfully",
+      "preconditions": [
+        "Order O39 exists in status PAID.",
+        "No merchant acceptance has happened for O39."
+      ],
+      "steps": [
+        "Send POST /orders/O39/cancel with Idempotency-Key C39.",
+        "Capture the response and order status.",
+        "Inspect refund records and the audit timeline."
+      ],
+      "expected": [
+        "POST /orders/O39/cancel returns HTTP 200 and the order status becomes CANCELLED.",
+        "A refund workflow starts and exactly one refund record exists for O39.",
+        "The audit timeline records the user cancellation."
+      ],
+      "priority": "P1",
+      "type": "smoke",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Primary user-cancel refund path."
+    },
+    {
+      "id": "TC-ORDER-040",
+      "title": "User cannot cancel orders in CREATED or ACCEPTED",
+      "preconditions": [
+        "Order O40A exists in status CREATED.",
+        "Order O40B exists in status ACCEPTED."
+      ],
+      "steps": [
+        "Send POST /orders/O40A/cancel.",
+        "Send POST /orders/O40B/cancel.",
+        "Inspect both responses, final order states, and refund records."
+      ],
+      "expected": [
+        "Both requests return HTTP 409 with error code ORDER_INVALID_STATE.",
+        "Order O40A remains CREATED and order O40B remains ACCEPTED.",
+        "No refund record is created for either order."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Invalid state coverage for user cancellation."
+    },
+    {
+      "id": "TC-ORDER-041",
+      "title": "Retry user cancel does not create a duplicate refund",
+      "preconditions": [
+        "Order O41 exists in status PAID and has not been accepted."
+      ],
+      "steps": [
+        "Send POST /orders/O41/cancel once and confirm cancellation has started.",
+        "Retry POST /orders/O41/cancel for the same order.",
+        "Inspect order detail, refund records, and emitted side effects."
+      ],
+      "expected": [
+        "Order O41 remains CANCELLED after the retry.",
+        "Only one refund record exists for O41.",
+        "The retry does not create a second refund or duplicate cancellation side effect."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Cancel idempotency by order."
+    },
+    {
+      "id": "TC-ORDER-042",
+      "title": "Retry merchant reject does not create a second refund record",
+      "preconditions": [
+        "Order O42 was already rejected once and has one refund record."
+      ],
+      "steps": [
+        "Replay POST /merchant/orders/O42/reject with a valid reason_code.",
+        "Inspect the response, order detail, and refund records.",
+        "Check notification and audit counts."
+      ],
+      "expected": [
+        "Order O42 stays REJECTED.",
+        "Refund count remains one.",
+        "The retry does not start a second refund workflow or create duplicate terminal side effects."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Reject-path refund idempotency."
+    },
+    {
+      "id": "TC-ORDER-043",
+      "title": "Cancel request after refund already succeeded is rejected",
+      "preconditions": [
+        "Order O43 is already CANCELLED with refund_status SUCCEEDED."
+      ],
+      "steps": [
+        "Send POST /orders/O43/cancel again.",
+        "Capture the error response.",
+        "Inspect refund records and the final order state."
+      ],
+      "expected": [
+        "The request returns HTTP 409 with REFUND_ALREADY_DONE or equivalent terminal-refund semantics.",
+        "Refund count remains one.",
+        "Order O43 remains CANCELLED."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data"],
+      "notes": "Prevents duplicate refunding after completion."
+    },
+    {
+      "id": "TC-ORDER-044",
+      "title": "SLA job auto-cancels a paid order after more than 15 minutes without acceptance",
+      "preconditions": [
+        "Order O44 is in status PAID.",
+        "paid_at is older than 15 minutes and the order has not been accepted."
+      ],
+      "steps": [
+        "Run the merchant SLA auto-action job.",
+        "Call GET /orders/O44 or inspect the admin detail read model.",
+        "Inspect refund records, audit entries, and notifications."
+      ],
+      "expected": [
+        "Order O44 becomes CANCELLED automatically.",
+        "A full refund flow is triggered exactly once.",
+        "Audit shows a system actor and SLA timeout reason for the auto-cancel."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Required 15-minute auto-cancel and refund path."
+    },
+    {
+      "id": "TC-ORDER-045",
+      "title": "SLA job does not auto-cancel before the 15-minute boundary",
+      "preconditions": [
+        "Order O45 is in status PAID.",
+        "paid_at is 14 minutes 59 seconds ago and the order is still unaccepted."
+      ],
+      "steps": [
+        "Run the merchant SLA auto-action job.",
+        "Fetch order detail for O45.",
+        "Inspect refund and notification records."
+      ],
+      "expected": [
+        "Order O45 remains PAID.",
+        "No refund record is created.",
+        "No ORDER_CANCELLED event is emitted."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Boundary check before SLA cancel."
+    },
+    {
+      "id": "TC-ORDER-046",
+      "title": "Scheduler jobs skip orders already ACCEPTED or CANCELLED",
+      "preconditions": [
+        "Order O46A was paid earlier and is now ACCEPTED before the SLA job runs.",
+        "Order O46B is already CANCELLED before timeout or SLA sweeps run."
+      ],
+      "steps": [
+        "Run the merchant SLA auto-action job and the payment timeout job.",
+        "Fetch final order detail for O46A and O46B.",
+        "Inspect refund records and audit timelines for both orders."
+      ],
+      "expected": [
+        "Order O46A remains ACCEPTED and order O46B remains CANCELLED.",
+        "No new refund is started for either order.",
+        "Scheduler jobs do not add conflicting terminal actions."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Prevents scheduler race regressions."
+    },
+    {
+      "id": "TC-ORDER-047",
+      "title": "Refund failure is reflected on the order and audited",
+      "preconditions": [
+        "Order O47 can enter a refund-required path such as merchant reject or user cancel.",
+        "The downstream refund provider is configured to fail."
+      ],
+      "steps": [
+        "Trigger the refund-required action for O47.",
+        "Wait for refund processing to finish with failure.",
+        "Inspect order detail, refund record, and audit timeline."
+      ],
+      "expected": [
+        "refund_status becomes FAILED.",
+        "Exactly one refund record exists with failed outcome details.",
+        "The audit timeline records the refund failure."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Data", "Observability"],
+      "notes": "Refund-failure handling."
+    },
+    {
+      "id": "TC-ORDER-048",
+      "title": "Refund notifications emit requested and exactly one terminal outcome without duplication",
+      "preconditions": [
+        "Notification sink and dedupe tracking are observable.",
+        "Refund scenarios can be triggered in both success and failure modes."
+      ],
+      "steps": [
+        "Trigger one refund-required path that completes successfully.",
+        "Trigger a separate refund-required path that ends in refund failure.",
+        "Inspect emitted notifications and dedupe keys for both orders."
+      ],
+      "expected": [
+        "REFUND_REQUESTED is emitted when each refund starts.",
+        "Exactly one terminal refund notification is emitted per order: REFUND_SUCCEEDED or REFUND_FAILED.",
+        "Duplicate notifications are suppressible by a stable dedupe_key."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Observability", "Mobile"],
+      "notes": "Refund notification model coverage."
+    },
+    {
+      "id": "TC-ORDER-049",
+      "title": "Admin order list applies combined filters correctly",
+      "preconditions": [
+        "Admin user A49 is authenticated.",
+        "Seed data includes orders across multiple stores, statuses, payment states, refund states, and keywords."
+      ],
+      "steps": [
+        "Call GET /admin/orders with date range, store_id, status, payment_status, refund_status, and keyword q.",
+        "Inspect the returned rows and pagination metadata.",
+        "Cross-check included and excluded orders against the filter criteria."
+      ],
+      "expected": [
+        "GET /admin/orders returns HTTP 200.",
+        "Only orders matching every supplied filter are returned.",
+        "Returned rows include at least order_id or code, store_id, status, total_amount, created_at, paid_at, and refund_status."
+      ],
+      "priority": "P2",
+      "type": "regression",
+      "tags": ["API", "Web", "Data"],
+      "notes": "Admin list filter correctness."
+    },
+    {
+      "id": "TC-ORDER-050",
+      "title": "Admin order detail shows snapshot items, payment attempts, refund record, and audit timeline",
+      "preconditions": [
+        "Admin user A50 is authenticated.",
+        "Order O50 has snapshot_items, at least one payment attempt, and a refund record."
+      ],
+      "steps": [
+        "Call GET /admin/orders/O50.",
+        "Inspect the response body sections.",
+        "Compare the response with the underlying order, payment, refund, and audit records."
+      ],
+      "expected": [
+        "GET /admin/orders/O50 returns HTTP 200.",
+        "Admin detail includes snapshot items, totals, payment attempts, refund record, and complete audit timeline.",
+        "The returned data matches the underlying records."
+      ],
+      "priority": "P2",
+      "type": "regression",
+      "tags": ["API", "Web", "Observability"],
+      "notes": "Admin detail completeness."
+    },
+    {
+      "id": "TC-ORDER-051",
+      "title": "Non-admin user cannot access admin order list or admin order detail",
+      "preconditions": [
+        "User U51 is authenticated without admin privileges.",
+        "Order O51 exists."
+      ],
+      "steps": [
+        "Call GET /admin/orders as U51.",
+        "Call GET /admin/orders/O51 as U51.",
+        "Inspect both responses for leaked data."
+      ],
+      "expected": [
+        "Both requests return HTTP 403.",
+        "No admin list data, snapshot data, refund data, or audit data is exposed.",
+        "Each error payload includes request_id."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Security"],
+      "notes": "Admin permission enforcement."
+    },
+    {
+      "id": "TC-ORDER-052",
+      "title": "Admin runtime control changes are audited and take effect immediately",
+      "preconditions": [
+        "Admin user A52 is authenticated and can update runtime controls.",
+        "Store A is otherwise eligible to accept orders.",
+        "User U52A is intended to be whitelisted and user U52B is intended to be non-whitelisted."
+      ],
+      "steps": [
+        "Send POST /admin/flags to set ORDERING_ENABLED to OFF, then attempt POST /orders as U52A for Store A with Idempotency-Key K52A.",
+        "Send POST /admin/flags to set ORDERING_ENABLED to ON and PAYMENT_ENABLED to OFF, then send POST /admin/whitelist to enable whitelist mode for Store A and U52A only.",
+        "Create an order as U52A, attempt POST /orders/{order_id}/payments with Idempotency-Key P52A, attempt POST /orders as U52B with Idempotency-Key K52B, and inspect the audit log for all control changes."
+      ],
+      "expected": [
+        "All admin control updates return HTTP 200 and are written to audit with actor, timestamp, old value, and new value.",
+        "The create-order attempt while ORDERING_ENABLED is OFF returns HTTP 403 with ORDERING_DISABLED.",
+        "After the updates, whitelisted U52A can create an order, payment creation returns HTTP 403 with PAYMENT_DISABLED, and non-whitelisted U52B is rejected with HTTP 403 and WHITELIST_REQUIRED."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Admin", "Security", "Observability"],
+      "notes": "Combines auditability and immediate-effect checks for runtime controls."
+    },
+    {
+      "id": "TC-ORDER-053",
+      "title": "Merchant new-order notification is emitted only when the order becomes PAID",
+      "preconditions": [
+        "Notification sink is observable for merchant push events.",
+        "Order O53 can be created and moved through payment end to end."
+      ],
+      "steps": [
+        "Create order O53 and inspect the notification sink while the order is in CREATED.",
+        "Create a payment attempt for O53 and inspect the notification sink while the order is in PAYMENT_PENDING.",
+        "Send a valid success webhook for O53 and inspect the notification sink again."
+      ],
+      "expected": [
+        "No merchant new-order notification is emitted while O53 is in CREATED or PAYMENT_PENDING.",
+        "Exactly one merchant new-order notification is emitted when O53 becomes PAID.",
+        "The notification references the correct order_id and a stable dedupe key."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Observability", "Mobile"],
+      "notes": "Notification timing rule."
+    },
+    {
+      "id": "TC-ORDER-054",
+      "title": "Duplicate success webhook does not emit duplicate ORDER_PAID notification",
+      "preconditions": [
+        "Order O54 is in PAYMENT_PENDING.",
+        "Notification sink records ORDER_PAID events with dedupe_key."
+      ],
+      "steps": [
+        "Send one valid payment-success webhook for O54 and confirm the order becomes PAID.",
+        "Replay the same webhook event id for O54.",
+        "Inspect ORDER_PAID notifications in the sink."
+      ],
+      "expected": [
+        "Only one ORDER_PAID notification exists for O54.",
+        "The replayed webhook does not create a second notification.",
+        "The notification dedupe_key remains stable for client-side deduplication."
+      ],
+      "priority": "P1",
+      "type": "regression",
+      "tags": ["API", "Observability", "Mobile"],
+      "notes": "Notification dedupe on webhook replay."
+    },
+    {
+      "id": "TC-ORDER-055",
+      "title": "Concurrent create-order retries collapse to one order",
+      "preconditions": [
+        "Store A is eligible to accept orders and SKU S1 is available.",
+        "The client can issue concurrent requests with the same idempotency key."
+      ],
+      "steps": [
+        "Fire 10 concurrent POST /orders requests with the same Idempotency-Key K55 and identical payload.",
+        "Wait for all responses.",
+        "Query orders by idempotency key K55 and inspect returned order_ids."
+      ],
+      "expected": [
+        "All successful responses reference the same order_id.",
+        "Only one order row is created for K55.",
+        "Snapshot items and totals remain correct."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Performance", "Data"],
+      "notes": "High-contention create-order idempotency."
+    },
+    {
+      "id": "TC-ORDER-056",
+      "title": "Concurrent create-payment retries collapse to one payment attempt",
+      "preconditions": [
+        "Order O56 exists in status CREATED.",
+        "The client can issue concurrent payment-init requests with the same idempotency key."
+      ],
+      "steps": [
+        "Fire 10 concurrent POST /orders/O56/payments requests with the same Idempotency-Key P56.",
+        "Wait for all responses.",
+        "Inspect payment attempts and order detail for O56."
+      ],
+      "expected": [
+        "All successful responses reference the same payment_attempt_id.",
+        "Only one payment attempt is created for O56.",
+        "Order O56 ends in PAYMENT_PENDING with one active latest payment."
+      ],
+      "priority": "P0",
+      "type": "regression",
+      "tags": ["API", "Performance", "Data"],
+      "notes": "High-contention payment idempotency."
+    }
+  ]
+}
