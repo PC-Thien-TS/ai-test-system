@@ -45,6 +45,10 @@ DOMAIN_MODES = {
         "mode": "legacy_static",
         "kb_enabled": False,
     },
+    "didaunao_release_audit": {
+        "mode": "kb_context",
+        "kb_enabled": True,
+    },
     "store_verify": {
         "mode": "kb_context",
         "kb_enabled": True,
@@ -251,6 +255,130 @@ DOMAIN_STEPS = {
         StepSpec(
             number=6,
             prompt_template="domains/store_verify/prompts/06_release_checklist.md",
+            prompt_file="step_06_prompt.txt",
+            output_file="06_release_checklist.md",
+            output_format="Markdown",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "06"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "06"},
+                "STATE_MACHINE_JSON": {
+                    "type": "run_output",
+                    "path": "01_state_machine.json",
+                    "producer_step": "01",
+                },
+                "REGRESSION_JSON": {
+                    "type": "run_output",
+                    "path": "05_regression_suite.json",
+                    "producer_step": "05",
+                },
+                "TESTCASES_REFINED_JSON": {
+                    "type": "run_output",
+                    "path": "04_testcases_refined.json",
+                    "producer_step": "04",
+                },
+            },
+        ),
+    ],
+    "didaunao_release_audit": [
+        StepSpec(
+            number=1,
+            prompt_template="domains/didaunao_release_audit/prompts/01_extract_state_machine.md",
+            prompt_file="step_01_prompt.txt",
+            output_file="01_state_machine.json",
+            output_format="JSON",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "01"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "01"},
+                "API_CONTRACT_DOC": {
+                    "type": "static",
+                    "path": "domains/didaunao_release_audit/design/api_contract.md",
+                },
+                "RULES_DOC": {
+                    "type": "static",
+                    "path": "domains/didaunao_release_audit/design/rules.md",
+                },
+            },
+        ),
+        StepSpec(
+            number=2,
+            prompt_template="domains/didaunao_release_audit/prompts/02_build_rule_matrix.md",
+            prompt_file="step_02_prompt.txt",
+            output_file="02_rule_matrix.json",
+            output_format="JSON",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "02"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "02"},
+                "STATE_MACHINE_JSON": {
+                    "type": "run_output",
+                    "path": "01_state_machine.json",
+                    "producer_step": "01",
+                },
+            },
+        ),
+        StepSpec(
+            number=3,
+            prompt_template="domains/didaunao_release_audit/prompts/03_generate_testcases.md",
+            prompt_file="step_03_prompt.txt",
+            output_file="03_testcases_raw.json",
+            output_format="JSON",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "03"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "03"},
+                "STATE_MACHINE_JSON": {
+                    "type": "run_output",
+                    "path": "01_state_machine.json",
+                    "producer_step": "01",
+                },
+                "RULE_MATRIX_JSON": {
+                    "type": "run_output",
+                    "path": "02_rule_matrix.json",
+                    "producer_step": "02",
+                },
+                "API_CONTRACT_DOC": {
+                    "type": "static",
+                    "path": "domains/didaunao_release_audit/design/api_contract.md",
+                },
+                "RULES_DOC": {
+                    "type": "static",
+                    "path": "domains/didaunao_release_audit/design/rules.md",
+                },
+            },
+        ),
+        StepSpec(
+            number=4,
+            prompt_template="domains/didaunao_release_audit/prompts/04_review_refine.md",
+            prompt_file="step_04_prompt.txt",
+            output_file="04_testcases_refined.json",
+            output_format="JSON",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "04"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "04"},
+                "TESTCASES_JSON": {
+                    "type": "run_output",
+                    "path": "03_testcases_raw.json",
+                    "producer_step": "03",
+                },
+            },
+        ),
+        StepSpec(
+            number=5,
+            prompt_template="domains/didaunao_release_audit/prompts/05_build_regression.md",
+            prompt_file="step_05_prompt.txt",
+            output_file="05_regression_suite.json",
+            output_format="JSON",
+            replacements={
+                "KB_CONTEXT_PATH": {"type": "kb_context_path", "step": "05"},
+                "KB_CONTEXT": {"type": "kb_context", "step": "05"},
+                "TESTCASES_REFINED_JSON": {
+                    "type": "run_output",
+                    "path": "04_testcases_refined.json",
+                    "producer_step": "04",
+                },
+            },
+        ),
+        StepSpec(
+            number=6,
+            prompt_template="domains/didaunao_release_audit/prompts/06_release_checklist.md",
             prompt_file="step_06_prompt.txt",
             output_file="06_release_checklist.md",
             output_format="Markdown",
