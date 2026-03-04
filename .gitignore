@@ -1,4 +1,10 @@
-__pycache__/
-*.py[cod]
+# python venv
+.venv/
+
+# KB input docs (keep README.md / .gitkeep)
+requirements/**/**/*.docx
+requirements/**/**/*.pdf
+requirements/**/**/*.pptx
+
+# outputs
 outputs/
-kb/index/
