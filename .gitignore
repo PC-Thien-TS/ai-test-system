@@ -8,3 +8,10 @@ requirements/**/**/*.pptx
 
 # outputs
 outputs/
+
+# python cache
+__pycache__/
+*.pyc
+
+# KB built index artifacts (generated)
+kb/index/
