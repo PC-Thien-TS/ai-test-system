@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Order Test Case Suite",
+  "title": "Domain Test Case Suite",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -46,7 +46,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^TC-ORDER-[0-9]{3}$"
+            "pattern": "^TC-[A-Z0-9-]+-[0-9]{3}$"
           },
           "title": {
             "type": "string",

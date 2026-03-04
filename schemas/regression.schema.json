@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Order Regression Suite",
+  "title": "Domain Regression Suite",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,7 +27,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^TC-ORDER-[0-9]{3}$"
+        "pattern": "^TC-[A-Z0-9-]+-[0-9]{3}$"
       }
     },
     "notes": {

@@ -10,7 +10,8 @@ from typing import Any, Iterable, List
 
 
 PLACEHOLDER_MARKER = "MANUAL OUTPUT PLACEHOLDER"
-TESTCASE_ID_PATTERN = re.compile(r"^TC-ORDER-[0-9]{3}$")
+PENDING_INPUT_PREFIX = "[PENDING INPUT:"
+GENERIC_TESTCASE_ID_PATTERN = re.compile(r"^TC-[A-Z0-9-]+-[0-9]{3}$")
 PRIORITIES = {"P0", "P1", "P2", "P3"}
 TEST_TYPES = {"smoke", "regression"}
 ROOT_KEYS = {"feature", "testcases"}
@@ -36,9 +37,17 @@ class ValidationIssue:
     message: str
 
 
+@dataclass(frozen=True)
+class ValidationContext:
+    run_dir: Path
+    domain: str
+    testcase_prefix: str
+    allow_incomplete: bool | None
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate manual Order pipeline outputs.")
-    parser.add_argument("run_dir", help="Path to outputs/order/<run_id>")
+    parser = argparse.ArgumentParser(description="Validate manual pipeline outputs.")
+    parser.add_argument("run_dir", help="Path to outputs/<domain>/<run_id>")
     return parser.parse_args()
 
 
@@ -57,7 +66,6 @@ def main() -> int:
         if not schema_path.exists():
             print(f"[FAIL] Missing schema file: {schema_path}")
             return 1
-
         try:
             json.loads(schema_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
@@ -67,25 +75,29 @@ def main() -> int:
             )
             return 1
 
+    ctx = build_context(run_dir)
+    placeholder_ok = validate_prompt_placeholders(ctx)
     raw_ok, _ = validate_file(
         "03_testcases_raw.json",
         run_dir / "03_testcases_raw.json",
         validator_name="test_case",
+        ctx=ctx,
     )
     refined_ok, refined_data = validate_file(
         "04_testcases_refined.json",
         run_dir / "04_testcases_refined.json",
         validator_name="test_case",
+        ctx=ctx,
     )
     regression_ok, _ = validate_file(
         "05_regression_suite.json",
         run_dir / "05_regression_suite.json",
         validator_name="regression",
+        ctx=ctx,
         refined_suite=refined_data,
     )
 
-    all_ok = raw_ok and refined_ok and regression_ok
-
+    all_ok = placeholder_ok and raw_ok and refined_ok and regression_ok
     if all_ok:
         print(
             f"[OK] Outputs in {run_dir} match schemas/test_case.schema.json "
@@ -95,11 +107,59 @@ def main() -> int:
     return 1
 
 
+def build_context(run_dir: Path) -> ValidationContext:
+    meta_path = run_dir / "run_meta.json"
+    allow_incomplete: bool | None = None
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            meta = {}
+        domain = str(meta.get("domain") or run_dir.parent.name)
+        if "allow_incomplete" in meta:
+            allow_incomplete = bool(meta.get("allow_incomplete"))
+    else:
+        domain = run_dir.parent.name
+    return ValidationContext(
+        run_dir=run_dir,
+        domain=domain,
+        testcase_prefix=f"TC-{domain.upper().replace('_', '-')}-",
+        allow_incomplete=allow_incomplete,
+    )
+
+
+def validate_prompt_placeholders(ctx: ValidationContext) -> bool:
+    if ctx.allow_incomplete is not False:
+        return True
+
+    pending_files = []
+    for step in range(1, 7):
+        prompt_path = ctx.run_dir / f"step_{step:02d}_prompt.txt"
+        if prompt_path.exists() and contains_pending_marker(prompt_path):
+            pending_files.append(prompt_path.name)
+        kb_path = ctx.run_dir / f"kb_context_step{step:02d}.txt"
+        if kb_path.exists() and contains_pending_marker(kb_path):
+            pending_files.append(kb_path.name)
+
+    if not pending_files:
+        return True
+
+    print("[FAIL] prompt_context")
+    print("  - Pending-input markers are present even though allow_incomplete=false.")
+    print(f"  - Affected files: {', '.join(pending_files)}")
+    return False
+
+
+def contains_pending_marker(path: Path) -> bool:
+    return path.read_text(encoding="utf-8", errors="replace").lstrip().startswith(PENDING_INPUT_PREFIX)
+
+
 def validate_file(
     label: str,
     path: Path,
     *,
     validator_name: str,
+    ctx: ValidationContext,
     refined_suite: Any | None = None,
 ) -> tuple[bool, Any | None]:
     if not path.exists():
@@ -119,16 +179,13 @@ def validate_file(
         data = json.loads(payload_text)
     except json.JSONDecodeError as exc:
         print(f"[FAIL] {label}")
-        print(
-            "  - Invalid JSON at "
-            f"line {exc.lineno}, column {exc.colno}: {exc.msg}"
-        )
+        print(f"  - Invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}")
         return False, None
 
     if validator_name == "test_case":
-        issues = validate_testcase_suite(data)
+        issues = validate_testcase_suite(data, ctx)
     elif validator_name == "regression":
-        issues = validate_regression_suite(data, refined_suite)
+        issues = validate_regression_suite(data, refined_suite, ctx)
     else:
         raise ValueError(f"Unknown validator_name: {validator_name}")
 
@@ -142,14 +199,12 @@ def validate_file(
     return True, data
 
 
-def validate_testcase_suite(data: Any) -> List[ValidationIssue]:
+def validate_testcase_suite(data: Any, ctx: ValidationContext) -> List[ValidationIssue]:
     issues: List[ValidationIssue] = []
-
     if not isinstance(data, dict):
         return [ValidationIssue("$", "Expected a JSON object at the root.")]
 
     check_required_and_extra_keys(data, ROOT_KEYS, "$", issues)
-
     feature = data.get("feature")
     if feature is None:
         issues.append(ValidationIssue("$.feature", "Missing required field."))
@@ -177,16 +232,22 @@ def validate_testcase_suite(data: Any) -> List[ValidationIssue]:
         if not isinstance(testcase, dict):
             issues.append(ValidationIssue(case_path, "Expected an object."))
             continue
-
         check_required_and_extra_keys(testcase, TESTCASE_KEYS, case_path, issues)
         testcase_id = testcase.get("id")
         check_non_empty_string(testcase_id, f"{case_path}.id", issues)
         if isinstance(testcase_id, str):
-            if not TESTCASE_ID_PATTERN.match(testcase_id):
+            if not GENERIC_TESTCASE_ID_PATTERN.match(testcase_id):
                 issues.append(
                     ValidationIssue(
                         f"{case_path}.id",
-                        "Expected format TC-ORDER-001.",
+                        "Expected format TC-<DOMAIN>-001.",
+                    )
+                )
+            elif not testcase_id.startswith(ctx.testcase_prefix):
+                issues.append(
+                    ValidationIssue(
+                        f"{case_path}.id",
+                        f"Expected prefix {ctx.testcase_prefix} for domain '{ctx.domain}'.",
                     )
                 )
             elif testcase_id in seen_ids:
@@ -195,44 +256,12 @@ def validate_testcase_suite(data: Any) -> List[ValidationIssue]:
                 seen_ids.add(testcase_id)
 
         check_non_empty_string(testcase.get("title"), f"{case_path}.title", issues)
-        check_string_array(
-            testcase.get("preconditions"),
-            f"{case_path}.preconditions",
-            issues,
-            min_items=0,
-        )
-        check_string_array(
-            testcase.get("steps"),
-            f"{case_path}.steps",
-            issues,
-            min_items=3,
-            max_items=8,
-        )
-        check_string_array(
-            testcase.get("expected"),
-            f"{case_path}.expected",
-            issues,
-            min_items=1,
-            max_items=4,
-        )
-        check_enum(
-            testcase.get("priority"),
-            f"{case_path}.priority",
-            PRIORITIES,
-            issues,
-        )
-        check_enum(
-            testcase.get("type"),
-            f"{case_path}.type",
-            TEST_TYPES,
-            issues,
-        )
-        check_string_array(
-            testcase.get("tags"),
-            f"{case_path}.tags",
-            issues,
-            min_items=1,
-        )
+        check_string_array(testcase.get("preconditions"), f"{case_path}.preconditions", issues, min_items=0)
+        check_string_array(testcase.get("steps"), f"{case_path}.steps", issues, min_items=3, max_items=8)
+        check_string_array(testcase.get("expected"), f"{case_path}.expected", issues, min_items=1, max_items=4)
+        check_enum(testcase.get("priority"), f"{case_path}.priority", PRIORITIES, issues)
+        check_enum(testcase.get("type"), f"{case_path}.type", TEST_TYPES, issues)
+        check_string_array(testcase.get("tags"), f"{case_path}.tags", issues, min_items=1)
         notes = testcase.get("notes")
         if notes is None:
             issues.append(ValidationIssue(f"{case_path}.notes", "Missing required field."))
@@ -242,14 +271,16 @@ def validate_testcase_suite(data: Any) -> List[ValidationIssue]:
     return issues
 
 
-def validate_regression_suite(data: Any, refined_suite: Any | None) -> List[ValidationIssue]:
+def validate_regression_suite(
+    data: Any,
+    refined_suite: Any | None,
+    ctx: ValidationContext,
+) -> List[ValidationIssue]:
     issues: List[ValidationIssue] = []
-
     if not isinstance(data, dict):
         return [ValidationIssue("$", "Expected a JSON object at the root.")]
 
     check_required_and_extra_keys(data, REGRESSION_ROOT_KEYS, "$", issues)
-
     feature = data.get("feature")
     if feature is None:
         issues.append(ValidationIssue("$.feature", "Missing required field."))
@@ -274,8 +305,13 @@ def validate_regression_suite(data: Any, refined_suite: Any | None) -> List[Vali
             if not isinstance(testcase_id, str):
                 issues.append(ValidationIssue(path, "Expected a string."))
                 continue
-            if not TESTCASE_ID_PATTERN.match(testcase_id):
-                issues.append(ValidationIssue(path, "Expected format TC-ORDER-001."))
+            if not GENERIC_TESTCASE_ID_PATTERN.match(testcase_id):
+                issues.append(ValidationIssue(path, "Expected format TC-<DOMAIN>-001."))
+                continue
+            if not testcase_id.startswith(ctx.testcase_prefix):
+                issues.append(
+                    ValidationIssue(path, f"Expected prefix {ctx.testcase_prefix} for domain '{ctx.domain}'.")
+                )
                 continue
             if testcase_id in seen_ids:
                 issues.append(ValidationIssue(path, "Duplicate testcase id."))
@@ -311,7 +347,6 @@ def validate_regression_suite(data: Any, refined_suite: Any | None) -> List[Vali
         for case in refined_cases
         if isinstance(case, dict) and case.get("priority") == "P0" and isinstance(case.get("id"), str)
     }
-
     unknown_ids = [testcase_id for testcase_id in selected_ids if testcase_id not in refined_ids]
     if unknown_ids:
         issues.append(
@@ -333,9 +368,7 @@ def validate_regression_suite(data: Any, refined_suite: Any | None) -> List[Vali
     total_tests = len(refined_cases)
     selected_count = len(selected_ids)
     if total_tests == 0:
-        issues.append(
-            ValidationIssue("$.regression_ids", "04_testcases_refined.json contains zero testcases.")
-        )
+        issues.append(ValidationIssue("$.regression_ids", "04_testcases_refined.json contains zero testcases."))
         return issues
 
     ratio = selected_count / total_tests
@@ -351,7 +384,7 @@ def validate_regression_suite(data: Any, refined_suite: Any | None) -> List[Vali
         issues.append(
             ValidationIssue(
                 "$.regression_ids",
-                f"Regression suite selects {selected_count}/{total_tests} tests ({ratio:.1%}), above the 40% maximum without a P0-only override.",
+                f"Regression suite selects {selected_count}/{total_tests} tests ({ratio:.1%}), above the 40% maximum without a P0 override.",
             )
         )
     if p0_ratio > 0.40 and isinstance(notes, str):
@@ -407,8 +440,7 @@ def check_enum(
         issues.append(ValidationIssue(path, "Expected a string."))
         return
     if value not in allowed_values:
-        allowed = ", ".join(sorted(allowed_values))
-        issues.append(ValidationIssue(path, f"Expected one of: {allowed}."))
+        issues.append(ValidationIssue(path, f"Expected one of: {', '.join(sorted(allowed_values))}."))
 
 
 def check_string_array(
@@ -439,7 +471,6 @@ def strip_fenced_block(text: str) -> str:
     normalized = text.lstrip("\ufeff").strip()
     if not normalized.startswith("```"):
         return normalized
-
     lines = normalized.splitlines()
     if len(lines) >= 2 and lines[-1].strip() == "```":
         return "\n".join(lines[1:-1]).strip()
