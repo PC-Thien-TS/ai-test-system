@@ -9,6 +9,35 @@ defaults:
   max_pack_chars: 8000
 
 domains:
+  didaunao_release_audit:
+    top_k_per_step:
+      "01": 8
+      "02": 8
+      "03": 8
+      "04": 6
+      "05": 6
+      "06": 8
+    step_queries:
+      "01":
+        - "release audit stages self inspection lifecycle go no-go precheck qa security observability rollback"
+        - "mandatory release gates UX UI commercial pass performance crash ANR security API SLA monitoring"
+        - "unknown ambiguous release criteria exception handling didaunao"
+      "02":
+        - "allowed disallowed release transitions gate criteria owner responsibility rollback readiness"
+        - "release audit blocking conditions severity thresholds crash ANR p95 SLA security OWASP"
+      "03":
+        - "UX UI commercial pass performance metrics crash ANR security OWASP API p95 SLA monitoring observability rollback data quality search relevance"
+        - "mandatory pre-release validation alerts dashboards audit logs rollback rehearsal data correctness release audit"
+        - "negative cases threshold breach missing evidence failed monitoring crash rate ANR p95 regression"
+      "04":
+        - "high risk release audit gaps false pass missing evidence threshold breach rollback unavailable observability blind spots"
+        - "security performance crash ANR data quality search relevance release readiness edge cases"
+      "05":
+        - "release audit regression smoke mandatory gates critical go no-go checks rollback monitoring security performance"
+        - "P0 release blockers crash ANR API SLA observability data quality search relevance"
+      "06":
+        - "release checklist go no-go mandatory checks rollback monitoring dashboards alerts incident response"
+        - "optimization plan performance security observability data quality search relevance release audit"
   store_verify:
     top_k_per_step:
       "01": 8
