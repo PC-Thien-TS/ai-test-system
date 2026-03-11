@@ -1,0 +1,55 @@
+Testcase ID,Layer,Script Path,Artifact Path,Notes
+API-01,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Valid login.
+API-02,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Authorized account info.
+API-03,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Wrong-password negative.
+API-04,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Search posts.
+API-05,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Search suggestions.
+API-06,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Create search history.
+API-07,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,List search histories.
+API-08,API Smoke,scripts/run_api_smoke.ps1,artifacts/test-results/api/api_smoke.summary.json,Delete search histories.
+AUTH-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Login success.
+AUTH-005,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Get-info with token.
+AUTH-008,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Logout when feasible.
+SEA-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Search keyword.
+SEA-007,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Create history valid.
+SEA-009,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Delete histories valid.
+STO-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Store root.
+STO-006,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Store verify.
+STO-009,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.failed.json,Confirmed store invalid-id defect.
+STO-011,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.failed.json,Confirmed store invalid-uniqueId defect.
+STO-012,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.failed.json,Confirmed store collections defect.
+ORG-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Organization list.
+ORG-005,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Organization paged.
+NOTI-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Notification list.
+POSTS-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Posts list.
+NEWS-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,News list.
+CATADM-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Admin-only category list.
+DASH-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Admin-only dashboard metric.
+MEMBER-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Admin-only member list.
+STCATADM-001,API Regression,scripts/run_api_regression.ps1,artifacts/test-results/api-regression/api_regression.summary.json,Admin-only store-category selection.
+AUTH-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Login success UI check.
+AUTH-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Login failure UI check.
+AUTH-UI-003,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Logout if exposed.
+SEARCH-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Search route and keyword query.
+SEARCH-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Suggestions/history if exposed.
+STORE-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Open store list.
+STORE-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Open inferable store detail.
+POSTS-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Posts/newsfeed route.
+NEWS-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,News list route.
+NEWS-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Inferable news detail.
+ORG-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Organization/profile/info route.
+NOTI-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,artifacts/test-results/ui-smoke/ui_smoke.summary.json,Notification route render.
+ADMIN-E2E-001,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Login success with preflight gate.
+ADMIN-E2E-002,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Dashboard load.
+ADMIN-E2E-004,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Open organization page.
+ADMIN-E2E-005,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Organization interaction.
+ADMIN-E2E-006,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Open notification page.
+ADMIN-E2E-007,UI E2E,scripts/run_ui_e2e.ps1,artifacts/test-results/ui-e2e/ui_e2e.summary.json,Logout.
+FE-AUTH-LOGIN-FORM,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/login/login-form/login-form.test.tsx,artifacts/test-results/frontend/frontend_tests.junit.xml,Login form render validation and submit payload.
+FE-AUTH-UTIL,FE Unit,C:/Projects/Rankmate/rankmate_fe/src/services/functions/auth.function.test.ts,artifacts/test-results/frontend/frontend_tests.junit.xml,Token storage and logout cleanup helpers.
+FE-AUTH-API,FE Unit,C:/Projects/Rankmate/rankmate_fe/src/services/apis/auth.api.test.ts,artifacts/test-results/frontend/frontend_tests.junit.xml,401 and 500 client behavior.
+FE-DASHBOARD-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/dashboard/dashboard.test.tsx,artifacts/test-results/frontend/frontend_tests.junit.xml,Dashboard render/loading/empty/error states.
+FE-ORG-FILTER-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/settings/organization/organization-filter/organization-filter.test.tsx,artifacts/test-results/frontend/frontend_tests.junit.xml,Filter/search UI interactions.
+FE-ORG-TABLE-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/settings/organization/organization-table/organization-table.interactions.test.tsx,artifacts/test-results/frontend/frontend_tests.junit.xml,Table sort/paging interactions.
+FE-NOTI-TABLE-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/notification-template-admin/notification-template-table/notification-template-table.interactions.test.tsx,artifacts/test-results/frontend/frontend_tests.junit.xml,Admin notification table interactions.
+FE-ADMIN-ROUTE-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/pages/admin/admin.route-matrix.test.ts,artifacts/test-results/frontend/frontend_tests.junit.xml,Protected admin route matrix.

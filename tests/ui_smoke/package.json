@@ -1,0 +1,12 @@
+{
+  "name": "ui-smoke-suite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright UI smoke tests for ai_test_system",
+  "scripts": {
+    "smoke": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}

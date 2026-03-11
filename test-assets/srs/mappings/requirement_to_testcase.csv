@@ -1,0 +1,66 @@
+Requirement ID,Module,Testcase ID,Layer,Script or Asset,Status,Notes
+REQ-AUTH-001,auth,API-01,API Smoke,scripts/run_api_smoke.ps1,Covered,Valid login request.
+REQ-AUTH-001,auth,API-02,API Smoke,scripts/run_api_smoke.ps1,Covered,Authorized get-info using login token.
+REQ-AUTH-001,auth,AUTH-001,API Regression,scripts/run_api_regression.ps1,Covered,Primary login regression case.
+REQ-AUTH-001,auth,AUTH-005,API Regression,scripts/run_api_regression.ps1,Covered,Get-info with valid token.
+REQ-AUTH-001,auth,AUTH-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Covered,Login success UI check.
+REQ-AUTH-001,auth,ADMIN-E2E-001,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Blocked when admin login page preflight fails.
+REQ-AUTH-001,auth,FE-AUTH-LOGIN-FORM,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/login/login-form/login-form.test.tsx,Covered,Form rendering and submit payload coverage.
+REQ-AUTH-001,auth,FE-AUTH-UTIL,FE Unit,C:/Projects/Rankmate/rankmate_fe/src/services/functions/auth.function.test.ts,Covered,Token/session storage utilities.
+REQ-AUTH-002,auth,API-03,API Smoke,scripts/run_api_smoke.ps1,Covered,Wrong-password login negative.
+REQ-AUTH-002,auth,AUTH-002,API Regression,scripts/run_api_regression.ps1,Covered,Wrong-password login negative.
+REQ-AUTH-002,auth,AUTH-003,API Regression,scripts/run_api_regression.ps1,Covered,Missing email validation.
+REQ-AUTH-002,auth,AUTH-004,API Regression,scripts/run_api_regression.ps1,Covered,Missing password validation.
+REQ-AUTH-002,auth,AUTH-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,Covered,Login failure UI check.
+REQ-AUTH-002,auth,FE-AUTH-API,FE Unit,C:/Projects/Rankmate/rankmate_fe/src/services/apis/auth.api.test.ts,Covered,401 and 500 client behavior coverage.
+REQ-AUTH-003,auth,AUTH-008,API Regression,scripts/run_api_regression.ps1,Partial,Logout only when feasible from live contract.
+REQ-AUTH-003,auth,AUTH-UI-003,UI Smoke,scripts/run_ui_smoke.ps1,Partial,Logout if exposed.
+REQ-AUTH-003,auth,ADMIN-E2E-007,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Depends on successful admin login route.
+REQ-ACCOUNT-001,account,API-02,API Smoke,scripts/run_api_smoke.ps1,Partial,Current account read path only.
+REQ-ORG-001,organization,ORG-001,API Regression,scripts/run_api_regression.ps1,Covered,Organization list path.
+REQ-ORG-001,organization,ORG-002,API Regression,scripts/run_api_regression.ps1,Covered,Organization get-info path.
+REQ-ORG-001,organization,ORG-006,API Regression,scripts/run_api_regression.ps1,Partial,Valid detail depends on seed inference.
+REQ-ORG-001,organization,ORG-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Covered,Organization page route check.
+REQ-ORG-001,organization,ADMIN-E2E-004,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Blocked when admin login page preflight fails.
+REQ-ORG-001,organization,FE-ORG-TABLE-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/settings/organization/organization-table/organization-table.test.tsx,Covered,Organization table rendering coverage.
+REQ-ORG-002,organization,ORG-004,API Regression,scripts/run_api_regression.ps1,Covered,Pagination selection.
+REQ-ORG-002,organization,ORG-005,API Regression,scripts/run_api_regression.ps1,Covered,Paged organization query.
+REQ-ORG-002,organization,ADMIN-E2E-005,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Blocked when admin login page preflight fails.
+REQ-ORG-002,organization,FE-ORG-FILTER-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/settings/organization/organization-filter/organization-filter.test.tsx,Covered,Search/filter interaction coverage.
+REQ-NOTI-001,notification,NOTI-001,API Regression,scripts/run_api_regression.ps1,Partial,Notification list.
+REQ-NOTI-001,notification,NOTI-002,API Regression,scripts/run_api_regression.ps1,Partial,Unread count.
+REQ-NOTI-001,notification,NOTI-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Partial,Notification route render check.
+REQ-NOTI-001,notification,ADMIN-E2E-006,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Blocked when admin login page preflight fails.
+REQ-NOTI-001,notification,FE-NOTI-TABLE-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/notification-template-admin/notification-template-table/notification-template-table.test.tsx,Partial,Admin notification surface only.
+REQ-POSTS-001,posts,POSTS-001,API Regression,scripts/run_api_regression.ps1,Partial,Posts list.
+REQ-POSTS-001,posts,POSTS-005,API Regression,scripts/run_api_regression.ps1,Partial,Posts recommend.
+REQ-POSTS-001,posts,POSTS-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Partial,Posts/newsfeed UI route.
+REQ-NEWS-001,news,NEWS-001,API Regression,scripts/run_api_regression.ps1,Partial,News list.
+REQ-NEWS-001,news,NEWS-003,API Regression,scripts/run_api_regression.ps1,Partial,Valid slug depends on seed inference.
+REQ-NEWS-001,news,NEWS-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Partial,News list route.
+REQ-DASH-001,dashboard,DASH-001,API Regression,scripts/run_api_regression.ps1,Partial,Admin-only metric endpoint.
+REQ-DASH-001,dashboard,ADMIN-E2E-002,UI E2E,scripts/run_ui_e2e.ps1,Blocked,Blocked when admin login page preflight fails.
+REQ-DASH-001,dashboard,FE-DASHBOARD-001,FE Component,C:/Projects/Rankmate/rankmate_fe/src/components/dashboard/dashboard.test.tsx,Covered,Dashboard render/loading/empty/error states.
+REQ-STORE-001,store,STO-001,API Regression,scripts/run_api_regression.ps1,Covered,Store root.
+REQ-STORE-001,store,STO-002,API Regression,scripts/run_api_regression.ps1,Covered,Store list.
+REQ-STORE-001,store,STO-008,API Regression,scripts/run_api_regression.ps1,Partial,Valid detail depends on seed id.
+REQ-STORE-001,store,STORE-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Covered,Store list UI route.
+REQ-STORE-001,store,STORE-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,Partial,Detail depends on inferable UI link.
+REQ-STORE-002,store,STO-006,API Regression,scripts/run_api_regression.ps1,Partial,Store verify list.
+REQ-STORE-002,store,STO-007,API Regression,scripts/run_api_regression.ps1,Partial,Store verify detail behavior capture.
+REQ-STORE-003,store,STO-009,API Regression,scripts/run_api_regression.ps1,Blocked,Confirmed backend bug.
+REQ-STORE-003,store,STO-011,API Regression,scripts/run_api_regression.ps1,Blocked,Confirmed backend bug.
+REQ-STORE-003,store,STO-012,API Regression,scripts/run_api_regression.ps1,Blocked,Confirmed backend bug.
+REQ-SEA-001,searches,API-04,API Smoke,scripts/run_api_smoke.ps1,Covered,Search posts with keyword.
+REQ-SEA-001,searches,API-05,API Smoke,scripts/run_api_smoke.ps1,Covered,Search suggestions.
+REQ-SEA-001,searches,SEA-001,API Regression,scripts/run_api_regression.ps1,Covered,Keyword search.
+REQ-SEA-001,searches,SEA-003,API Regression,scripts/run_api_regression.ps1,Covered,Suggestions.
+REQ-SEA-001,searches,SEA-011,API Regression,scripts/run_api_regression.ps1,Covered,Filters.
+REQ-SEA-001,searches,SEARCH-UI-001,UI Smoke,scripts/run_ui_smoke.ps1,Covered,Search page and query.
+REQ-SEA-001,searches,SEARCH-UI-002,UI Smoke,scripts/run_ui_smoke.ps1,Partial,Suggestions/history only if exposed.
+REQ-SEA-002,searches,API-06,API Smoke,scripts/run_api_smoke.ps1,Covered,Create history.
+REQ-SEA-002,searches,API-07,API Smoke,scripts/run_api_smoke.ps1,Covered,List histories.
+REQ-SEA-002,searches,API-08,API Smoke,scripts/run_api_smoke.ps1,Covered,Delete histories.
+REQ-SEA-002,searches,SEA-006,API Regression,scripts/run_api_regression.ps1,Covered,Histories with token.
+REQ-SEA-002,searches,SEA-007,API Regression,scripts/run_api_regression.ps1,Covered,Create history valid.
+REQ-SEA-002,searches,SEA-009,API Regression,scripts/run_api_regression.ps1,Covered,Delete histories valid delete-all.

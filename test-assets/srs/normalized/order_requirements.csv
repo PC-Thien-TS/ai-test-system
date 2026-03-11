@@ -1,0 +1,12 @@
+requirement_id,module,requirement_title,requirement_text,priority,source_file,source_section
+ORDER-REQ-001,ordering,Create order with valid payload,System creates an order when store/menu/item preconditions are satisfied and payload includes required fields (`storeId`, `items[].skuId`).,P0,docs/api/order_api_inventory.md,Create Order Contract
+ORDER-REQ-002,ordering,Create order media-type handling,System rejects unsupported media type for create-order request with controlled error response.,P1,docs/api/order_api_inventory.md,Observed Blocker
+ORDER-REQ-003,ordering,Create order validation,System rejects create-order requests missing required fields with validation-level non-2xx response.,P1,docs/api/order_api_inventory.md,Create Order Contract
+ORDER-REQ-004,ordering,Customer order detail,System returns order detail for valid order id accessible to caller role.,P0,docs/api/order_api_inventory.md,Endpoint Inventory
+MORD-REQ-003,merchant_orders,Merchant accept order,Merchant can trigger accept transition for eligible order state and authorized role.,P0,docs/api/order_api_inventory.md,Endpoint Inventory
+MORD-REQ-004,merchant_orders,Merchant reject order,Merchant can trigger reject transition for eligible order state and authorized role.,P0,docs/api/order_api_inventory.md,Endpoint Inventory
+MORD-REQ-005,merchant_orders,Merchant mark-arrived order,Merchant can mark an accepted order as arrived when lifecycle state prerequisites are met.,P0,docs/api/order_api_inventory.md,Endpoint Inventory
+MORD-REQ-006,merchant_orders,Merchant complete order,Merchant can complete an arrived order when lifecycle state prerequisites are met.,P0,docs/api/order_api_inventory.md,Endpoint Inventory
+AORD-REQ-001,admin_orders,Admin order listing,Admin can list orders with optional filters and paging.,P1,docs/api/order_api_inventory.md,Endpoint Inventory
+AORD-REQ-002,admin_orders,Admin order detail,Admin can open order detail by id.,P1,docs/api/order_api_inventory.md,Endpoint Inventory
+PAY-REQ-001,payments,Payment methods retrieval,System returns payment methods relevant to order flow.,P1,docs/api/order_api_inventory.md,Endpoint Inventory

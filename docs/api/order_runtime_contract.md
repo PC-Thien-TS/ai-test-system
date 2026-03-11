@@ -36,6 +36,16 @@ This document captures the executable runtime contract proven by live regression
 ## Merchant and Admin Constraints (Current Environment)
 - Merchant lifecycle follow-up (`accept`, `reject`, `mark-arrived`, `complete`) currently returns `400 FORBIDDEN_SCOPE` for tested order context.
 - Admin order list/detail endpoints remain role-blocked (`401`) with non-admin account.
+- Store ownership/management relation is not yet proven for current merchant-capable account against store `9768`.
+
+## Merchant Lifecycle Preconditions (Happy Path)
+- Merchant account must be authorized to operate the order's store (scope/ownership).
+- Order must appear in merchant order list for that account/store context.
+- Transition state must be valid:
+  - `accept`: order is pending/awaiting merchant action.
+  - `reject`: order is pending/awaiting merchant action.
+  - `mark-arrived`: order has already progressed through accepted/prepared state.
+  - `complete`: order is in arrived/fulfillable completion state.
 
 ## Evidence References
 - `artifacts/test-results/api-regression/api_regression.summary.json`

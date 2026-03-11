@@ -1,0 +1,187 @@
+{
+  "suite": "order_smoke_v1",
+  "description": "Initial safe smoke definitions for Order module.",
+  "groups": [
+    {
+      "module": "payments",
+      "cases": [
+        {
+          "id": "PAY-001",
+          "method": "GET",
+          "path": "/api/v1/payments/methods",
+          "priority": "P0",
+          "status": "integrated_v1"
+        }
+      ]
+    },
+    {
+      "module": "admin-orders",
+      "cases": [
+        {
+          "id": "AORD-001",
+          "method": "GET",
+          "path": "/api/v1/admin/orders",
+          "priority": "P0",
+          "status": "integrated_v1"
+        },
+        {
+          "id": "AORD-002",
+          "method": "GET",
+          "path": "/api/v1/admin/orders/{id}",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "AORD-003",
+          "method": "GET",
+          "path": "/api/v1/admin/orders",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "AORD-004",
+          "method": "GET",
+          "path": "/api/v1/admin/orders/{id}",
+          "priority": "P2",
+          "status": "pending_v2"
+        }
+      ]
+    },
+    {
+      "module": "merchant-orders",
+      "cases": [
+        {
+          "id": "MORD-001",
+          "method": "GET",
+          "path": "/api/v1/merchant/orders",
+          "priority": "P0",
+          "status": "integrated_v1"
+        },
+        {
+          "id": "MORD-002",
+          "method": "GET",
+          "path": "/api/v1/merchant/orders/{id}",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "MORD-003",
+          "method": "POST",
+          "path": "/api/v1/merchant/orders/{id}/accept",
+          "priority": "P0",
+          "status": "integrated_v1"
+        },
+        {
+          "id": "MORD-004",
+          "method": "POST",
+          "path": "/api/v1/merchant/orders/{id}/reject",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "MORD-005",
+          "method": "POST",
+          "path": "/api/v1/merchant/orders/{id}/mark-arrived",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "MORD-006",
+          "method": "POST",
+          "path": "/api/v1/merchant/orders/{id}/complete",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "MORD-007",
+          "method": "GET",
+          "path": "/api/v1/merchant/orders",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "MORD-008",
+          "method": "GET",
+          "path": "/api/v1/merchant/orders/{id}",
+          "priority": "P2",
+          "status": "pending_v2"
+        }
+      ]
+    },
+    {
+      "module": "orders",
+      "cases": [
+        {
+          "id": "ORD-001",
+          "method": "POST",
+          "path": "/api/v1/orders",
+          "priority": "P0",
+          "status": "integrated_v1"
+        },
+        {
+          "id": "ORD-002",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/payments",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-003",
+          "method": "GET",
+          "path": "/api/v1/orders/{id}",
+          "priority": "P0",
+          "status": "integrated_v1"
+        },
+        {
+          "id": "ORD-004",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/addons",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-005",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/disputes",
+          "priority": "P1",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-006",
+          "method": "GET",
+          "path": "/api/v1/orders/{id}",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-007",
+          "method": "POST",
+          "path": "/api/v1/orders",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-008",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/payments",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-009",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/addons",
+          "priority": "P2",
+          "status": "pending_v2"
+        },
+        {
+          "id": "ORD-010",
+          "method": "POST",
+          "path": "/api/v1/orders/{id}/disputes",
+          "priority": "P2",
+          "status": "pending_v2"
+        }
+      ]
+    }
+  ]
+}

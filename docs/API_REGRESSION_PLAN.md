@@ -56,12 +56,13 @@ Provide deterministic regression coverage (deeper than smoke) for core business 
 ## Assumptions
 - Required env vars: `API_BASE_URL`, `API_USER`, `API_PASS`
 - Optional: `API_PREFIX` (default `/api/v1`), `API_TIMEOUT_SEC` (default `30`)
+- Optional merchant override for lifecycle checks: `API_MERCHANT_USER`, `API_MERCHANT_PASS`
 - Token is obtained once from login and reused.
 - If token cannot be obtained, token-required cases are marked `SKIPPED`.
 
 ## Seed Inference Approach
 - Infer IDs/slugs from prior successful list/paged responses:
-  - `store`: infer `id` and `uniqueId` from `/store`, `/store/list`, `/store/paged`
+  - `store`: infer `id` from `/store`, `/store/list`, `/store/paged`; infer `uniqueId` only from exact keys (`uniqueId`, `storeUniqueId`, `unique_id`) to avoid name/title false positives
   - `posts`: infer `id` from `/posts` or `/posts/ids`
   - `news`: infer `slug` from `/news`
   - `organization`: infer `id` from `/organization/list`, `/organization/get-info`, `/organization/paged`
@@ -69,12 +70,16 @@ Provide deterministic regression coverage (deeper than smoke) for core business 
   - `member`: infer `id` from list/pagination-selection responses
   - `store-category admin`: infer `id` and `parentId` from selection responses
 - If no safe seed value is inferable, testcase is `SKIPPED` with explicit reason.
+- Current live note for `NEWS-003`: `/news` can return `200` with empty paged data (`data.data=[]`), so detail slug seed is unavailable and case remains intentionally `SKIPPED`.
 - Improved auto-seed targets:
   - post id (`POSTS-*` detail cases)
   - news slug (`NEWS-*` detail cases)
   - category-admin id (`CATADM-*` detail cases)
   - store-category admin parentId (`STCATADM-*` children cases)
   - order id and store id (`AORD-*`, `MORD-*`, `ORD-*`, `POL-*`)
+  - posts/news seed hardening:
+    - primitive array values are now accepted by seed inference (e.g. numeric `ids` arrays)
+    - news slug fallback patterns include `slug`, `newsSlug`, `urlSlug`, `seoSlug`, `alias`, `path`
 
 ## Not-Found Negative Policy
 - For known invalid-id/invalid-slug negative testcases, non-5xx responses are treated as acceptable contract behavior.
@@ -118,6 +123,13 @@ Provide deterministic regression coverage (deeper than smoke) for core business 
   - Latest manual follow-up for orderId `2` returned `400 FORBIDDEN_SCOPE` on `accept`/`reject`/`mark-arrived`/`complete`; classify as scope/ownership precondition blocking, not framework defect.
 - Admin coverage:
   - `AORD-API-001` (list) and `AORD-API-002` (detail) remain role-gated and are `SKIPPED` without admin-capable account.
+- Admin-account observation:
+  - `ORD-003` and `ORD-API-004` can return `400 FORBIDDEN_SCOPE` when account scope does not own/cover the target order id; classify as scope/account mismatch, not backend defect.
+- Merchant lifecycle success preconditions (`accept`, `reject`, `mark-arrived`, `complete`):
+  - current auth token must belong to merchant account that owns/manages the order's store
+  - target order must be visible in merchant scope (not only customer scope)
+  - order must be in the exact lifecycle state required by each transition
+  - when these are not met, current environment returns `400 FORBIDDEN_SCOPE`
 - Legacy `ORD-001` is superseded by `ORD-API-001` and intentionally registered as `SKIPPED` to avoid duplicate/misleading contract signals.
 - Role-sensitive behavior:
   - admin endpoints -> `SKIPPED` on `401/403` with explicit reason
@@ -138,6 +150,17 @@ PowerShell:
 $env:API_BASE_URL="http://192.168.1.7:19066"
 $env:API_USER="your_email@example.com"
 $env:API_PASS="your_password"
+.\scripts\run_api_regression.ps1
+```
+
+Merchant lifecycle with dedicated merchant account:
+
+```powershell
+$env:API_BASE_URL="http://192.168.1.7:19066"
+$env:API_USER="customer_or_general_account@example.com"
+$env:API_PASS="***"
+$env:API_MERCHANT_USER="merchant_account@example.com"
+$env:API_MERCHANT_PASS="***"
 .\scripts\run_api_regression.ps1
 ```
 

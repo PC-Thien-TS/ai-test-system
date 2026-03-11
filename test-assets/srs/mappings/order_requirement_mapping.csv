@@ -1,0 +1,12 @@
+requirement_id,testcase_id,test_type,automation_status,notes
+ORDER-REQ-001,ORD-API-001,api_regression,automated,Skips when store/sku seeds are unavailable.
+ORDER-REQ-002,ORD-API-002,api_regression,automated,Covers explicit unsupported media type path.
+ORDER-REQ-003,ORD-API-003,api_regression,automated,Uses missing required field payload (`items` omitted).
+ORDER-REQ-004,ORD-API-004,api_regression,automated,Requires seeded order id from create/list.
+MORD-REQ-003,MORD-API-001,api_regression,automated,Role-sensitive; skips on unauthorized merchant role.
+MORD-REQ-004,MORD-API-002,api_regression,automated,Role-sensitive; skips on unauthorized merchant role.
+MORD-REQ-005,MORD-API-003,api_regression,partial,Executes only after successful accept transition (status=200 prerequisite).
+MORD-REQ-006,MORD-API-004,api_regression,partial,Executes only after successful accept transition (status=200 prerequisite).
+AORD-REQ-001,AORD-API-001,api_regression,automated,Role-sensitive; skips on unauthorized admin role.
+AORD-REQ-002,AORD-API-002,api_regression,partial,Role-sensitive; skips on unauthorized admin role.
+PAY-REQ-001,PAY-001,api_regression,automated,Existing regression case already active.

@@ -550,20 +550,32 @@ class ManualDomainRunner:
     def write_kb_context_files(self) -> None:
         if not self.kb_enabled:
             return
+        reusable_steps = {
+            step.number: self.read_text(self.kb_context_path(step.number))
+            for step in self.steps
+            if self.kb_context_path(step.number).exists()
+            and self.read_text(self.kb_context_path(step.number)).strip()
+            and not self.is_pending(self.read_text(self.kb_context_path(step.number)))
+        }
+        missing_steps = [step for step in self.steps if step.number not in reusable_steps]
+
+        if not missing_steps:
+            return
+
         if not self.kb_index_ready():
             if not self.allow_incomplete:
                 raise RuntimeError(
                     "KB index is missing for this domain. "
                     f"Run 'python kb/build_kb.py --domain {self.domain}' first, or rerun with --allow-incomplete."
                 )
-            for step in self.steps:
+            for step in missing_steps:
                 self.kb_context_path(step.number).write_text(
                     self.pending_kb_message(),
                     encoding="utf-8",
                 )
             return
 
-        for step in self.steps:
+        for step in missing_steps:
             try:
                 content = generate_prompt_pack(self.domain, f"{step.number:02d}")
             except Exception as exc:
