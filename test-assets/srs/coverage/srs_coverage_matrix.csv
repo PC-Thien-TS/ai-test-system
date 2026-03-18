@@ -1,0 +1,17 @@
+RequirementID,Module,RequirementTitle,Priority,TestLayer,TestCaseIDs,AutomationStatus,Notes
+STORE-REQ-004,store,Store verification required before ordering,P0,API+UI,STO-006|STO-007|STORE-UI-001,Partial,Use verified store evidence before order scenarios.
+MENU-REQ-002,menu_service,At least one orderable menu/service item exists,P0,API,ORD-TBD-CATALOG-001,Planned,Catalog endpoints and payload standards to be confirmed in SRS import.
+ORDER-REQ-001,ordering,Create order with valid preconditions,P0,API,ORD-001,Planned,Legacy case superseded by ORD-API-001 contract-driven automation.
+MORD-REQ-003,merchant_orders,Merchant accepts eligible order,P0,API,MORD-003,Planned,Legacy case superseded by MORD-API-001 regression registration.
+AORD-REQ-001,admin_orders,Admin can view order list,P1,API,AORD-001,Planned,Legacy case superseded by AORD-API-001 regression registration.
+ORDER-REQ-001,ordering,Create order with valid payload,P0,API,ORD-API-001,Automated,Latest live regression evidence shows PASS (200) with enforced runtime contract (json content-type + idempotency-key + quantity>=1).
+ORDER-REQ-002,ordering,Create order unsupported media handling,P1,API,ORD-API-002,Automated,Stable negative contract check for 415 with explicit content-type mismatch.
+ORDER-REQ-003,ordering,Create order required field validation,P1,API,ORD-API-003,Automated,Stable negative validation check with idempotency header present.
+ORDER-REQ-004,ordering,Get order detail,P0,API,ORD-API-004,Automated,Latest regression evidence shows PASS (200) with reusable order id.
+MORD-REQ-003,merchant_orders,Merchant accept eligible order,P0,API,MORD-API-001,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; blocked by merchant scope/ownership and lifecycle state prerequisites.
+MORD-REQ-004,merchant_orders,Merchant reject eligible order,P0,API,MORD-API-002,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; blocked by merchant scope/ownership and lifecycle state prerequisites.
+MORD-REQ-005,merchant_orders,Merchant mark-arrived eligible order,P0,API,MORD-API-003,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; transition remains blocked by merchant scope/ownership and prior state prerequisites.
+MORD-REQ-006,merchant_orders,Merchant complete eligible order,P0,API,MORD-API-004,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; transition remains blocked by merchant scope/ownership and prior state prerequisites.
+AORD-REQ-001,admin_orders,Admin list orders,P1,API,AORD-API-001,Partial,Blocked by role access in current environment (401 unauthorized for non-admin account).
+AORD-REQ-002,admin_orders,Admin order detail by id,P1,API,AORD-API-002,Partial,Blocked by role access in current environment (401 unauthorized for non-admin account).
+PAY-REQ-001,payments,Retrieve payment methods for ordering,P1,API,PAY-001,Partial,Automated and implemented; promote to Automated after repeated stable runs in current environment.

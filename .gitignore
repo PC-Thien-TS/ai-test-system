@@ -1,17 +1,62 @@
-# python venv
+# ----------------------
+# Python
+# ----------------------
 .venv/
+__pycache__/
+*.pyc
 
-# KB input docs (keep README.md / .gitkeep)
+# ----------------------
+# Requirements KB input docs
+# ----------------------
 requirements/**/**/*.docx
 requirements/**/**/*.pdf
 requirements/**/**/*.pptx
 
-# outputs
+# ----------------------
+# Generated KB artifacts
+# ----------------------
+kb/index/
+requirements/**/code_facts/*.md
+
+# ----------------------
+# Test artifacts
+# ----------------------
+artifacts/*
+!artifacts/**/.gitkeep
+
+*.log
+*.latest.log
+*.summary.json
+
+# Playwright
+playwright-report/
+test-output/
+
+# ----------------------
+# Outputs
+# ----------------------
 outputs/
 
-# python cache
-__pycache__/
-*.pyc
+# ----------------------
+# Local configs
+# ----------------------
+evidence_sources.yaml
+.env
+danhsach.txt
 
-# KB built index artifacts (generated)
-kb/index/
+# ----------------------
+# Node
+# ----------------------
+node_modules/
+
+# ----------------------
+# Temp files
+# ----------------------
+*.tmp
+*.cache
+
+# local tools
+tools_fix_*.py
+
+# node
+package-lock.json

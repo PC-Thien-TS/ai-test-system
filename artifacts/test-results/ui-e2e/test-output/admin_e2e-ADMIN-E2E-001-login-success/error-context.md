@@ -1,0 +1,54 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4] [cursor=pointer]:
+      - img [ref=e6]
+      - img [ref=e7]
+    - main [ref=e9]
+  - alert [ref=e10]
+  - generic [ref=e11]:
+    - dialog:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - img "RateMate" [ref=e17]
+          - heading "Welcome back" [level=4] [ref=e18]
+        - generic [ref=e21]:
+          - button "Tiếp tục sử dụng dịch vụ bằng GoogleMở trong thẻ mới" [ref=e23] [cursor=pointer]:
+            - generic [ref=e25]:
+              - img [ref=e27]
+              - generic [ref=e34]: Tiếp tục sử dụng dịch vụ bằng Google
+          - iframe
+        - separator [ref=e35]:
+          - generic [ref=e36]: Or
+        - generic [ref=e37]:
+          - generic [ref=e39]:
+            - generic "Email" [ref=e41]: "* Email"
+            - textbox "* Email" [ref=e45]:
+              - /placeholder: Email
+          - generic [ref=e47]:
+            - generic "Password" [ref=e49]: "* Password"
+            - generic [ref=e53]:
+              - textbox "* Password" [ref=e54]:
+                - /placeholder: Password
+              - img "eye-invisible" [ref=e56] [cursor=pointer]:
+                - img [ref=e57]
+          - link "Forgot password?" [ref=e60] [cursor=pointer]:
+            - /url: /forgot-password
+            - generic [ref=e61]: Forgot password?
+          - generic [ref=e63]:
+            - text: By click Login, I agree to RateMate
+            - link "terms" [ref=e64] [cursor=pointer]:
+              - /url: /files/Terms/Terms of Use - RateMate.pdf
+            - text: ","
+            - link "privacy policy" [ref=e65] [cursor=pointer]:
+              - /url: /files/Terms/Privacy Policy - RateMate.pdf
+          - button "Log in" [ref=e71] [cursor=pointer]:
+            - generic [ref=e72]: Log in
+          - generic [ref=e74]:
+            - generic [ref=e75]: Don't have an account, yet?
+            - link "Create an account" [ref=e77] [cursor=pointer]:
+              - /url: /register
+              - generic [ref=e78]: Create an account
+```

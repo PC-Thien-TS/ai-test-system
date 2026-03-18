@@ -50,11 +50,13 @@ def collect_artifacts(run_dir: Path) -> dict[str, object]:
     refined_cases = read_json_if_present(run_dir / "04_testcases_refined.json")
     regression = read_json_if_present(run_dir / "05_regression_suite.json")
     checklist = read_text_if_present(run_dir / "06_release_checklist.md")
+    evidence = collect_evidence(run_dir / "evidence")
     return {
         "state_machine": state_machine,
         "refined_cases": refined_cases,
         "regression": regression,
         "checklist": checklist,
+        "evidence": evidence,
     }
 
 
@@ -104,6 +106,17 @@ def build_report(run_dir: Path, meta: dict, artifacts: dict[str, object]) -> str
         ]
     )
     lines.extend(f"- {line}" for line in upgrade_plan)
+
+    evidence_lines = source_evidence_lines(artifacts)
+    if evidence_lines:
+        lines.extend(
+            [
+                "",
+                "## Evidence From Source Code",
+                "",
+            ]
+        )
+        lines.extend(f"- {line}" for line in evidence_lines)
 
     checklist = artifacts["checklist"]
     if isinstance(checklist, str) and checklist.strip():
@@ -244,6 +257,40 @@ def optimization_plan(artifacts: dict[str, object]) -> list[str]:
     return lines
 
 
+def source_evidence_lines(artifacts: dict[str, object]) -> list[str]:
+    evidence = artifacts.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        return []
+
+    lines: list[str] = []
+    for entry in evidence:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "unknown")
+        snapshot = entry.get("snapshot")
+        dotnet = entry.get("dotnet")
+        if isinstance(snapshot, dict):
+            tech_stack = ", ".join(snapshot.get("tech_stack") or ["unknown"])
+            branch = snapshot.get("git_branch") or "UNKNOWN"
+            head = (snapshot.get("git_head") or "UNKNOWN")[:12]
+            lines.append(f"{name}: tech_stack={tech_stack}; branch={branch}; head={head}.")
+        if isinstance(dotnet, dict):
+            summary = dotnet.get("summary") or {}
+            methods = summary.get("methods") or {}
+            method_summary = ", ".join(f"{method}={count}" for method, count in sorted(methods.items())) or "none"
+            lines.append(
+                f"{name} endpoints: total={summary.get('endpoints', 0)}; methods={method_summary}; anonymous={summary.get('anonymous_endpoints', 0)}."
+            )
+            highlighted = []
+            for endpoint in dotnet.get("endpoints") or []:
+                route = str(endpoint.get("route") or "")
+                if any(flag in route.lower() for flag in ("/verify", "/approve", "/reject")):
+                    highlighted.append(f"{endpoint.get('http_method', 'UNKNOWN')} {route}")
+            if highlighted:
+                lines.append(f"{name} review endpoints: {', '.join(highlighted[:8])}.")
+    return lines
+
+
 def summarize_artifact_presence(name: str, payload: object, *, extra: str | None = None) -> list[str]:
     if payload is None:
         return [f"{name}: missing."]
@@ -317,6 +364,22 @@ def find_incomplete_artifacts(artifacts: dict[str, object]) -> list[str]:
         elif isinstance(payload, dict) and not payload:
             missing.append(name)
     return missing
+
+
+def collect_evidence(evidence_dir: Path) -> list[dict[str, object]]:
+    if not evidence_dir.exists():
+        return []
+
+    records: list[dict[str, object]] = []
+    for source_dir in sorted(path for path in evidence_dir.iterdir() if path.is_dir()):
+        records.append(
+            {
+                "name": source_dir.name,
+                "snapshot": read_json_if_present(source_dir / "repo_snapshot.json"),
+                "dotnet": read_json_if_present(source_dir / "dotnet_endpoints.json"),
+            }
+        )
+    return records
 
 
 def read_json_if_present(path: Path) -> dict | None:

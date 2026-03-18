@@ -1,0 +1,3144 @@
+{
+  "generated_at": "2026-03-05T02:14:30.599687+00:00",
+  "source_name": "backend",
+  "repo_path": "C:\\Projects\\Rankmate\\rankmate_be",
+  "git_branch": "develop",
+  "git_head": "96c4e591701ffcaa8afd7b000b7d2d567d5c3855",
+  "tech_stack": [
+    "dotnet",
+    "docker"
+  ],
+  "summary": {
+    "repo": "C:\\Projects\\Rankmate\\rankmate_be",
+    "glob": "CoreV2.MVC/Api/**/*Controller.cs",
+    "scanned_files": 48,
+    "files_with_endpoints": 46,
+    "controllers": 46,
+    "endpoints": 346,
+    "anonymous_endpoints": 58,
+    "methods": {
+      "GET": 149,
+      "POST": 106,
+      "PUT": 50,
+      "DELETE": 36,
+      "PATCH": 5
+    },
+    "created_at": "2026-03-05T02:14:30.397179+00:00"
+  },
+  "endpoints": [
+    {
+      "controller": "account",
+      "action": "GetUserAvatar",
+      "http_method": "GET",
+      "route": "/account/avatar/{authorID:long}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"avatar/{authorID:long}\")]"
+    },
+    {
+      "controller": "account",
+      "action": "GetInfo",
+      "http_method": "GET",
+      "route": "/account/get-info",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"get-info\")]"
+    },
+    {
+      "controller": "account",
+      "action": "UpdateInfo",
+      "http_method": "POST",
+      "route": "/account/update-info",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"update-info\")]"
+    },
+    {
+      "controller": "account",
+      "action": "ChangePassword",
+      "http_method": "POST",
+      "route": "/account/change-password",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"change-password\")]"
+    },
+    {
+      "controller": "account",
+      "action": "UpdateAccount",
+      "http_method": "POST",
+      "route": "/account/update-account-v2",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"update-account-v2\")]"
+    },
+    {
+      "controller": "account",
+      "action": "CreateLogo",
+      "http_method": "POST",
+      "route": "/account/upload-avatar",
+      "auth": "anonymous",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-avatar\")]"
+    },
+    {
+      "controller": "account",
+      "action": "SendOtp",
+      "http_method": "POST",
+      "route": "/account/otp",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"otp\")]"
+    },
+    {
+      "controller": "account",
+      "action": "VerifyAccount",
+      "http_method": "PUT",
+      "route": "/account/verify",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"verify\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/apikey/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/apikey/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "GetAdminPagination",
+      "http_method": "GET",
+      "route": "/apikey/admin-paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin-paged\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/apikey/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/apikey/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "Add",
+      "http_method": "POST",
+      "route": "/apikey/add",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"add\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/apikey/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "Replace",
+      "http_method": "PUT",
+      "route": "/apikey/replace/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"replace/{id}\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "UpdateInfo",
+      "http_method": "PUT",
+      "route": "/apikey/update-info/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update-info/{id}\")]"
+    },
+    {
+      "controller": "apikey",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/apikey/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "GetManifest",
+      "http_method": "GET",
+      "route": "/api/v{version:apiVersion}/app-hot-update/manifest",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"manifest\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "GetPaged",
+      "http_method": "GET",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/paged\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/detail/{id}\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"admin/create\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"admin/update/{id}\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"admin/remove/{id}\")]"
+    },
+    {
+      "controller": "apphotupdate",
+      "action": "SetActive",
+      "http_method": "PATCH",
+      "route": "/api/v{version:apiVersion}/app-hot-update/admin/set-active/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPatch(\"admin/set-active/{id}\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "Register",
+      "http_method": "POST",
+      "route": "/auth/login",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"login\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "GoogleLogin",
+      "http_method": "POST",
+      "route": "/auth/google-login",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"google-login\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "Register",
+      "http_method": "POST",
+      "route": "/auth/register",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"register\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "RegisterV2",
+      "http_method": "POST",
+      "route": "/auth/register-v2",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"register-v2\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "ForgetPassword",
+      "http_method": "POST",
+      "route": "/auth/forget-password",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"forget-password\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "CheckValidOTP",
+      "http_method": "GET",
+      "route": "/auth/check-valid-confirm/{hashCode}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"check-valid-confirm/{hashCode}\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "AcceptConfirm",
+      "http_method": "GET",
+      "route": "/auth/accept-confirm/{hashCode}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"accept-confirm/{hashCode}\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "AcceptForget",
+      "http_method": "GET",
+      "route": "/auth/accept-forget/{hashCode}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"accept-forget/{hashCode}\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "CheckValidOTP",
+      "http_method": "POST",
+      "route": "/auth/check-valid-otp",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"check-valid-otp\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "AcceptValidOTP",
+      "http_method": "PUT",
+      "route": "/auth/accept-valid-otp",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"accept-valid-otp\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "SendOTPEmail",
+      "http_method": "POST",
+      "route": "/auth/send-confirm-email",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"send-confirm-email\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "SendOTPEmail",
+      "http_method": "POST",
+      "route": "/auth/send-otp-email",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"send-otp-email\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "UpdatePasswordByConfirm",
+      "http_method": "PUT",
+      "route": "/auth/update-password-confirm",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update-password-confirm\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "UpdatePasswordByOTP",
+      "http_method": "PUT",
+      "route": "/auth/update-password-otp",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update-password-otp\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "RefreshToken",
+      "http_method": "POST",
+      "route": "/auth/refresh-token",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"refresh-token\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "SwitchOrganization",
+      "http_method": "POST",
+      "route": "/auth/switch-organization",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"switch-organization\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "UpdateUserPreferences",
+      "http_method": "PUT",
+      "route": "/auth/update-preferences",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update-preferences\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "Logout",
+      "http_method": "POST",
+      "route": "/auth/logout",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"logout\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "Logout",
+      "http_method": "POST",
+      "route": "/auth/register/end-user",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"register/end-user\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "ExternalLogin",
+      "http_method": "POST",
+      "route": "/auth/external-login",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"external-login\")]"
+    },
+    {
+      "controller": "auth",
+      "action": "LimitedLogin",
+      "http_method": "POST",
+      "route": "/auth/limited-login",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"limited-login\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/authors/{uniqueId?}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"{uniqueId?}\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/authors/posts",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"posts\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/authors/block-or-restrict",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"block-or-restrict\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/authors/profiles",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"profiles\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/authors/last-location",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"last-location\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/authors",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "authors",
+      "action": "Follow",
+      "http_method": "POST",
+      "route": "/authors/{targetAuthorId:long}/follow",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"{targetAuthorId:long}/follow\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/authors",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut]"
+    },
+    {
+      "controller": "authors",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/authors/photo",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPut(\"photo\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Block",
+      "http_method": "PUT",
+      "route": "/authors/block/{blockedId:long}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"block/{blockedId:long}\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Block",
+      "http_method": "PUT",
+      "route": "/authors/restrict",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPut(\"restrict\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "SwitchProfile",
+      "http_method": "PUT",
+      "route": "/authors/switch",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"switch\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Get",
+      "http_method": "PUT",
+      "route": "/authors/last-location",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpPut(\"last-location\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Unfollow",
+      "http_method": "DELETE",
+      "route": "/authors/{targetAuthorId:long}/unfollow",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{targetAuthorId:long}/unfollow\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "LogoutDevice",
+      "http_method": "DELETE",
+      "route": "/authors/{deviceID}/logout-device",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{deviceID}/logout-device\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/authors",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete]"
+    },
+    {
+      "controller": "authors",
+      "action": "UnBlock",
+      "http_method": "DELETE",
+      "route": "/authors/block/{blockedId:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"block/{blockedId:long}\")]"
+    },
+    {
+      "controller": "authors",
+      "action": "UnRestrict",
+      "http_method": "DELETE",
+      "route": "/authors/restrict/{restrictedId:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"restrict/{restrictedId:long}\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/category-admin/list",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/category-admin/paged",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/category-admin/detail/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/category-admin/generate-code",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"generate-code\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "GetSelection",
+      "http_method": "GET",
+      "route": "/category-admin/selection",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"selection\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/category-admin/create",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/category-admin/update/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/category-admin/remove/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "category-admin",
+      "action": "Remove",
+      "http_method": "PATCH",
+      "route": "/category-admin/remove-multiple",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPatch(\"remove-multiple\")]"
+    },
+    {
+      "controller": "category",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/category/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "category",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/category/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "category",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/category/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "category",
+      "action": "GetById",
+      "http_method": "GET",
+      "route": "/category/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id}\")]"
+    },
+    {
+      "controller": "category",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/category/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "category",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/category/delete/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete/{id}\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/chat/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/chat/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/chat/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/chat/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "UpdateInfo",
+      "http_method": "PUT",
+      "route": "/chat/update-info/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update-info/{id}\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/chat/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "Submit_File",
+      "http_method": "POST",
+      "route": "/chat/submit_file",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"submit_file\")]"
+    },
+    {
+      "controller": "chat",
+      "action": "StreamSse",
+      "http_method": "POST",
+      "route": "/chat/sse",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"sse\")]"
+    },
+    {
+      "controller": "comments",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/comments",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "comments",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/comments",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "comments",
+      "action": "AddComment",
+      "http_method": "POST",
+      "route": "/comments/add-comment",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"add-comment\")]"
+    },
+    {
+      "controller": "comments",
+      "action": "DeleteComment",
+      "http_method": "DELETE",
+      "route": "/comments/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{id}\")]"
+    },
+    {
+      "controller": "comments",
+      "action": "UpdateComment",
+      "http_method": "PUT",
+      "route": "/comments/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"{id}\")]"
+    },
+    {
+      "controller": "comments",
+      "action": "AddReaction",
+      "http_method": "POST",
+      "route": "/comments/add-reaction",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"add-reaction\")]"
+    },
+    {
+      "controller": "comments",
+      "action": "DeleteReaction",
+      "http_method": "DELETE",
+      "route": "/comments/delete-reaction/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete-reaction/{id}\")]"
+    },
+    {
+      "controller": "country",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/country/list",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetUserRegistrations",
+      "http_method": "GET",
+      "route": "/dashboard/user-registrations",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"user-registrations\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetStoreRegistrations",
+      "http_method": "GET",
+      "route": "/dashboard/store-registrations",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"store-registrations\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetQRRegistrations",
+      "http_method": "GET",
+      "route": "/dashboard/qr-registrations",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"qr-registrations\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetQRScans",
+      "http_method": "GET",
+      "route": "/dashboard/qr-scans",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"qr-scans\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetUserRegistrationsByDateRange",
+      "http_method": "GET",
+      "route": "/dashboard/user-registrations-by-date",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"user-registrations-by-date\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetStoreRegistrationsByDateRange",
+      "http_method": "GET",
+      "route": "/dashboard/store-registrations-by-date",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"store-registrations-by-date\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetQRRegistrationsByDateRange",
+      "http_method": "GET",
+      "route": "/dashboard/qr-registrations-by-date",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"qr-registrations-by-date\")]"
+    },
+    {
+      "controller": "dashboard",
+      "action": "GetQRScansByDateRange",
+      "http_method": "GET",
+      "route": "/dashboard/qr-scans-by-date",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"qr-scans-by-date\")]"
+    },
+    {
+      "controller": "devices",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/devices",
+      "auth": "inherit",
+      "binding": "form",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "devices",
+      "action": "UpdateLanguage",
+      "http_method": "POST",
+      "route": "/devices/update-language",
+      "auth": "inherit",
+      "binding": "form",
+      "raw": "[HttpPost(\"update-language\")]"
+    },
+    {
+      "controller": "document",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/document/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "document",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/document/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "document",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/document/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "document",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/document/create",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "document",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/document/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "document",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/document/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "feedback",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/feedback/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "feedback",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/feedback/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "feedback",
+      "action": "HideFeedback",
+      "http_method": "PUT",
+      "route": "/feedback/hide/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"hide/{id}\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/folder/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/folder/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/folder/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/folder/generate-code",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"generate-code\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/folder/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/folder/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "folder",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/folder/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "GetAllInterest",
+      "http_method": "GET",
+      "route": "/interests",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "interests",
+      "action": "GetInterest",
+      "http_method": "GET",
+      "route": "/interests/{id}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id}\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "CreateInterest",
+      "http_method": "POST",
+      "route": "/interests",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "interests",
+      "action": "UpdateInterest",
+      "http_method": "PUT",
+      "route": "/interests/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"{id}\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "DeleteInterest",
+      "http_method": "DELETE",
+      "route": "/interests/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{id}\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "GetUserInterests",
+      "http_method": "GET",
+      "route": "/interests/user-interests",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"user-interests\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "CreateUserInterest",
+      "http_method": "POST",
+      "route": "/interests/user-interests",
+      "auth": "anonymous",
+      "binding": "form",
+      "raw": "[HttpPost(\"user-interests\")]"
+    },
+    {
+      "controller": "interests",
+      "action": "DeleteUserInterest",
+      "http_method": "DELETE",
+      "route": "/interests/user-interests/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"user-interests/{id}\")]"
+    },
+    {
+      "controller": "invitation",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/invitation/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "invitation",
+      "action": "AcceptConfirm",
+      "http_method": "POST",
+      "route": "/invitation/accept-invitation",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"accept-invitation\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/api/v1/ionic-web/product/paged",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"product/paged\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "GetCategoriesWithProducts",
+      "http_method": "GET",
+      "route": "/api/v1/ionic-web/categories/products",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"categories/products\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "GetProductReview",
+      "http_method": "GET",
+      "route": "/api/v1/ionic-web/product/review",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"product/review\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "UpdateProductReviewStatus",
+      "http_method": "PUT",
+      "route": "/api/v1/ionic-web/product/review/status",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPut(\"product/review/status\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "GenerateAIReview",
+      "http_method": "POST",
+      "route": "/api/v1/ionic-web/product/review/generate",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"product/review/generate\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "GenerateAIReviewV2",
+      "http_method": "POST",
+      "route": "/api/v1/ionic-web/product/review/generate-v2",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"product/review/generate-v2\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "IncrementTotalScans",
+      "http_method": "POST",
+      "route": "/api/v1/ionic-web/qr/scan",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"qr/scan\")]"
+    },
+    {
+      "controller": "ionic-web",
+      "action": "CreateImageReview",
+      "http_method": "POST",
+      "route": "/api/v1/ionic-web/upload-image-review",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"upload-image-review\")]"
+    },
+    {
+      "controller": "language",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/language/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "language",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/language/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "language",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/language/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "language",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/language/generate-code",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"generate-code\")]"
+    },
+    {
+      "controller": "language",
+      "action": "GetSelection",
+      "http_method": "GET",
+      "route": "/language/selection",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"selection\")]"
+    },
+    {
+      "controller": "language",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/language/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "language",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/language/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "language",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/language/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "media",
+      "action": "CreateMediaStore",
+      "http_method": "POST",
+      "route": "/media/upload",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload\")]"
+    },
+    {
+      "controller": "media",
+      "action": "CreatePrefixMediaStore",
+      "http_method": "POST",
+      "route": "/media/upload-prefix",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-prefix\")]"
+    },
+    {
+      "controller": "media",
+      "action": "CreateMediaByNews",
+      "http_method": "POST",
+      "route": "/media/upload-news",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-news\")]"
+    },
+    {
+      "controller": "media",
+      "action": "CreateChatMedia",
+      "http_method": "POST",
+      "route": "/media/upload-file-chat",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-file-chat\")]"
+    },
+    {
+      "controller": "media",
+      "action": "DeletePrefixMediaStore",
+      "http_method": "POST",
+      "route": "/media/delete",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"delete\")]"
+    },
+    {
+      "controller": "member",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/member/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "member",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/member/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "member",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/member/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "member",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/member/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "member",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/member/update/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "member",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/member/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "member",
+      "action": "Remove",
+      "http_method": "PATCH",
+      "route": "/member/remove-multiple",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPatch(\"remove-multiple\")]"
+    },
+    {
+      "controller": "member",
+      "action": "GetPaginationSelection",
+      "http_method": "GET",
+      "route": "/member/pagination-selection",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"pagination-selection\")]"
+    },
+    {
+      "controller": "member",
+      "action": "GetUserActivityLog",
+      "http_method": "GET",
+      "route": "/member/activity-log/{userId}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"activity-log/{userId}\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/news-admin/list",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/news-admin/paged",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/news-admin/detail/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GetSelection",
+      "http_method": "GET",
+      "route": "/news-admin/selection",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"selection\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GetPaginationSelection",
+      "http_method": "GET",
+      "route": "/news-admin/pagination-selection",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"pagination-selection\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/news-admin/generate-code",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"generate-code\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/news-admin/create",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/news-admin/update/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "RequestPublish",
+      "http_method": "PUT",
+      "route": "/news-admin/request-publish/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"request-publish/{id}\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/news-admin/remove/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Remove",
+      "http_method": "PATCH",
+      "route": "/news-admin/remove-multiple",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPatch(\"remove-multiple\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Reject",
+      "http_method": "PUT",
+      "route": "/news-admin/reject",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"reject\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Approve",
+      "http_method": "PUT",
+      "route": "/news-admin/approve",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"approve\")]"
+    },
+    {
+      "controller": "news-admin",
+      "action": "Duplicate",
+      "http_method": "POST",
+      "route": "/news-admin/duplicate/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"duplicate/{id}\")]"
+    },
+    {
+      "controller": "news",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/news",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "news",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/news/{slug}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"{slug}\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "Enqueue",
+      "http_method": "POST",
+      "route": "/notification/enqueue",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"enqueue\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "GetMyNotifications",
+      "http_method": "GET",
+      "route": "/notification",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "notification",
+      "action": "MarkRead",
+      "http_method": "POST",
+      "route": "/notification/mark-read",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"mark-read\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "Delete",
+      "http_method": "POST",
+      "route": "/notification/delete",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"delete\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "GetUnreadCount",
+      "http_method": "GET",
+      "route": "/notification/unread-count",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"unread-count\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "MarkAllRead",
+      "http_method": "POST",
+      "route": "/notification/mark-all-read",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"mark-all-read\")]"
+    },
+    {
+      "controller": "notification",
+      "action": "TestRealtime",
+      "http_method": "POST",
+      "route": "/notification/test-realtime",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"test-realtime\")]"
+    },
+    {
+      "controller": "notification-policy-admin",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/notification-policy-admin/paged",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "notification-policy-admin",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/notification-policy-admin/detail/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "notification-policy-admin",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/notification-policy-admin/create",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "notification-policy-admin",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/notification-policy-admin/update/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "notification-policy-admin",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/notification-policy-admin/remove/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "notification-seed-data",
+      "action": "SeedTemplates",
+      "http_method": "POST",
+      "route": "/notification-seed-data/templates",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"templates\")]"
+    },
+    {
+      "controller": "notification-seed-data",
+      "action": "SeedPolicies",
+      "http_method": "POST",
+      "route": "/notification-seed-data/policies",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"policies\")]"
+    },
+    {
+      "controller": "notification-seed-data",
+      "action": "SeedAll",
+      "http_method": "POST",
+      "route": "/notification-seed-data/all",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"all\")]"
+    },
+    {
+      "controller": "notification-template-admin",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/notification-template-admin/paged",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "notification-template-admin",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/notification-template-admin/detail/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "notification-template-admin",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/notification-template-admin/create",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "notification-template-admin",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/notification-template-admin/update/{id}",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPut(\"update/{id}\")]"
+    },
+    {
+      "controller": "notification-template-admin",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/notification-template-admin/remove/{id}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "notification-template-placeholder",
+      "action": "GetPlaceholdersByTemplateCode",
+      "http_method": "GET",
+      "route": "/notification-template-placeholder/by-template-code/{templateCode}",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"by-template-code/{templateCode}\")]"
+    },
+    {
+      "controller": "notification-template-placeholder",
+      "action": "GetAllPlaceholders",
+      "http_method": "GET",
+      "route": "/notification-template-placeholder/all",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"all\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/organization/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/organization/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetInfo",
+      "http_method": "GET",
+      "route": "/organization/get-info",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"get-info\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/organization/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"detail/{id}\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/organization/generate-code",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"generate-code\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/organization/create",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/organization/update",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "UpdateInfo",
+      "http_method": "PUT",
+      "route": "/organization/update-info",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPut(\"update-info\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Active",
+      "http_method": "POST",
+      "route": "/organization/remove-member",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"remove-member\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Disable",
+      "http_method": "POST",
+      "route": "/organization/remove-multiple-member",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"remove-multiple-member\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Update",
+      "http_method": "POST",
+      "route": "/organization/upload-logo",
+      "auth": "anonymous",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-logo\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Active",
+      "http_method": "POST",
+      "route": "/organization/active/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"active/{id}\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Disable",
+      "http_method": "POST",
+      "route": "/organization/disable/{id}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"disable/{id}\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/organization/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"remove/{id}\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetPaginationSelection",
+      "http_method": "GET",
+      "route": "/organization/pagination-selection",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"pagination-selection\")]"
+    },
+    {
+      "controller": "organization",
+      "action": "GetOrganizationType",
+      "http_method": "GET",
+      "route": "/organization/get-organization-type",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"get-organization-type\")]"
+    },
+    {
+      "controller": "payments",
+      "action": "GetPaymentMethods",
+      "http_method": "GET",
+      "route": "/payments/methods",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"methods\")]"
+    },
+    {
+      "controller": "payments",
+      "action": "Payment",
+      "http_method": "POST",
+      "route": "/payments/momo",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"momo\")]"
+    },
+    {
+      "controller": "payments",
+      "action": "Webhook",
+      "http_method": "POST",
+      "route": "/payments/momo/webhook",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"momo/webhook\")]"
+    },
+    {
+      "controller": "payments",
+      "action": "Payment",
+      "http_method": "POST",
+      "route": "/payments/stripe",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"stripe\")]"
+    },
+    {
+      "controller": "payments",
+      "action": "Handle",
+      "http_method": "POST",
+      "route": "/payments/stripe/webhook",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"stripe/webhook\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/posts/{id:long}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id:long}\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "GetByIds",
+      "http_method": "GET",
+      "route": "/posts/ids",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"ids\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/posts",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "posts",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/posts/pending",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"pending\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/posts/categories",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"categories\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "CreateCrawledPost",
+      "http_method": "POST",
+      "route": "/posts/create-crawled-post",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"create-crawled-post\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/posts",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "posts",
+      "action": "Import",
+      "http_method": "POST",
+      "route": "/posts/tiktok/import",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"tiktok/import\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "AddReaction",
+      "http_method": "POST",
+      "route": "/posts/add-reaction",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"add-reaction\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "DeleteReaction",
+      "http_method": "DELETE",
+      "route": "/posts/delete-reaction/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete-reaction/{id}\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/posts",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut]"
+    },
+    {
+      "controller": "posts",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/posts/scores",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"scores\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/posts/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{id:long}\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Approve",
+      "http_method": "POST",
+      "route": "/posts/approve-posts",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"approve-posts\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "Reject",
+      "http_method": "POST",
+      "route": "/posts/reject-posts",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"reject-posts\")]"
+    },
+    {
+      "controller": "posts",
+      "action": "GetRecommendPosts",
+      "http_method": "GET",
+      "route": "/posts/recommend",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"recommend\")]"
+    },
+    {
+      "controller": "product",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/product/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "product",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/product/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "product",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/product/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "product",
+      "action": "GetById",
+      "http_method": "GET",
+      "route": "/product/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id}\")]"
+    },
+    {
+      "controller": "product",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/product/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "product",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/product/delete/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete/{id}\")]"
+    },
+    {
+      "controller": "product",
+      "action": "Update",
+      "http_method": "POST",
+      "route": "/product/upload-image",
+      "auth": "anonymous",
+      "binding": "form",
+      "raw": "[HttpPost(\"upload-image\")]"
+    },
+    {
+      "controller": "product",
+      "action": "BulkCreate",
+      "http_method": "POST",
+      "route": "/product/bulk-create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"bulk-create\")]"
+    },
+    {
+      "controller": "product",
+      "action": "Extraction",
+      "http_method": "POST",
+      "route": "/product/menu-extraction",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"menu-extraction\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/provinces",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "provinces",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/provinces/population",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"population\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "GetProvinceDetail",
+      "http_method": "GET",
+      "route": "/provinces/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id:long}\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/provinces/{provinceId:long}/wards",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"{provinceId:long}/wards\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "CreateWards",
+      "http_method": "POST",
+      "route": "/provinces/wards",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"wards\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "CreateNewAddress",
+      "http_method": "POST",
+      "route": "/provinces/new",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"new\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "CreateOldAddress",
+      "http_method": "POST",
+      "route": "/provinces/old",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"old\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "Get",
+      "http_method": "POST",
+      "route": "/provinces/address/mapping",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpPost(\"address/mapping\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "UpdateProvince",
+      "http_method": "PUT",
+      "route": "/provinces/{id:long}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"{id:long}\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "DeleteProvince",
+      "http_method": "DELETE",
+      "route": "/provinces/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"{id:long}\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "UpdateWard",
+      "http_method": "PUT",
+      "route": "/provinces/wards/{wardId:long}",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"wards/{wardId:long}\")]"
+    },
+    {
+      "controller": "provinces",
+      "action": "DeleteWard",
+      "http_method": "DELETE",
+      "route": "/provinces/wards/{wardId:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"wards/{wardId:long}\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/qr/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/qr/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/qr/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "GetById",
+      "http_method": "GET",
+      "route": "/qr/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id}\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/qr/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/qr/delete/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete/{id}\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "GetScanChart",
+      "http_method": "GET",
+      "route": "/qr/scan-chart/{qrId}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"scan-chart/{qrId}\")]"
+    },
+    {
+      "controller": "qr",
+      "action": "ScanQR",
+      "http_method": "GET",
+      "route": "/qr/scanner/{qrCode}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"scanner/{qrCode}\")]"
+    },
+    {
+      "controller": "reports",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/reports/reasons",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"reasons\")]"
+    },
+    {
+      "controller": "reports",
+      "action": "Get",
+      "http_method": "PUT",
+      "route": "/reports",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPut]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/histories",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"histories\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/filters",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"filters\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/hot-keywords",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"hot-keywords\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/posts/recommendation",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"posts/recommendation\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/posts",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"posts\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/authors",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"authors\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/stores",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"stores\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/searches/suggestions/{keyword}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"suggestions/{keyword}\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Update",
+      "http_method": "POST",
+      "route": "/searches/histories",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"histories\")]"
+    },
+    {
+      "controller": "searches",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/searches/histories",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpDelete(\"histories\")]"
+    },
+    {
+      "controller": "sent-notify",
+      "action": "Send",
+      "http_method": "POST",
+      "route": "/sent-notify/send",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"send\")]"
+    },
+    {
+      "controller": "sent-notify",
+      "action": "RegiterToken",
+      "http_method": "POST",
+      "route": "/sent-notify/regiter_token",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost(\"regiter_token\")]"
+    },
+    {
+      "controller": "socials",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/socials",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "storages",
+      "action": "ListFiles",
+      "http_method": "GET",
+      "route": "/storages/files",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"files\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "ListFilesPaged",
+      "http_method": "GET",
+      "route": "/storages/files/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"files/paged\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "GetFilesPaged",
+      "http_method": "GET",
+      "route": "/storages/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "GetFile",
+      "http_method": "GET",
+      "route": "/storages/files/key",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"files/key\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "GetFiles",
+      "http_method": "GET",
+      "route": "/storages/files/keys",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"files/keys\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "GetPreSignedUrl",
+      "http_method": "GET",
+      "route": "/storages/files/presigned-url",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"files/presigned-url\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "GetPreSignedUrl",
+      "http_method": "GET",
+      "route": "/storages/files/presigned-url/multiple",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"files/presigned-url/multiple\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "UploadFile",
+      "http_method": "POST",
+      "route": "/storages/files/upload",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"files/upload\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "UploadFileFromUrl",
+      "http_method": "POST",
+      "route": "/storages/files/upload/url",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"files/upload/url\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "UploadFiles",
+      "http_method": "POST",
+      "route": "/storages/files/upload/multiple",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"files/upload/multiple\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "UploadFilesFromUrls",
+      "http_method": "POST",
+      "route": "/storages/files/upload/urls",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"files/upload/urls\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "DeleteFile",
+      "http_method": "DELETE",
+      "route": "/storages/files/{key}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"files/{key}\")]"
+    },
+    {
+      "controller": "storages",
+      "action": "DeleteFiles",
+      "http_method": "DELETE",
+      "route": "/storages/files",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpDelete(\"files\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/store-category/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store-category",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetPopularCategories",
+      "http_method": "GET",
+      "route": "/store-category/population",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"population\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "ImportIcons",
+      "http_method": "POST",
+      "route": "/store-category/icons",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"icons\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/store-category/admin/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/paged\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetDetail",
+      "http_method": "GET",
+      "route": "/store-category/admin/detail/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/detail/{id}\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetChildren",
+      "http_method": "GET",
+      "route": "/store-category/admin/children/{parentId}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/children/{parentId}\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GenerateCode",
+      "http_method": "GET",
+      "route": "/store-category/admin/generate-code",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/generate-code\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "GetSelection",
+      "http_method": "GET",
+      "route": "/store-category/admin/selection",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"admin/selection\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/store-category/admin/create",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"admin/create\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/store-category/admin/update/{id}",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPut(\"admin/update/{id}\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "Remove",
+      "http_method": "DELETE",
+      "route": "/store-category/admin/remove/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"admin/remove/{id}\")]"
+    },
+    {
+      "controller": "store-category",
+      "action": "RemoveMultiple",
+      "http_method": "PATCH",
+      "route": "/store-category/admin/remove-multiple",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPatch(\"admin/remove-multiple\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store/{uniqueId}",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"{uniqueId}\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "store",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/store/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "store",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/store/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store/verify",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"verify\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store/verify/detail/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"verify/detail/{id:long}\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store/verify/detail",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"verify/detail\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/store/collections",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"collections\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/store/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "store",
+      "action": "GetById",
+      "http_method": "GET",
+      "route": "/store/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id:long}\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "GET",
+      "route": "/store/views",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpGet(\"views\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "GET",
+      "route": "/store/reviews",
+      "auth": "anonymous",
+      "binding": "query",
+      "raw": "[HttpGet(\"reviews\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/store/google-map",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"google-map\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/store/verify",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"verify\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "POST",
+      "route": "/store/collections",
+      "auth": "authorized",
+      "binding": "form",
+      "raw": "[HttpPost(\"collections\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Get",
+      "http_method": "POST",
+      "route": "/store/collections/items",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"collections/items\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/store/reviews",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpPost(\"reviews\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/store/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/store/addresses",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"addresses\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Approve",
+      "http_method": "PUT",
+      "route": "/store/verify/{id:long}/approve",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"verify/{id:long}/approve\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Reject",
+      "http_method": "PUT",
+      "route": "/store/verify/{id:long}/reject",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpPut(\"verify/{id:long}/reject\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/store/collections",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"collections\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/store/views",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"views\")]"
+    },
+    {
+      "controller": "store",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/store/delete/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete/{id}\")]"
+    },
+    {
+      "controller": "store",
+      "action": "DeleteCollection",
+      "http_method": "DELETE",
+      "route": "/store/collections/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"collections/{id:long}\")]"
+    },
+    {
+      "controller": "store",
+      "action": "DeleteCollectionItem",
+      "http_method": "DELETE",
+      "route": "/store/collections/{collectionId:long}/items/{itemId:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"collections/{collectionId:long}/items/{itemId:long}\")]"
+    },
+    {
+      "controller": "support",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/support/list",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "support",
+      "action": "GetPagination",
+      "http_method": "GET",
+      "route": "/support/paged",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"paged\")]"
+    },
+    {
+      "controller": "support",
+      "action": "Create",
+      "http_method": "POST",
+      "route": "/support/create",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPost(\"create\")]"
+    },
+    {
+      "controller": "support",
+      "action": "GetById",
+      "http_method": "GET",
+      "route": "/support/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id}\")]"
+    },
+    {
+      "controller": "support",
+      "action": "Update",
+      "http_method": "PUT",
+      "route": "/support/update",
+      "auth": "authorized",
+      "binding": "body",
+      "raw": "[HttpPut(\"update\")]"
+    },
+    {
+      "controller": "support",
+      "action": "Delete",
+      "http_method": "DELETE",
+      "route": "/support/delete/{id}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpDelete(\"delete/{id}\")]"
+    },
+    {
+      "controller": "toxic-word",
+      "action": "GetList",
+      "http_method": "GET",
+      "route": "/toxic-word/list",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"list\")]"
+    },
+    {
+      "controller": "toxic-word",
+      "action": "GetListCheck",
+      "http_method": "GET",
+      "route": "/toxic-word/list-check",
+      "auth": "inherit",
+      "binding": "query",
+      "raw": "[HttpGet(\"list-check\")]"
+    },
+    {
+      "controller": "toxic-word",
+      "action": "CreateToxicWord",
+      "http_method": "POST",
+      "route": "/toxic-word",
+      "auth": "inherit",
+      "binding": "body",
+      "raw": "[HttpPost]"
+    },
+    {
+      "controller": "user-behavior",
+      "action": "TrackInteraction",
+      "http_method": "POST",
+      "route": "/user-behavior/track-interaction",
+      "auth": "anonymous",
+      "binding": "body",
+      "raw": "[HttpPost(\"track-interaction\")]"
+    },
+    {
+      "controller": "videos",
+      "action": "Get",
+      "http_method": "GET",
+      "route": "/videos/{id:long}",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id:long}\")]"
+    },
+    {
+      "controller": "videos",
+      "action": "Stream",
+      "http_method": "GET",
+      "route": "/videos/{id:long}/stream",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"{id:long}/stream\")]"
+    },
+    {
+      "controller": "wallets",
+      "action": "GetWallet",
+      "http_method": "GET",
+      "route": "/wallets",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet]"
+    },
+    {
+      "controller": "wallets",
+      "action": "GetTransactions",
+      "http_method": "GET",
+      "route": "/wallets/transactions",
+      "auth": "authorized",
+      "binding": "query",
+      "raw": "[HttpGet(\"transactions\")]"
+    }
+  ]
+}

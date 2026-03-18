@@ -1,0 +1,83 @@
+{
+  "suite": "order_regression_v1_seed",
+  "description": "Structured order module regression inventory, with initial wired subset and deferred lifecycle cases.",
+  "cases": [
+    {
+      "id": "POL-001",
+      "method": "GET",
+      "path": "/api/v1/ordering-policy/store/{storeId}",
+      "priority": "P0",
+      "status": "integrated_v1"
+    },
+    {
+      "id": "POL-002",
+      "method": "POST",
+      "path": "/api/v1/ordering-policy/store/{storeId}",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POL-003",
+      "method": "GET",
+      "path": "/api/v1/ordering-policy/store/{storeId}",
+      "priority": "P2",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POL-004",
+      "method": "POST",
+      "path": "/api/v1/ordering-policy/store/{storeId}",
+      "priority": "P2",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POLADM-001",
+      "method": "GET",
+      "path": "/api/v1/ordering-policy-admin/defaults",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POLADM-002",
+      "method": "POST",
+      "path": "/api/v1/ordering-policy-admin/defaults",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POLADM-003",
+      "method": "GET",
+      "path": "/api/v1/ordering-policy-admin/store/{storeId}",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POLADM-004",
+      "method": "POST",
+      "path": "/api/v1/ordering-policy-admin/store/{storeId}",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "POLADM-005",
+      "method": "GET",
+      "path": "/api/v1/ordering-policy-admin/store/{storeId}",
+      "priority": "P2",
+      "status": "pending_v2"
+    },
+    {
+      "id": "ADDPAY-001",
+      "method": "POST",
+      "path": "/api/v1/order-addons/{addonId}/payments",
+      "priority": "P1",
+      "status": "pending_v2"
+    },
+    {
+      "id": "ADDPAY-002",
+      "method": "POST",
+      "path": "/api/v1/order-addons/{addonId}/payments",
+      "priority": "P2",
+      "status": "pending_v2"
+    }
+  ]
+}

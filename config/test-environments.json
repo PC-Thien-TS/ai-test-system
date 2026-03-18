@@ -1,0 +1,56 @@
+{
+  "defaultEnvironment": "rankmate-local-network",
+  "notes": [
+    "This file is organizational only for now.",
+    "Existing scripts still read environment variables directly and were not changed by this structure upgrade."
+  ],
+  "artifactRoots": {
+    "apiSmoke": "artifacts/test-results/api",
+    "apiRegression": "artifacts/test-results/api-regression",
+    "uiSmoke": "artifacts/test-results/ui-smoke",
+    "uiE2E": "artifacts/test-results/ui-e2e",
+    "logicBackend": "artifacts/test-results/backend",
+    "logicFrontend": "artifacts/test-results/frontend"
+  },
+  "environments": [
+    {
+      "name": "rankmate-local-network",
+      "apiBaseUrl": "http://192.168.1.7:19066",
+      "apiPrefix": "/api/v1",
+      "uiBaseUrl": "http://192.168.1.7:19068",
+      "uiLoginPath": "/en/login",
+      "credentialEnv": {
+        "apiUser": "API_USER",
+        "apiPass": "API_PASS"
+      },
+      "notes": [
+        "Current admin /en/login route can fail preflight with Internal Server Error.",
+        "Admin/business module execution can be role-sensitive for non-admin accounts."
+      ]
+    },
+    {
+      "name": "template-localhost",
+      "apiBaseUrl": "http://localhost:19066",
+      "apiPrefix": "/api/v1",
+      "uiBaseUrl": "http://localhost:19068",
+      "uiLoginPath": "/en/login",
+      "credentialEnv": {
+        "apiUser": "API_USER",
+        "apiPass": "API_PASS"
+      },
+      "notes": [
+        "Populate with actual local deployment details before later migration."
+      ]
+    }
+  ],
+  "knownBlockers": [
+    {
+      "id": "BLK-UI-001",
+      "summary": "Admin /en/login route can return Internal Server Error."
+    },
+    {
+      "id": "BLK-API-001",
+      "summary": "Store invalid id/uniqueId/collections regression findings remain open."
+    }
+  ]
+}

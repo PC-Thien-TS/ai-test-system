@@ -1,0 +1,76 @@
+{
+  "suite": "order_api_critical_v1",
+  "description": "Critical high-confidence Order API cases wired to regression execution.",
+  "cases": [
+    {
+      "id": "ORD-API-001",
+      "name": "create order success",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-002",
+      "name": "create order unsupported media type handling",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-003",
+      "name": "create order validation missing required field",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-004",
+      "name": "get order detail success",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}",
+      "status": "automated"
+    },
+    {
+      "id": "MORD-API-001",
+      "name": "merchant accept order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/accept",
+      "status": "automated"
+    },
+    {
+      "id": "MORD-API-002",
+      "name": "merchant reject order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/reject",
+      "status": "automated"
+    },
+    {
+      "id": "MORD-API-003",
+      "name": "merchant mark-arrived order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/mark-arrived",
+      "status": "automated"
+    },
+    {
+      "id": "MORD-API-004",
+      "name": "merchant complete order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/complete",
+      "status": "automated"
+    },
+    {
+      "id": "AORD-API-001",
+      "name": "admin list/view orders",
+      "method": "GET",
+      "path": "/api/v1/admin/orders",
+      "status": "automated"
+    },
+    {
+      "id": "AORD-API-002",
+      "name": "admin order detail",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}",
+      "status": "automated"
+    }
+  ]
+}
