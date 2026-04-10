@@ -1,17 +1,47 @@
 RequirementID,Module,RequirementTitle,Priority,TestLayer,TestCaseIDs,AutomationStatus,Notes
-STORE-REQ-004,store,Store verification required before ordering,P0,API+UI,STO-006|STO-007|STORE-UI-001,Partial,Use verified store evidence before order scenarios.
-MENU-REQ-002,menu_service,At least one orderable menu/service item exists,P0,API,ORD-TBD-CATALOG-001,Planned,Catalog endpoints and payload standards to be confirmed in SRS import.
-ORDER-REQ-001,ordering,Create order with valid preconditions,P0,API,ORD-001,Planned,Legacy case superseded by ORD-API-001 contract-driven automation.
-MORD-REQ-003,merchant_orders,Merchant accepts eligible order,P0,API,MORD-003,Planned,Legacy case superseded by MORD-API-001 regression registration.
-AORD-REQ-001,admin_orders,Admin can view order list,P1,API,AORD-001,Planned,Legacy case superseded by AORD-API-001 regression registration.
-ORDER-REQ-001,ordering,Create order with valid payload,P0,API,ORD-API-001,Automated,Latest live regression evidence shows PASS (200) with enforced runtime contract (json content-type + idempotency-key + quantity>=1).
-ORDER-REQ-002,ordering,Create order unsupported media handling,P1,API,ORD-API-002,Automated,Stable negative contract check for 415 with explicit content-type mismatch.
-ORDER-REQ-003,ordering,Create order required field validation,P1,API,ORD-API-003,Automated,Stable negative validation check with idempotency header present.
-ORDER-REQ-004,ordering,Get order detail,P0,API,ORD-API-004,Automated,Latest regression evidence shows PASS (200) with reusable order id.
-MORD-REQ-003,merchant_orders,Merchant accept eligible order,P0,API,MORD-API-001,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; blocked by merchant scope/ownership and lifecycle state prerequisites.
-MORD-REQ-004,merchant_orders,Merchant reject eligible order,P0,API,MORD-API-002,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; blocked by merchant scope/ownership and lifecycle state prerequisites.
-MORD-REQ-005,merchant_orders,Merchant mark-arrived eligible order,P0,API,MORD-API-003,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; transition remains blocked by merchant scope/ownership and prior state prerequisites.
-MORD-REQ-006,merchant_orders,Merchant complete eligible order,P0,API,MORD-API-004,Partial,Live follow-up returned 400 FORBIDDEN_SCOPE; transition remains blocked by merchant scope/ownership and prior state prerequisites.
-AORD-REQ-001,admin_orders,Admin list orders,P1,API,AORD-API-001,Partial,Blocked by role access in current environment (401 unauthorized for non-admin account).
-AORD-REQ-002,admin_orders,Admin order detail by id,P1,API,AORD-API-002,Partial,Blocked by role access in current environment (401 unauthorized for non-admin account).
-PAY-REQ-001,payments,Retrieve payment methods for ordering,P1,API,PAY-001,Partial,Automated and implemented; promote to Automated after repeated stable runs in current environment.
+STORE-REQ-004,store,Store verification required before ordering,P0,API+UI,STO-006|STO-007|STORE-UI-001,partial,Use verified store evidence before order scenarios.
+MENU-REQ-002,menu_service,At least one orderable menu/service item exists,P0,API,ORD-API-001,partial,Indirectly proven by live menu seed + create-order success on storeId=9768 skuId=14.
+ORDER-REQ-001,ordering,Create order with legacy preconditions,P0,API,ORD-001,blocked,Legacy case superseded by ORD-API-001 contract-driven automation.
+MORD-REQ-003,merchant_orders,Merchant accepts eligible order legacy,P0,API,MORD-003,blocked,Legacy case superseded by MORD-API-001 and currently blocked by ownership scope.
+AORD-REQ-001,admin_orders,Admin can view order list legacy,P1,API,AORD-001,blocked,Legacy case superseded by AORD-API-001 contract-driven coverage.
+ORDER-REQ-001,ordering,Create order with valid payload,P0,API,ORD-API-001,covered,Live evidence 2026-03-24 PASS 200 with storeId=9768 skuId=14 quantity=1 JSON content type and Idempotency-Key.
+ORDER-REQ-005,ordering,Create order idempotency with same key,P0,API,ORD-API-005,covered,Live evidence PASS with same idempotency key reusing same order id.
+ORDER-REQ-002,ordering,Create order unsupported media handling,P1,API,ORD-API-002,covered,Stable 415 contract validation.
+ORDER-REQ-003,ordering,Create order required field validation,P1,API,ORD-API-003|ORD-API-006|ORD-API-007|ORD-API-010|ORD-API-011|ORD-API-012|ORD-API-016,covered,Controlled 4xx validation coverage remains stable.
+ORDER-REQ-004,ordering,Get order detail,P0,API,ORD-API-004|ORD-API-020,covered,Detail consistency is proven for created order seed in current customer scope.
+ORDER-REQ-006,ordering,Cross-store cart enforcement,P1,API,ORD-API-008|ORD-API-017,partial,Focused rerun 2026-03-24 (host 192.168.1.103) did not resolve deterministic second-store seed; EDGE keeps these cases as SEED_BLOCKER until a stable alternate store+sku is available.
+ORDER-REQ-007,ordering,Order history visibility for creator,P1,API,ORD-API-009,covered,Deterministic list query includes created order id.
+MORD-REQ-003,merchant_orders,Merchant accept eligible order,P0,API,MORD-API-001,partial,Accept endpoint is executable with merchant token but latest scenario run returned controlled 400 business-state response not accept 200; 2026-03-23 merchant auth blocked.
+MORD-REQ-004,merchant_orders,Merchant reject eligible order,P0,API,MORD-API-002,partial,Reject endpoint is executable with merchant token but latest scenario run returned controlled 400 business-state response; 2026-03-23 merchant auth blocked.
+MORD-REQ-005,merchant_orders,Merchant mark-arrived eligible order,P0,API,MORD-API-003|MORD-API-007,partial,Still blocked by unmet accept=200 precondition in scenario-owned merchant journey and by 2026-03-23 merchant auth drift.
+MORD-REQ-006,merchant_orders,Merchant complete eligible order,P0,API,MORD-API-004|MORD-API-006,partial,Still blocked by unmet accept=200 precondition in scenario-owned merchant journey and by 2026-03-23 merchant auth drift.
+AORD-REQ-001,admin_orders,Admin list orders,P1,API,AORD-API-001|AORD-API-003,covered,Admin list and list visibility pass with admin token.
+AORD-REQ-002,admin_orders,Admin order detail by id,P1,API,AORD-API-002|AORD-API-004,covered,Admin detail and timeline markers pass with admin token.
+PAY-REQ-001,payments,Retrieve payment methods for ordering,P1,API,PAY-001,covered,Stable 200 coverage.
+PAY-REQ-002,payments,Order payment request validation behavior,P1,API,ORD-PAY-002,covered,Missing Idempotency-Key validation remains stable.
+PAY-REQ-003,payments,Order payment success and guard behavior,P0,API,ORD-PAY-001|ORD-PAY-003|ORD-PAY-004|ORD-PAY-005|ORD-PAY-006|ORD-PAY-007|ORD-PAY-008,partial,Intent retry pending wallet and verify are executable in latest run; wallet true-success and settlement-complete branch remain partial.
+ORDER-REQ-010,ordering,Create order invalid store handling,P1,API,ORD-API-014|ORD-API-015,partial,Automated checks run but backend returns 500 instead of controlled 4xx.
+ORDER-REQ-011,ordering,Create order business availability constraints,P1,API,ORD-API-017|ORD-API-018|ORD-API-019,partial,Focused rerun 2026-03-24 keeps ORD-API-017 and ORD-API-019 as SEED_BLOCKER and ORD-API-018 as RUNTIME_CONTRACT_CONFIG_BLOCKER due missing deterministic seeds.
+ORDER-REQ-012,ordering,Order cancellation and dispute flow,P1,API,ORD-CAN-001|ORD-CAN-002|ORD-CAN-003|ORD-CAN-004,partial,ORD-CAN-001..003 are executable with controlled outcomes in latest run; ORD-CAN-004 still blocked by deterministic timeline mapping.
+ORDER-REQ-013,ordering,Order notifications emitted for lifecycle events,P2,API,NOTI-ORD-001|NOTI-ORD-002|NOTI-ORD-003|NOTI-ORD-004|NOTI-ORD-005|NOTI-ORD-006,blocked,Notification feed currently returns no deterministic order-event correlations for asserted lifecycle events.
+AORD-REQ-003,admin_orders,Admin support lookup and state visibility,P1,API,AORD-OPS-001|AORD-OPS-002,covered,Support lookup and state markers pass with admin token.
+ORDER-REQ-014,ordering,Customer post-order action endpoints,P1,API,ORD-CUS-001|ORD-CUS-002|ORD-CUS-003|ORD-CUS-004,partial,Customer action endpoints are executable with scenario-owned order seed; transitions are controlled-status based and still state-dependent.
+ORDER-REQ-015,ordering,Reservation and preorder creation variants,P1,API,ORD-API-021|ORD-API-022|ORD-API-023|ORD-API-028,partial,Variants are executable when customer auth is valid; ORD-API-022 is tracked as CONTRACT_REVIEW when runtime accepts past arrivalTime with 200.
+ORDER-REQ-016,ordering,Multi-item note and idempotency replay behavior,P1,API,ORD-API-024|ORD-API-025|ORD-API-026|ORD-API-027,covered,Latest run proves multi-item note null-note duplicate-sku and idempotency mismatch behavior with deterministic same-store SKU seeds.
+ORDER-REQ-017,ordering,Pricing preview contract behavior,P1,API,ORD-API-029,covered,Pricing preview endpoint is executable and passing in latest runtime run.
+ORDER-REQ-018,ordering,Order add-on contract behavior,P1,API,ORD-ADDON-001|ORD-ADDON-002,partial,Automated with controlled-status assertions; requires order scope seed.
+ORDER-REQ-019,ordering,Customer report-not-arrived action,P1,API,ORD-CUS-004,partial,Endpoint is wired; deterministic state seed is still required.
+ORDER-REQ-020,ordering,Order background jobs and timeline consistency,P2,API,ORD-JOB-001|ORD-JOB-002|ORD-JOB-003|ORD-JOB-004,blocked,Deterministic scheduler and event mapping hooks are not yet available in runner.
+ORDER-REQ-021,ordering,Known runtime caveat checkpoints,P2,API,ORD-CAVEAT-001|ORD-CAVEAT-002|ORD-CAVEAT-003|ORD-CAVEAT-004,blocked,Cases are tracked with explicit blockers and required preconditions.
+MORD-REQ-007,merchant_orders,Merchant detail visibility for target order,P1,API,MORD-API-008,partial,Focused rerun 2026-03-24 confirms merchant detail path is executable; remaining gap is happy-path state preconditions for lifecycle transitions.
+AORD-REQ-004,admin_orders,Admin filtered order list by store and status,P1,API,AORD-API-005,partial,Filter check is automated and depends on valid admin token plus order seed.
+AORD-REQ-005,admin_orders,Admin dispute list detail and resolve validation,P1,API,AORD-API-006|AORD-API-007|AORD-API-008,partial,Dispute list path is wired; detail and resolve depend on deterministic dispute id.
+ADMINSITE-REQ-001,admin_site,Admin authentication and session entry,P0,API+UI,AUTH-001|AUTH-002|ADMIN-E2E-001,partial,API checks exist; UI and customer auth currently environment dependent.
+ADMINSITE-REQ-002,admin_site,Admin dashboard KPI and date filters,P1,API+UI,DASH-001|DASH-002|DASH-003|DASH-004|DASH-005|DASH-006|ADMIN-E2E-002,partial,API coverage is strong; UI path remains sensitive to frontend runtime stability.
+ADMINSITE-REQ-003,admin_site,Member and user management list/detail flows,P1,API+UI,MEMBER-001|MEMBER-002|MEMBER-003|MEMBER-004|ADMIN-E2E-004,partial,Backend defect MEMBER-001 remains active.
+ADMINSITE-REQ-004,admin_site,Category and store category admin flows,P1,API,CATADM-001|CATADM-002|CATADM-003|CATADM-004|STCATADM-001|STCATADM-003,partial,Core read flows are covered; invalid-id defect STCATADM-004 remains active.
+APP-REQ-001,user_app,Auth profile and order activity entry flows,P1,API+UI,AUTH-001|ORD-API-004|ORD-API-009|ORD-PAY-001|ORD-CUS-001,partial,Execution depends on customer auth and deterministic order seeds.
+APP-REQ-002,user_app,Search and store discovery,P1,API,SEA-001|SEA-002|SEA-003|SEA-004|STO-001|STO-002|STO-003,partial,Store not-found defects STO-009 and STO-011 remain active.
+APP-REQ-003,user_app,Notification and wallet related order events,P2,API,NOTI-001|NOTI-002|NOTI-ORD-001|NOTI-ORD-002|ORD-PAY-007,blocked,Notification correlation keys are not deterministic yet.
+MERCHANTWEB-REQ-001,merchant_web,Merchant order queue and lifecycle actions,P0,API+UI,MORD-001|MORD-API-001|MORD-API-002|MORD-API-003|MORD-API-004|MORD-API-006|MORD-API-007|MORD-API-008,partial,Focused rerun 2026-03-24 confirms merchant auth/list/detail execution; lifecycle happy-path remains partial because selected order state does not yet satisfy accept->arrived->complete preconditions.
+MERCHANTWEB-REQ-002,merchant_web,Merchant menu and store config readiness,P1,API,ORD-API-018|ORD-API-019|POL-001,partial,Read side checks exist but deterministic config seeds are still missing.

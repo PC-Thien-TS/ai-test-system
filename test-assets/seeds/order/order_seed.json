@@ -1,0 +1,23 @@
+{
+  "storeId": 9768,
+  "skuId": 14,
+  "storeUniqueIdPathToken": null,
+  "pendingOrderId": 225,
+  "paidOrderId": 165,
+  "cancelledOrderId": 214,
+  "completedOrderId": 164,
+  "lastCreatedOrderId": 238,
+  "lastPaymentAttemptId": 100,
+  "merchantEmail": "tieuphiphi020103+71111@gmail.com",
+  "merchantScopeNote": "Merchant auth list and detail are restored on host 192.168.1.103. Merchant accept/reject execute with controlled 400 business-state responses. Arrived/complete/no-show remain precondition blocked until deterministic accept=200 journey seed is available.",
+  "notes": [
+    "Validated on 2026-03-20 host 192.168.1.103: storeId=9768 remains deterministic and orderable.",
+    "Validated SKU from /api/v1/stores/9768/menu: category=Mon Nuoc, item=Banh Canh, skuId=14.",
+    "Create-order runtime contract requires Content-Type application/json; charset=utf-8 and Idempotency-Key header.",
+    "API_STORE_UNIQUE_ID value 68853a1a-4b9a-49a5-937e-ec061c6e2ecc does not resolve via /store/{token}?UniqueId={token}; backend returns not found.",
+    "Numeric /store/9768 and /store/9768?UniqueId=* both return 200, so uniqueId query appears ignored for numeric path token and STO-010 stays seed-blocked.",
+    "Cross-store deterministic seed remains blocked: alternate store scan still found no second store with active orderable sku outside 9768.",
+    "Customer-scope order seeds discovered in latest run: pendingOrderId=225, paidOrderId=165, cancelledOrderId=214, completedOrderId=164.",
+    "Scenario journey seeds in latest run: paymentOrderId=227, customerActionOrderId=228, merchantOrderId=229."
+  ]
+}
