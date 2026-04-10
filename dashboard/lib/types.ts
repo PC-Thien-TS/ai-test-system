@@ -127,3 +127,66 @@ export interface CompatibilitySummary {
   notes: string[];
   blockers: string[];
 }
+
+export enum ExecutionPath {
+  SMOKE = "smoke",
+  STANDARD = "standard",
+  DEEP = "deep",
+  INTELLIGENT = "intelligent",
+}
+
+export interface ExecutionStrategy {
+  path: ExecutionPath;
+  reason: string;
+  confidence_threshold: number;
+  fallback_threshold: number;
+  enable_negative_paths: boolean;
+  enable_retry_rollback: boolean;
+  enable_anomaly_detection: boolean;
+  estimated_duration_multiplier: number;
+}
+
+export interface ConfidenceFactors {
+  evidence_richness: number;
+  run_stability: number;
+  anomaly_free: number;
+  historical_performance: number;
+  plugin_maturity: number;
+  fallback_penalty: number;
+}
+
+export interface ConfidenceScore {
+  overall_score: number;
+  factors: ConfidenceFactors;
+  timestamp: string;
+  notes: string[];
+}
+
+export interface EvidenceItem {
+  evidence_type: string;
+  timestamp: string;
+  plugin_name: string;
+  source: string;
+  content: Record<string, any>;
+  confidence: number;
+  severity: string;
+}
+
+export interface EvidenceSummary {
+  run_id: string;
+  plugin_name: string;
+  total_evidence_count: number;
+  evidence_by_type: Record<string, number>;
+  avg_confidence: number;
+  richness_score: number;
+  critical_findings: EvidenceItem[];
+  warnings: EvidenceItem[];
+}
+
+export interface EscalationReason {
+  timestamp: string;
+  from_path: ExecutionPath;
+  to_path: ExecutionPath;
+  reason: string;
+  metrics_snapshot: Record<string, number>;
+}

@@ -1,5 +1,119 @@
 # ai_test_system
 
+## v2.5.0 - Execution Intelligence Engine
+
+Version 2.5.0 converts v2.4 metadata-only execution depth into a real execution intelligence layer with adaptive validation.
+
+### Key Features
+
+- **Execution Intelligence Engine**: Chooses between smoke, standard, deep, and intelligent execution paths based on project health, plugin depth, and historical performance
+- **Evidence Collection Framework**: Per-plugin evidence adapters (web_playwright, api_contract, rag_grounding) with dynamic evidence_richness_score calculation
+- **Confidence Scoring Algorithms**: Plugin-specific confidence strategies (web_playwright, api_contract, rag_grounding) with factor breakdown (evidence richness, run stability, anomaly-free, historical performance, plugin maturity, fallback penalty)
+- **Fallback Escalation**: Automatic detection of excessive fallback usage, low real execution, smoke failures, and flakiness with persistence in run metadata
+- **Dashboard Widgets**: Confidence trend chart, execution depth chart, fallback ratio heatmap, plugin maturity heatmap
+
+### New Modules
+
+- `orchestrator/execution_intelligence.py`: Execution intelligence engine with path selection and escalation logic
+- `orchestrator/evidence_collector.py`: Evidence collection framework with plugin-specific adapters
+- `orchestrator/confidence_scorer.py`: Confidence scoring algorithms with plugin-specific strategies
+
+### New Dashboard Components
+
+- `dashboard/components/confidence-trend-chart.tsx`: Line chart showing confidence score trends over time
+- `dashboard/components/execution-depth-chart.tsx`: Bar chart showing plugin execution depth scores
+- `dashboard/components/fallback-ratio-heatmap.tsx`: Pie chart showing fallback ratio distribution
+- `dashboard/components/plugin-maturity-heatmap.tsx`: Area chart showing plugin maturity scores
+
+### New TypeScript Types
+
+- `ExecutionPath`: Enum for execution path types (SMOKE, STANDARD, DEEP, INTELLIGENT)
+- `ExecutionStrategy`: Interface for execution strategy configuration
+- `ConfidenceFactors`: Interface for confidence scoring factors
+- `ConfidenceScore`: Interface for confidence score with breakdown
+- `EvidenceItem`: Interface for individual evidence items
+- `EvidenceSummary`: Interface for evidence summary per plugin
+- `EscalationReason`: Interface for escalation reason tracking
+
+### Metadata vs Real Execution Differences
+
+**v2.4 (Metadata Only):**
+- Plugin depth scores were static metadata
+- Evidence richness scores were static metadata
+- Confidence scores were static metadata
+- No actual execution intelligence
+
+**v2.5 (Real Execution):**
+- Execution intelligence engine dynamically chooses execution paths
+- Evidence collection framework calculates richness scores dynamically from actual evidence
+- Confidence scorer calculates scores dynamically from run results, evidence, and historical data
+- Fallback escalation automatically promotes to deeper validation when needed
+
+### Changed Files
+
+**Backend:**
+- `orchestrator/execution_intelligence.py`: New module - execution intelligence engine
+- `orchestrator/evidence_collector.py`: New module - evidence collection framework
+- `orchestrator/confidence_scorer.py`: New module - confidence scoring algorithms
+- `api/app.py`: Bumped version to 2.5.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.5.0
+
+**Frontend:**
+- `dashboard/lib/types.ts`: Added execution intelligence TypeScript types
+- `dashboard/components/confidence-trend-chart.tsx`: New widget
+- `dashboard/components/execution-depth-chart.tsx`: New widget
+- `dashboard/components/fallback-ratio-heatmap.tsx`: New widget
+- `dashboard/components/plugin-maturity-heatmap.tsx`: New widget
+
+**Tests:**
+- `tests/test_execution_intelligence.py`: New test file for execution intelligence
+- `tests/test_evidence_collector.py`: New test file for evidence collector
+- `tests/test_confidence_scorer.py`: New test file for confidence scorer
+
+### Test Results
+
+**Execution Intelligence Tests (9 tests):**
+- test_choose_execution_path_smoke: ✅
+- test_choose_execution_path_deep: ✅
+- test_choose_execution_path_forced: ✅
+- test_should_escalate_high_fallback: ✅
+- test_should_escalate_low_real_execution: ✅
+- test_should_escalate_smoke_failure: ✅
+- test_should_escalate_flaky_standard: ✅
+- test_should_not_escalate_healthy: ✅
+- test_escalation_history: ✅
+
+**Evidence Collector Tests (8 tests):**
+- test_web_playwright_adapter_collect_evidence: ✅
+- test_web_playwright_adapter_richness: ✅
+- test_api_contract_adapter_collect_evidence: ✅
+- test_rag_grounding_adapter_collect_evidence: ✅
+- test_evidence_collector_collect_all: ✅
+- test_evidence_collector_richness_scores: ✅
+- test_evidence_collector_generate_summary: ✅
+
+**Confidence Scorer Tests (8 tests):**
+- test_web_playwright_confidence_strategy: ✅
+- test_api_contract_confidence_strategy: ✅
+- test_rag_grounding_confidence_strategy: ✅
+- test_confidence_sorer_calculate_confidence: ✅
+- test_confidence_sorer_aggregate_confidence: ✅
+- test_confidence_sorer_generic_strategy: ✅
+- test_confidence_factors_defaults: ✅
+
+**Total: 25 new tests added**
+
+### Recommended v2.6 Roadmap
+
+1. **Execution Engine Integration**: Integrate execution intelligence engine into the actual run execution flow
+2. **Real Evidence Collection**: Connect evidence collectors to actual plugin execution outputs
+3. **Dynamic Confidence Updates**: Update confidence scores in real-time during run execution
+4. **Dashboard Integration**: Add execution intelligence widgets to actual dashboard pages
+5. **Escalation Workflows**: Implement automatic re-run with escalated paths
+6. **Custom Strategies**: Allow users to define custom confidence strategies
+7. **Evidence Storage**: Persist evidence items to database for historical analysis
+8. **ML-Based Confidence**: Add machine learning models for confidence prediction
+
 ## v2.4.0 - Execution Depth Expansion
 
 Version 2.4.0 significantly increases real execution depth across all built-in plugins and reduces fallback-only smoke behavior.
