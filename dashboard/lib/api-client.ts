@@ -1,6 +1,7 @@
 // API client for the Universal Testing Platform backend
 import type {
   CompatibilitySummary,
+  EscalationPolicy,
   PlatformSummary,
   PluginMetadata,
   Project,
@@ -93,6 +94,8 @@ export const api = {
     tags?: string[];
     workspace_id?: string;
   }) => apiClient.post<Project>("/projects", data),
+  updateProjectEscalationPolicy: (projectId: string, policy: EscalationPolicy) =>
+    apiClient.post<Project>(`/projects/${projectId}/escalation-policy`, policy),
   triggerRun: (projectId: string) =>
     apiClient.post<{ run_id: string; project_id: string; status: string; output_path: string; started_at: string }>(
       `/projects/${projectId}/run`,

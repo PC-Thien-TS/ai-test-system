@@ -45,6 +45,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   active: boolean;
+  escalation_policy?: EscalationPolicy;
 }
 
 export interface Run {
@@ -197,4 +198,13 @@ export interface EscalationReason {
   to_path: ExecutionPath;
   reason: string;
   metrics_snapshot: Record<string, number>;
+}
+
+export interface EscalationPolicy {
+  fallback_threshold: number;
+  confidence_threshold: number;
+  max_escalation_depth: number;
+  auto_escalate_on_fail: boolean;
+  auto_escalate_on_flaky: boolean;
+  plugin_overrides: Record<string, Record<string, any>>;
 }

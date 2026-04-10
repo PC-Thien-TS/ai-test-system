@@ -12,6 +12,7 @@ import { ConfidenceTrendChart } from "@/components/confidence-trend-chart";
 import { ExecutionDepthChart } from "@/components/execution-depth-chart";
 import { FallbackRatioHeatmap } from "@/components/fallback-ratio-heatmap";
 import { PluginMaturityHeatmap } from "@/components/plugin-maturity-heatmap";
+import { EscalationPolicyForm } from "@/components/escalation-policy-form";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -147,6 +148,8 @@ export default function ProjectDetailPage() {
           }))}
         />
       </div>
+
+      <EscalationPolicyForm projectId={projectId} policy={project.escalation_policy} />
 
       <Card>
         <CardHeader>
