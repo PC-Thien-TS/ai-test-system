@@ -15,16 +15,17 @@
   "environments": [
     {
       "name": "rankmate-local-network",
-      "apiBaseUrl": "http://192.168.1.7:19066",
+      "apiBaseUrl": "http://192.168.1.103:19066",
       "apiPrefix": "/api/v1",
-      "uiBaseUrl": "http://192.168.1.7:19068",
+      "uiBaseUrl": "http://192.168.1.103:19068",
+      "merchantWebBaseUrl": "http://192.168.1.103:19071",
       "uiLoginPath": "/en/login",
       "credentialEnv": {
         "apiUser": "API_USER",
         "apiPass": "API_PASS"
       },
       "notes": [
-        "Current admin /en/login route can fail preflight with Internal Server Error.",
+        "Runtime host updated to 192.168.1.103 on 2026-03-20.",
         "Admin/business module execution can be role-sensitive for non-admin accounts."
       ]
     },

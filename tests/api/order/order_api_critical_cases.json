@@ -1,6 +1,70 @@
 {
   "suite": "order_api_critical_v1",
   "description": "Critical high-confidence Order API cases wired to regression execution.",
+  "layers": {
+    "core_default_note": "Case IDs not listed in journeys or edge are treated as CORE.",
+    "journeys": [
+      "ORD-API-001",
+      "ORD-API-004",
+      "ORD-API-009",
+      "ORD-API-020",
+      "ORD-API-021",
+      "ORD-API-022",
+      "ORD-API-023",
+      "ORD-API-028",
+      "ORD-PAY-001",
+      "ORD-PAY-003",
+      "ORD-PAY-004",
+      "ORD-PAY-007",
+      "ORD-PAY-008",
+      "ORD-CUS-001",
+      "ORD-CUS-002",
+      "ORD-CUS-003",
+      "ORD-CUS-004",
+      "ORD-CAN-001",
+      "ORD-CAN-002",
+      "ORD-CAN-003",
+      "MORD-API-001",
+      "MORD-API-002",
+      "MORD-API-003",
+      "MORD-API-004",
+      "MORD-API-005",
+      "MORD-API-006",
+      "MORD-API-007",
+      "MORD-API-008",
+      "AORD-API-003",
+      "AORD-API-004",
+      "ORD-ADDON-001",
+      "ORD-ADDON-002"
+    ],
+    "edge": [
+      "ORD-001",
+      "ORD-003",
+      "STO-010",
+      "NEWS-003",
+      "ORD-API-008",
+      "ORD-API-017",
+      "ORD-API-018",
+      "ORD-API-019",
+      "AORD-API-007",
+      "AORD-API-008",
+      "ORD-CAN-004",
+      "NOTI-ORD-001",
+      "NOTI-ORD-002",
+      "NOTI-ORD-003",
+      "NOTI-ORD-004",
+      "NOTI-ORD-005",
+      "NOTI-ORD-006",
+      "ORD-JOB-001",
+      "ORD-JOB-002",
+      "ORD-JOB-003",
+      "ORD-JOB-004",
+      "ORD-CAVEAT-001",
+      "ORD-CAVEAT-002",
+      "ORD-CAVEAT-003",
+      "ORD-CAVEAT-004"
+    ]
+  },
   "cases": [
     {
       "id": "ORD-API-001",
@@ -31,32 +95,151 @@
       "status": "automated"
     },
     {
+      "id": "ORD-API-005",
+      "name": "create order idempotency with same key",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-006",
+      "name": "create order rejects empty items",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-007",
+      "name": "create order rejects invalid sku",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-008",
+      "name": "cross-store cart rule",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-009",
+      "name": "order history contains created order",
+      "method": "GET",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-PAY-001",
+      "name": "payment success updates order status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-PAY-002",
+      "name": "payment fail returns expected state",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-PAY-003",
+      "name": "payment retry after fail",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-PAY-004",
+      "name": "payment timeout or pending behavior",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-PAY-005",
+      "name": "cannot pay already-paid order",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-PAY-006",
+      "name": "cannot pay cancelled order",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-PAY-007",
+      "name": "wallet payment request returns controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/payments/wallet",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-PAY-008",
+      "name": "payment verify endpoint returns controlled status",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}/payments/verify",
+      "status": "partial"
+    },
+    {
       "id": "MORD-API-001",
       "name": "merchant accept order",
       "method": "POST",
       "path": "/api/v1/merchant/orders/{id}/accept",
-      "status": "automated"
+      "status": "partial"
     },
     {
       "id": "MORD-API-002",
       "name": "merchant reject order",
       "method": "POST",
       "path": "/api/v1/merchant/orders/{id}/reject",
-      "status": "automated"
+      "status": "partial"
     },
     {
       "id": "MORD-API-003",
       "name": "merchant mark-arrived order",
       "method": "POST",
       "path": "/api/v1/merchant/orders/{id}/mark-arrived",
-      "status": "automated"
+      "status": "partial"
     },
     {
       "id": "MORD-API-004",
       "name": "merchant complete order",
       "method": "POST",
       "path": "/api/v1/merchant/orders/{id}/complete",
-      "status": "automated"
+      "status": "partial"
+    },
+    {
+      "id": "MORD-API-005",
+      "name": "merchant order list contains created order",
+      "method": "GET",
+      "path": "/api/v1/merchant/orders",
+      "status": "partial"
+    },
+    {
+      "id": "MORD-API-006",
+      "name": "merchant cancel order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/cancel",
+      "status": "partial"
+    },
+    {
+      "id": "MORD-API-007",
+      "name": "merchant mark-no-show order",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/mark-no-show",
+      "status": "partial"
+    },
+    {
+      "id": "MORD-API-008",
+      "name": "merchant detail loads target order",
+      "method": "GET",
+      "path": "/api/v1/merchant/orders/{id}",
+      "status": "partial"
     },
     {
       "id": "AORD-API-001",
@@ -71,6 +254,370 @@
       "method": "GET",
       "path": "/api/v1/admin/orders/{id}",
       "status": "automated"
+    },
+    {
+      "id": "AORD-API-003",
+      "name": "admin list contains created order",
+      "method": "GET",
+      "path": "/api/v1/admin/orders",
+      "status": "automated"
+    },
+    {
+      "id": "AORD-API-004",
+      "name": "admin detail contains items and timeline",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}",
+      "status": "automated"
+    },
+    {
+      "id": "AORD-API-005",
+      "name": "admin list filters by store/status",
+      "method": "GET",
+      "path": "/api/v1/admin/orders",
+      "status": "partial"
+    },
+    {
+      "id": "AORD-API-006",
+      "name": "admin dispute list visibility",
+      "method": "GET",
+      "path": "/api/v1/admin/disputes",
+      "status": "partial"
+    },
+    {
+      "id": "AORD-API-007",
+      "name": "admin dispute detail visibility",
+      "method": "GET",
+      "path": "/api/v1/admin/disputes/{id}",
+      "status": "partial"
+    },
+    {
+      "id": "AORD-API-008",
+      "name": "admin dispute resolve validation (invalid payload)",
+      "method": "POST",
+      "path": "/api/v1/admin/disputes/{id}/resolve",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-010",
+      "name": "create order missing Idempotency-Key",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-011",
+      "name": "create order invalid quantity = 0",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-012",
+      "name": "create order invalid quantity < 0",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-013",
+      "name": "create order excessive quantity",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-014",
+      "name": "create order invalid storeId",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-015",
+      "name": "create order missing storeId",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-016",
+      "name": "create order missing items field",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-017",
+      "name": "create order item not belonging to store",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-018",
+      "name": "create order store closed or ordering disabled",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-019",
+      "name": "create order item disabled or out-of-stock",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-020",
+      "name": "create-order then detail consistency",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}",
+      "status": "automated"
+    },
+    {
+      "id": "ORD-API-021",
+      "name": "create reservation happy path",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-022",
+      "name": "reservation invalid arrivalTime in past",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-023",
+      "name": "reservation invalid pax out of range",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-024",
+      "name": "create order with multiple items",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-025",
+      "name": "create order note/null note behavior",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-026",
+      "name": "create order duplicate SKU lines in payload",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-027",
+      "name": "idempotency replay with changed payload same key",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-028",
+      "name": "create preorder happy path",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-API-029",
+      "name": "pricing preview contract behavior",
+      "method": "POST",
+      "path": "/api/v1/orders/pricing-preview",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CAN-001",
+      "name": "cancel before payment",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/disputes",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CAN-002",
+      "name": "cancel after payment",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/disputes",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CAN-003",
+      "name": "cannot cancel completed order",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/disputes",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CAN-004",
+      "name": "cancellation reflected in timeline",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CUS-001",
+      "name": "customer cancel order returns controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/cancel",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CUS-002",
+      "name": "customer confirm-arrival returns controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/confirm-arrival",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CUS-003",
+      "name": "customer confirm-complete returns controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/confirm-complete",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-CUS-004",
+      "name": "customer report-not-arrived returns controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/report-not-arrived",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-ADDON-001",
+      "name": "add-on request controlled status",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/addons",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-ADDON-002",
+      "name": "add-on request invalid sku",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/addons",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-001",
+      "name": "order created event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-002",
+      "name": "payment success event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-003",
+      "name": "payment fail event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-004",
+      "name": "merchant accepted event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-005",
+      "name": "merchant rejected event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "NOTI-ORD-006",
+      "name": "cancellation event visible",
+      "method": "GET",
+      "path": "/api/v1/notification",
+      "status": "partial"
+    },
+    {
+      "id": "AORD-OPS-001",
+      "name": "admin support lookup by order id",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}",
+      "status": "partial"
+    },
+    {
+      "id": "AORD-OPS-002",
+      "name": "admin support order/payment state visibility",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}",
+      "status": "partial"
+    },
+    {
+      "id": "ORD-JOB-001",
+      "name": "pending order expires after payment timeout",
+      "method": "SYSTEM",
+      "path": "/jobs/order-expire",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-JOB-002",
+      "name": "paid order auto-cancel by sla window",
+      "method": "SYSTEM",
+      "path": "/jobs/order-auto-cancel",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-JOB-003",
+      "name": "waiting-customer-confirmation auto-release",
+      "method": "SYSTEM",
+      "path": "/jobs/order-auto-release",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-JOB-004",
+      "name": "timeline event code consistency",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-CAVEAT-001",
+      "name": "addon availability mismatch api vs ui states",
+      "method": "POST",
+      "path": "/api/v1/orders/{id}/addons",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-CAVEAT-002",
+      "name": "merchant reject reason persistence",
+      "method": "POST",
+      "path": "/api/v1/merchant/orders/{id}/reject",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-CAVEAT-003",
+      "name": "grace-period cancel deadline runtime effect",
+      "method": "SYSTEM",
+      "path": "/jobs/order-grace-period",
+      "status": "blocked"
+    },
+    {
+      "id": "ORD-CAVEAT-004",
+      "name": "dispute/no-show refund destination check",
+      "method": "GET",
+      "path": "/api/v1/orders/{id}/dispute",
+      "status": "blocked"
     }
   ]
 }
