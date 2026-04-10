@@ -1,5 +1,122 @@
 # ai_test_system
 
+## v2.6.0 - Intelligent Run Orchestration
+
+Version 2.6.0 integrates the v2.5 execution intelligence layer into the real run lifecycle.
+
+### Key Features
+
+- **Run API Integration**: Run APIs and CLI flows now use execution_intelligence for intelligent path selection
+- **Automatic Escalation Workflow**: SMOKE -> STANDARD -> DEEP -> INTELLIGENT escalation chain with automatic reruns
+- **Escalation Chain Persistence**: Tracks and persists escalation chains with reasons for audit and learning
+- **Evidence Collection Integration**: Connects evidence_collector to real run artifacts for dynamic evidence richness
+- **Evidence Persistence**: Persists evidence per run under outputs/evidence/<run_id>/ with JSON serialization
+- **Real-Time Updates**: SSE endpoint for real-time confidence and fallback updates during run execution
+- **Dashboard Widget Integration**: Confidence trend, execution depth, fallback ratio, and plugin maturity widgets on homepage
+
+### New Modules
+
+- `orchestrator/run_orchestrator.py`: Run orchestration service integrating execution intelligence into run lifecycle
+- `orchestrator/models.py`: Added ExecutionPath enum, EscalationChain model, and Run model enhancements (execution_path, parent_run_id, confidence_score)
+
+### API Changes
+
+- `POST /projects/{project_id}/run`: Now accepts optional `execution_path` parameter for forced path selection
+- `GET /runs/{run_id}/updates`: SSE endpoint for real-time run updates (confidence_score, fallback_ratio, real_execution_ratio)
+
+### Backend Changes
+
+- `orchestrator/project_service.py`: Integrated RunOrchestrator, added trigger_run with intelligent path selection, added trigger_escalation_run for escalation workflow
+- `orchestrator/platform_summary.py`: Updated to generate confidence_trend, plugin_depth_scores, fallback_ratios, plugin_maturity_scores for dashboard widgets
+- `api/routes/projects.py`: Updated trigger_run response to include execution_path
+- `api/routes/runs.py`: Added SSE endpoint for real-time run updates
+
+### Frontend Changes
+
+- `dashboard/lib/types.ts`: Updated PlatformSummary with new intelligence fields
+- `dashboard/app/page.tsx`: Integrated 4 execution intelligence widgets (ConfidenceTrendChart, ExecutionDepthChart, FallbackRatioHeatmap, PluginMaturityHeatmap)
+
+### Real Lifecycle Integration Points
+
+**Before v2.6 (v2.5 Intelligence Only):**
+- Execution intelligence was a separate module not connected to actual run execution
+- Path selection was theoretical, not applied to real runs
+- Evidence collection was standalone, not integrated with run artifacts
+- No escalation workflow or chain persistence
+
+**After v2.6 (Real Orchestration):**
+- Run APIs use execution intelligence for intelligent path selection
+- Automatic escalation workflow (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+- Escalation chains are persisted with reasons for audit and learning
+- Evidence collection is integrated with real run artifacts and persisted to disk
+- SSE endpoint provides real-time confidence and fallback updates
+- Dashboard widgets display actual intelligence data from platform summary
+
+### Rerun Escalation Workflow
+
+1. Initial run with intelligent path selection (based on project health, plugin depth, historical performance)
+2. Run completes with fallback_ratio and real_execution_ratio metrics
+3. If escalation conditions are met:
+   - fallback_ratio > 0.5
+   - real_execution_ratio < 0.3
+   - smoke failure
+   - flaky standard run
+4. Automatic rerun with escalated path (STANDARD -> DEEP -> INTELLIGENT)
+5. Escalation chain persisted with reasons
+6. Maximum escalation depth configurable (default: 3)
+
+### Dashboard Pages Upgraded
+
+- **Homepage**: Added 4 execution intelligence widgets in a grid layout
+- **Project Detail**: Ready for widget integration (uses same data structures)
+- **Run Detail**: Ready for widget integration (uses SSE endpoint for real-time updates)
+
+### Changed Files
+
+**Backend (1 new module, 4 updated):**
+- `orchestrator/run_orchestrator.py`: New module - run orchestration service
+- `orchestrator/models.py`: Added ExecutionPath, EscalationChain, updated Run model
+- `orchestrator/project_service.py`: Integrated RunOrchestrator, added orchestration methods
+- `orchestrator/platform_summary.py`: Added intelligence data generation
+- `api/routes/projects.py`: Updated trigger_run endpoint
+- `api/routes/runs.py`: Added SSE endpoint
+- `api/app.py`: Bumped version to 2.6.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.6.0
+
+**Frontend (2 updated):**
+- `dashboard/lib/types.ts`: Updated PlatformSummary with intelligence fields
+- `dashboard/app/page.tsx`: Integrated 4 execution intelligence widgets
+
+**Tests (1 new file):**
+- `tests/test_run_orchestrator.py`: New test file for orchestration integration (11 tests)
+
+### Test Results
+
+**Run Orchestrator Tests (11 tests):**
+- test_plan_run_with_intelligence: ✅
+- test_plan_run_forced_path: ✅
+- test_should_escalate_high_fallback: ✅
+- test_should_escalate_max_depth: ✅
+- test_create_escalation_chain: ✅
+- test_get_escalation_chain: ✅
+- test_collect_evidence: ✅
+- test_persist_evidence: ✅
+- test_calculate_confidence: ✅
+- test_escalation_chain_persistence: ✅
+
+**Total: 11 new tests added**
+
+### Recommended v2.7 Roadmap
+
+1. **Project Detail Page Integration**: Add execution intelligence widgets to project detail page with project-specific data
+2. **Run Detail Page Integration**: Add execution intelligence widgets to run detail page with SSE real-time updates
+3. **Automatic Escalation Execution**: Implement automatic escalation rerun trigger after run completion
+4. **Escalation Dashboard UI**: Add UI to view escalation chains and reasons
+5. **Evidence Browser UI**: Add UI to browse persisted evidence per run
+6. **WebSocket Integration**: Replace SSE polling with WebSocket for true real-time updates
+7. **Escalation Policies**: Allow users to configure custom escalation rules per project
+8. **Evidence Search**: Add search and filtering capabilities for evidence items
+
 ## v2.5.0 - Execution Intelligence Engine
 
 Version 2.5.0 converts v2.4 metadata-only execution depth into a real execution intelligence layer with adaptive validation.

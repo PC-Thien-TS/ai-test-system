@@ -103,21 +103,28 @@ class PlatformSummaryGenerator:
                 if tag in self.compatibility_analyzer._plugins:
                     plugin_usage[tag] += 1
         
+        total_projects = len(projects)
+        total_runs = len(all_runs)
+
         return PlatformSummary(
-            total_projects=len(projects),
+            generated_at=datetime.utcnow(),
+            total_projects=total_projects,
             active_projects=active_projects,
-            total_runs=len(all_runs),
+            total_runs=total_runs,
             failing_projects=failing_projects,
             flaky_projects=flaky_projects,
-            gate_overview=dict(gate_overview),
-            plugin_usage=dict(plugin_usage),
-            generated_at=datetime.utcnow(),
             avg_execution_depth_score=avg_execution_depth_score,
             avg_evidence_richness_score=avg_evidence_richness_score,
             avg_confidence_score=avg_confidence_score,
             avg_fallback_ratio=avg_fallback_ratio,
             avg_real_execution_ratio=avg_real_execution_ratio,
             plugin_maturity_trend=plugin_maturity_trend,
+            gate_overview=dict(gate_overview),
+            plugin_usage=dict(plugin_usage),
+            confidence_trend=[{"timestamp": datetime.utcnow().isoformat(), "confidence_score": avg_confidence_score}],
+            plugin_depth_scores=[{"plugin_name": k, "depth_score": v} for k, v in plugin_maturity_trend.items()],
+            fallback_ratios=[{"name": "Platform Average", "fallback_ratio": avg_fallback_ratio, "real_execution_ratio": avg_real_execution_ratio}],
+            plugin_maturity_scores=[{"plugin_name": k, "maturity_score": v} for k, v in plugin_maturity_trend.items()],
         )
 
     def generate_project_summary(self, project_id: str) -> Optional[ProjectSummary]:

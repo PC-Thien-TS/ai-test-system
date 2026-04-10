@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from orchestrator.compatibility import CompatibilityAnalyzer
 from orchestrator.models import (
     CompatibilitySummary,
+    ExecutionPath,
     GateResult,
     PluginMetadata,
     ProductType,
@@ -18,6 +19,7 @@ from orchestrator.models import (
 )
 from orchestrator.platform_summary import PlatformSummaryGenerator
 from orchestrator.project_registry import ProjectRegistry
+from orchestrator.run_orchestrator import RunOrchestrator, RunOrchestrationConfig
 from orchestrator.run_registry import RunRegistry
 
 
@@ -45,6 +47,7 @@ class ProjectService:
             self.run_registry,
             self.compatibility_analyzer,
         )
+        self.run_orchestrator = RunOrchestrator(repo_root)
 
     def create_project(
         self,
@@ -99,14 +102,16 @@ class ProjectService:
     def trigger_run(
         self,
         project_id: str,
+        forced_path: Optional[ExecutionPath] = None,
     ) -> Optional[Run]:
         """
-        Trigger a test run for a project.
+        Trigger a test run for a project with intelligent path selection.
         
-        This creates a run record. Actual execution is handled separately.
+        This creates a run record with execution intelligence. Actual execution is handled separately.
         
         Args:
             project_id: The project ID to run.
+            forced_path: Optional forced execution path.
             
         Returns:
             The created Run if successful, None otherwise.
@@ -114,6 +119,18 @@ class ProjectService:
         project = self.project_registry.get_project(project_id)
         if not project:
             return None
+        
+        # Get historical runs for intelligence
+        historical_runs = self.run_registry.list_runs_by_project(project_id, limit=10)
+        
+        # Plan run with intelligent path selection
+        strategy = self.run_orchestrator.plan_run(
+            project_id=project_id,
+            product_type=project.product_type,
+            plugin_names=project.tags or [],
+            historical_runs=historical_runs,
+            forced_path=forced_path,
+        )
         
         # Create output directory using run_id (will be assigned by registry)
         output_base = self.repo_root / "outputs" / project.name
@@ -124,10 +141,93 @@ class ProjectService:
         run_dir_name = f"{int(time.time())}"
         output_dir = output_base / run_dir_name
         
-        return self.run_registry.create_run(
+        # Create run with execution path
+        run = self.run_registry.create_run(
             project_id=project_id,
             output_path=output_dir,
         )
+        
+        if run:
+            # Update run with execution path and strategy metadata
+            run.execution_path = ExecutionPath(strategy.path.value)
+            run.metadata["execution_strategy"] = {
+                "path": strategy.path.value,
+                "reason": strategy.reason,
+                "confidence_threshold": strategy.confidence_threshold,
+                "fallback_threshold": strategy.fallback_threshold,
+                "enable_negative_paths": strategy.enable_negative_paths,
+                "enable_retry_rollback": strategy.enable_retry_rollback,
+                "enable_anomaly_detection": strategy.enable_anomaly_detection,
+                "estimated_duration_multiplier": strategy.estimated_duration_multiplier,
+            }
+            self.run_registry.update_run(run_id=run.run_id, metadata=run.metadata)
+        
+        return run
+
+    def trigger_escalation_run(
+        self,
+        parent_run_id: str,
+        new_path: ExecutionPath,
+        reason: str,
+    ) -> Optional[Run]:
+        """
+        Trigger an escalation run with a deeper execution path.
+        
+        Args:
+            parent_run_id: The parent run ID.
+            new_path: The new execution path.
+            reason: Reason for escalation.
+            
+        Returns:
+            The created Run if successful, None otherwise.
+        """
+        parent_run = self.run_registry.get_run(parent_run_id)
+        if not parent_run:
+            return None
+        
+        project = self.project_registry.get_project(parent_run.project_id)
+        if not project:
+            return None
+        
+        # Create escalation chain
+        self.run_orchestrator.create_escalation_chain(
+            original_run_id=parent_run.metadata.get("original_run_id", parent_run.run_id),
+            current_run_id="",  # Will be set after run creation
+            path=new_path,
+            reason=reason,
+        )
+        
+        # Create output directory
+        output_base = self.repo_root / "outputs" / project.name
+        output_base.mkdir(parents=True, exist_ok=True)
+        
+        import time
+        run_dir_name = f"{int(time.time())}"
+        output_dir = output_base / run_dir_name
+        
+        # Create run with escalation metadata
+        run = self.run_registry.create_run(
+            project_id=project.project_id,
+            output_path=output_dir,
+        )
+        
+        if run:
+            run.execution_path = new_path
+            run.parent_run_id = parent_run_id
+            run.metadata["escalation_from"] = parent_run.execution_path.value
+            run.metadata["escalation_to"] = new_path.value
+            run.metadata["escalation_reason"] = reason
+            run.metadata["original_run_id"] = parent_run.metadata.get("original_run_id", parent_run.run_id)
+            
+            self.run_registry.update_run(run_id=run.run_id, metadata=run.metadata)
+            
+            # Update escalation chain with new run ID
+            chain = self.run_orchestrator.get_escalation_chain(run.metadata["original_run_id"])
+            if chain:
+                chain.current_run_id = run.run_id
+                self.run_orchestrator._save_escalation_chain(run.metadata["original_run_id"])
+        
+        return run
 
     def get_run(self, run_id: str) -> Optional[Run]:
         """Get a run by ID."""

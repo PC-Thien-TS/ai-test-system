@@ -4,6 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, CheckCircle, XCircle, AlertTriangle, FolderOpen, Play } from "lucide-react";
+import { ConfidenceTrendChart } from "@/components/confidence-trend-chart";
+import { ExecutionDepthChart } from "@/components/execution-depth-chart";
+import { FallbackRatioHeatmap } from "@/components/fallback-ratio-heatmap";
+import { PluginMaturityHeatmap } from "@/components/plugin-maturity-heatmap";
 
 export default function PlatformOverviewPage() {
   const { data: summary, isLoading, error } = useQuery({
@@ -134,6 +138,21 @@ export default function PlatformOverviewPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <ConfidenceTrendChart
+          data={summary?.confidence_trend || []}
+        />
+        <ExecutionDepthChart
+          data={summary?.plugin_depth_scores || []}
+        />
+        <FallbackRatioHeatmap
+          data={summary?.fallback_ratios || []}
+        />
+        <PluginMaturityHeatmap
+          data={summary?.plugin_maturity_scores || []}
+        />
       </div>
     </div>
   );

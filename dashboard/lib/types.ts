@@ -89,6 +89,10 @@ export interface PlatformSummary {
   avg_fallback_ratio: number;
   avg_real_execution_ratio: number;
   plugin_maturity_trend: Record<string, number>;
+  confidence_trend: Array<{ timestamp: string; confidence_score: number }>;
+  plugin_depth_scores: Array<{ plugin_name: string; depth_score: number }>;
+  fallback_ratios: Array<{ name: string; fallback_ratio: number; real_execution_ratio: number }>;
+  plugin_maturity_scores: Array<{ plugin_name: string; maturity_score: number }>;
 }
 
 export interface ProjectSummary {
