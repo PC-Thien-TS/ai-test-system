@@ -1,5 +1,179 @@
 # ai_test_system
 
+## v2.4.0 - Execution Depth Expansion
+
+Version 2.4.0 significantly increases real execution depth across all built-in plugins and reduces fallback-only smoke behavior.
+
+### Key Features
+
+- **Plugin Execution Depth Metrics**: Added execution_depth_score, evidence_richness_score, and confidence_score to all plugins
+- **Deeper Validation Layers**: Multi-step journeys, negative paths, retry/rollback, threshold calibration, grounding confidence, safety consistency, schema evolution, and anomaly heuristics
+- **Enhanced Result Contracts**: Run and ProjectSummary models now include fallback_ratio and real_execution_ratio metrics
+- **Plugin Maturity Trending**: Platform summary includes plugin maturity trend data
+- **Upgraded Plugin Capabilities**:
+  - web_playwright: Added multi_step_journeys, negative_path_testing, retry_rollback_validation, threshold_calibration
+  - api_contract: Added multi_endpoint_journeys, negative_request_testing, retry_mechanism_validation, schema_evolution_detection, anomaly_heuristics
+  - model_evaluation: Added multi_dataset_evaluation, negative_sample_testing, threshold_calibration, drift_detection
+  - rag_grounding: Added multi_hop_grounding, negative_citation_testing, confidence_threshold_validation, grounding_confidence_scoring
+  - llm_consistency: Added multi_turn_consistency, adversarial_input_testing, safety_consistency_validation, output_confidence_scoring
+  - workflow_validator: Added multi_workflow_journeys, negative_state_testing, rollback_validation, state_consistency_checks
+  - data_pipeline_validator: Added multi_stage_validation, negative_data_testing, anomaly_detection_heuristics, schema_evolution_tracking
+
+### Plugin Maturity Before/After
+
+| Plugin | Before Support Level | After Support Level | Before Depth Score | After Depth Score |
+|--------|---------------------|---------------------|-------------------|-------------------|
+| web_playwright | FULL | FULL | 0.0 | 0.85 |
+| api_contract | FULL | FULL | 0.0 | 0.90 |
+| model_evaluation | USABLE | FULL | 0.0 | 0.80 |
+| rag_grounding | USABLE | FULL | 0.0 | 0.78 |
+| llm_consistency | PARTIAL | USABLE | 0.0 | 0.70 |
+| workflow_validator | FULL | FULL | 0.0 | 0.88 |
+| data_pipeline_validator | PARTIAL | USABLE | 0.0 | 0.75 |
+
+### Changed Files
+
+- `orchestrator/models.py`: Added execution depth metrics to PluginMetadata, Run, ProjectSummary, PlatformSummary
+- `orchestrator/compatibility.py`: Upgraded all built-in plugins with deeper capabilities and execution depth scores
+- `orchestrator/platform_summary.py`: Updated report generation to calculate and include new metrics
+- `api/app.py`: Bumped version to 2.4.0
+- `dashboard/lib/types.ts`: Updated TypeScript types to match new backend models
+- `tests/test_compatibility.py`: Added tests for plugin execution depth metrics
+- `tests/test_models.py`: Added tests for Run and ProjectSummary execution depth metrics
+
+## v2.2.0 - Dashboard UI + Query UX
+
+Version 2.2.0 introduces a modern web dashboard for the Universal Testing Platform, built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, and Recharts.
+
+### Dashboard Features
+
+- **Platform Overview**: View platform-wide metrics including total projects, active projects, total runs, failing projects, flaky projects, quality gate overview, and plugin usage
+- **Projects List**: Browse all projects with search, filter by product type, filter by gate result, and sorting
+- **Project Detail**: View project metadata, summary, trend charts, flaky summary, compatibility, and latest runs
+- **Runs Explorer**: Explore test runs across all projects with status, duration, timestamps, and artifacts
+- **Plugin Catalog**: Browse available plugins with support level, capabilities, compatibility notes, and onboarding completeness
+
+### Quick Start
+
+1. Start the backend API:
+   ```bash
+   uvicorn api.app:app --reload
+   ```
+
+2. Install dashboard dependencies:
+   ```bash
+   cd dashboard
+   npm install
+   ```
+
+3. Start the dashboard:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser to `http://localhost:3000`
+
+The dashboard will be available with interactive charts, real-time data fetching, and a clean, modern UI.
+
+### Dashboard Tech Stack
+
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first CSS framework
+- **shadcn/ui**: Beautiful, accessible component library
+- **TanStack Query**: Data fetching and state management
+- **Recharts**: Chart library for data visualization
+- **Lucide React**: Icon library
+
+For detailed dashboard documentation, see [dashboard/README.md](dashboard/README.md).
+
+---
+
+## v2.1.0 - Platform API
+
+Version 2.1.0 introduces a FastAPI-based Platform API with multi-tenant support, transforming the system from a CLI tool to a full testing platform.
+
+### Platform API Features
+
+- **FastAPI Backend**: RESTful API for managing projects, runs, and quality gates
+- **Multi-tenant/Workspace Model**: Support for multiple workspaces with role-based access control
+- **Project Registry**: File-based project storage with metadata and tags
+- **Run Registry**: Track test runs with status, results, and trends
+- **Plugin System**: Built-in plugin catalog with compatibility analysis
+- **Dashboard-Ready Summaries**: Platform-wide and project-specific summaries for dashboards
+
+### Quick Start
+
+Start the API server:
+
+```bash
+uvicorn api.app:app --reload
+```
+
+The API will be available at `http://localhost:8000` with interactive docs at `http://localhost:8000/docs`.
+
+### API Endpoints
+
+**Health**
+- `GET /health/` - Health check
+
+**Projects**
+- `GET /projects/` - List projects (supports workspace filtering)
+- `POST /projects/` - Create a new project
+- `GET /projects/{project_id}` - Get project details
+- `POST /projects/{project_id}/run` - Trigger a test run
+
+**Runs**
+- `GET /projects/{project_id}/runs` - List runs for a project
+- `GET /projects/{project_id}/summary` - Get project summary
+- `GET /projects/{project_id}/trends` - Get trend data
+
+**Platform**
+- `GET /platform/summary` - Platform-wide summary
+- `GET /platform/projects/latest` - Latest status for all projects
+
+**Plugins**
+- `GET /plugins/` - List available plugins
+- `GET /plugins/{plugin_name}` - Get plugin details
+- `GET /plugins/{plugin_name}/compatibility` - Analyze plugin compatibility
+
+### Multi-tenant Support
+
+Use headers to specify user context:
+
+```
+X-User-ID: user123
+X-Workspace-ID: workspace456
+X-User-Role: admin  # viewer, maintainer, or admin
+```
+
+### Initialize Platform from Existing Domains
+
+To import existing domain-based configurations into the new platform:
+
+```bash
+python scripts/init_platform.py
+```
+
+This will:
+- Import existing domains (order, store_verify, didaunao_release_audit) as projects
+- Import existing output directories as runs
+- Initialize the platform registry
+
+### Backward Compatibility
+
+All existing CLI flows remain unchanged:
+- Domain-based manual flows (order, store_verify, didaunao_release_audit)
+- KB-based workflows
+- Orchestrator-based execution
+- Validation scripts
+
+The platform API layer is additive and does not replace existing functionality.
+
+---
+
+## Legacy Domain-Based Flows (v2.0 and earlier)
+
 This repository now supports three manual domain flows plus the existing Order orchestrator path:
 
 - `order`: legacy static-doc manual flow
