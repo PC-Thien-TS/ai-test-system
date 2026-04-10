@@ -87,6 +87,7 @@ class Project:
     updated_at: datetime = field(default_factory=datetime.utcnow)
     active: bool = True
     metadata: Dict[str, Any] = field(default_factory=dict)
+    escalation_policy: Optional[EscalationPolicy] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -103,6 +104,7 @@ class Project:
             "updated_at": self.updated_at.isoformat(),
             "active": self.active,
             "metadata": self.metadata,
+            "escalation_policy": self.escalation_policy.to_dict() if self.escalation_policy else None,
         }
 
     @classmethod
@@ -121,6 +123,7 @@ class Project:
             updated_at=datetime.fromisoformat(data["updated_at"]),
             active=data.get("active", True),
             metadata=data.get("metadata", {}),
+            escalation_policy=EscalationPolicy.from_dict(data["escalation_policy"]) if data.get("escalation_policy") else None,
         )
 
 
@@ -179,6 +182,40 @@ class Run:
             execution_path=ExecutionPath(data.get("execution_path", "standard")),
             parent_run_id=data.get("parent_run_id"),
             confidence_score=data.get("confidence_score", 0.0),
+        )
+
+
+@dataclass
+class EscalationPolicy:
+    """Project-level escalation policy configuration."""
+    fallback_threshold: float = 0.5  # Escalate if fallback ratio > threshold (0.0 to 1.0)
+    confidence_threshold: float = 0.7  # Escalate if confidence < threshold (0.0 to 1.0)
+    max_escalation_depth: int = 3  # Maximum number of escalations per chain
+    auto_escalate_on_fail: bool = True  # Auto-escalate on gate failure
+    auto_escalate_on_flaky: bool = True  # Auto-escalate on flaky results
+    plugin_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # Plugin-specific overrides
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "fallback_threshold": self.fallback_threshold,
+            "confidence_threshold": self.confidence_threshold,
+            "max_escalation_depth": self.max_escalation_depth,
+            "auto_escalate_on_fail": self.auto_escalate_on_fail,
+            "auto_escalate_on_flaky": self.auto_escalate_on_flaky,
+            "plugin_overrides": self.plugin_overrides,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EscalationPolicy":
+        """Create from dictionary."""
+        return cls(
+            fallback_threshold=data.get("fallback_threshold", 0.5),
+            confidence_threshold=data.get("confidence_threshold", 0.7),
+            max_escalation_depth=data.get("max_escalation_depth", 3),
+            auto_escalate_on_fail=data.get("auto_escalate_on_fail", True),
+            auto_escalate_on_flaky=data.get("auto_escalate_on_flaky", True),
+            plugin_overrides=data.get("plugin_overrides", {}),
         )
 
 

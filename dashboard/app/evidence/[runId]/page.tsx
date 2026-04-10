@@ -7,7 +7,7 @@ import { api } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, Image, FileText, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, Search, Image, FileText, AlertTriangle, CheckCircle, Download, GitCompare } from "lucide-react";
 import Link from "next/link";
 
 export default function EvidenceBrowserPage() {
@@ -15,6 +15,9 @@ export default function EvidenceBrowserPage() {
   const runId = params.runId as string;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterSeverity, setFilterSeverity] = useState<string>("all");
+  const [filterPlugin, setFilterPlugin] = useState<string>("all");
+  const [minConfidence, setMinConfidence] = useState<number>(0);
 
   const { data: run, isLoading } = useQuery({
     queryKey: ["run", runId],
@@ -45,15 +48,29 @@ export default function EvidenceBrowserPage() {
             <p className="text-muted-foreground">Run {runId.slice(0, 8)}</p>
           </div>
         </div>
+        <div className="flex gap-2">
+          {run.parent_run_id && (
+            <Link href={`/evidence/compare/${run.parent_run_id}/${runId}`}>
+              <Button variant="outline" size="sm">
+                <GitCompare className="mr-2 h-4 w-4" />
+                Compare Escalation
+              </Button>
+            </Link>
+          )}
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Download All
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Search and Filter</CardTitle>
+          <CardTitle>Advanced Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
+          <div className="grid gap-4 md:grid-cols-5">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search evidence..."
@@ -74,6 +91,40 @@ export default function EvidenceBrowserPage() {
               <option value="anomaly">Anomalies</option>
               <option value="matrix">Matrices</option>
             </select>
+            <select
+              value={filterSeverity}
+              onChange={(e) => setFilterSeverity(e.target.value)}
+              className="border rounded-md px-3 py-2"
+            >
+              <option value="all">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select
+              value={filterPlugin}
+              onChange={(e) => setFilterPlugin(e.target.value)}
+              className="border rounded-md px-3 py-2"
+            >
+              <option value="all">All Plugins</option>
+              <option value="web_playwright">Web Playwright</option>
+              <option value="api_contract">API Contract</option>
+              <option value="model_eval">Model Eval</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Min Confidence:</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={minConfidence}
+                onChange={(e) => setMinConfidence(parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-sm w-12">{minConfidence}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
