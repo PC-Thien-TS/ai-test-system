@@ -1,5 +1,310 @@
 # ai_test_system
 
+## v3.0.0 - Adaptive Quality Intelligence
+
+Version 3.0.0 is a major upgrade that transforms the platform from configurable orchestration into adaptive quality intelligence with AI-assisted analysis, predictive capabilities, and advanced analytics.
+
+### Key Features
+
+- **Real-time Run Intelligence Channel**: WebSocket-based real-time updates for run status, confidence, evidence, and escalation state (upgrade from SSE for bidirectional communication)
+- **AI-Assisted Evidence Analysis**: Anomaly detection with severity levels, pattern grouping across evidence items, and suspicious evidence ranking for prioritized investigation
+- **Escalation Prediction**: Predict escalation likelihood based on risk factors, predict likely next execution path, and expose prediction confidence with explanatory reasons
+- **Escalation Policy Templates**: Default templates by product type (conservative, balanced, aggressive), recommended thresholds from historical patterns, and custom template creation
+- **Advanced Escalation Analytics**: Cross-project escalation pattern detection, top failure mode analysis, time-to-stable trend tracking, and project health scoring
+- **Comprehensive Testing**: 24 new tests for prediction, recommendation, and evidence analysis features
+
+### New Intelligence Modules
+
+- `api/websocket_manager.py`: WebSocket manager for real-time run intelligence updates with run subscriptions and message broadcasting
+- `orchestrator/evidence_analysis.py`: AI-assisted evidence analyzer with anomaly detection, pattern grouping, and suspiciousness ranking
+- `orchestrator/escalation_prediction.py`: Escalation predictor with likelihood calculation, path prediction, and policy recommendations
+- `orchestrator/policy_templates.py`: Policy template engine with default templates, recommendations, and validation
+- `orchestrator/escalation_analytics.py`: Advanced analytics for cross-project patterns, failure modes, and time-to-stable trends
+
+### Backend Changes
+
+- `api/routes/runs.py`: Added WebSocket endpoint /{run_id}/ws for real-time bidirectional updates, imported WebSocket manager
+- `api/app.py`: Bumped version to 3.0.0
+- `orchestrator/compatibility.py`: Updated platform version to 3.0.0
+
+### Real-time Transport
+
+**WebSocket Support:**
+- Bidirectional communication via WebSocket endpoint `/runs/{run_id}/ws`
+- Run-specific subscriptions for targeted updates
+- Message types: run_update, evidence_update, escalation_prediction, anomaly_detected
+- Keep-alive ping/pong mechanism
+- Automatic connection cleanup on disconnect
+
+**SSE Support (Retained):**
+- SSE endpoint `/runs/{run_id}/updates` still available for backward compatibility
+- Streaming run status updates for clients preferring SSE
+
+### Evidence Analysis Features
+
+**Anomaly Detection:**
+- Unexpected response codes (4xx, 5xx)
+- Timeout anomalies (>10s response time)
+- Visual regression in screenshots (>10% diff)
+- Content mismatches (expected vs actual)
+- Performance degradation vs baseline
+
+**Pattern Grouping:**
+- Error message patterns across evidence
+- Frequent URL path access patterns
+- Repeated failure patterns
+
+**Suspiciousness Ranking:**
+- Score-based ranking (0.0 to 1.0)
+- Weighted by anomaly severity
+- Pattern participation factors
+- Content-based risk assessment
+
+### Escalation Prediction Features
+
+**Risk Factors:**
+- Fallback ratio (weight: 0.3)
+- Confidence score (weight: 0.25)
+- Flaky history (weight: 0.2)
+- Gate failure (weight: 0.15)
+- Escalation depth (weight: 0.1)
+
+**Prediction Outputs:**
+- Escalation likelihood (0.0 to 1.0)
+- Predicted next execution path
+- Prediction confidence (high/medium/low)
+- Explanatory reasons for prediction
+
+**Policy Recommendations:**
+- Historical pattern analysis
+- Product-type-based defaults
+- Stability score adjustments
+- Team preference integration
+
+### Policy Templates
+
+**Default Templates:**
+- Conservative (high thresholds, low escalation)
+- Balanced (moderate thresholds)
+- Aggressive (low thresholds, quick escalation)
+- Product-specific variants (web, api, model, rag, llm_app, workflow, data_pipeline)
+
+**Template Features:**
+- Fallback threshold (0.0-1.0)
+- Confidence threshold (0.0-1.0)
+- Max escalation depth (1-10)
+- Auto-escalate toggles
+- Plugin-specific overrides
+
+**Recommendation Engine:**
+- Historical data analysis
+- Stability score integration
+- Team preference support
+- Alternative template suggestions
+
+### Advanced Analytics
+
+**Cross-Project Patterns:**
+- Common escalation reasons
+- Path transition patterns
+- Plugin failure patterns
+- Severity classification
+
+**Failure Mode Analysis:**
+- Top 10 failure modes
+- Occurrence frequency
+- Average escalation depth
+- Time-to-stable metrics
+
+**Time-to-Stable Trends:**
+- Period-based trend analysis
+- Trend direction (increasing/decreasing/stable)
+- Project aggregation
+- Configurable period duration
+
+**Project Health Score:**
+- Escalation rate factor (0.4 weight)
+- Escalation depth factor (0.2 weight)
+- Flaky rate factor (0.2 weight)
+- Time-to-stable factor (0.2 weight)
+- Overall score (0.0 to 1.0)
+
+### Changed Files
+
+**Backend (3 updated, 4 new):**
+- `api/routes/runs.py`: Added WebSocket endpoint, imported websocket_manager
+- `api/app.py`: Bumped version to 3.0.0
+- `orchestrator/compatibility.py`: Updated platform version to 3.0.0
+- `api/websocket_manager.py`: New WebSocket manager module
+- `orchestrator/evidence_analysis.py`: New evidence analysis module
+- `orchestrator/escalation_prediction.py`: New escalation prediction module
+- `orchestrator/policy_templates.py`: New policy templates module
+- `orchestrator/escalation_analytics.py`: New escalation analytics module
+
+**Tests (1 new file):**
+- `tests/test_v30_features.py`: New test file for v3.0 features (24 tests)
+
+### Test Results
+
+**v3.0 Features Tests (24 tests):**
+- test_evidence_analyzer_anomaly_detection: ✅
+- test_evidence_anomaly_severity_levels: ✅
+- test_evidence_pattern_grouping: ✅
+- test_evidence_suspicious_ranking: ✅
+- test_escalation_prediction_likelihood: ✅
+- test_escalation_prediction_high_likelihood: ✅
+- test_escalation_prediction_low_likelihood: ✅
+- test_escalation_path_prediction: ✅
+- test_escalation_policy_recommendation: ✅
+- test_policy_template_list: ✅
+- test_policy_template_by_product_type: ✅
+- test_policy_recommendation: ✅
+- test_policy_recommendation_with_team_preferences: ✅
+- test_policy_recommendation_with_stability_score: ✅
+- test_custom_policy_template_creation: ✅
+- test_policy_configuration_validation: ✅
+- test_cross_project_pattern_detection: ✅
+- test_failure_mode_analysis: ✅
+- test_time_to_stable_trends: ✅
+- test_analytics_summary_generation: ✅
+- test_project_health_score: ✅
+- test_websocket_manager_initialization: ✅
+- test_run_intelligence_message_serialization: ✅
+- test_evidence_analysis_integration: ✅
+- test_escalation_prediction_integration: ✅
+
+**Total: 24 new tests added**
+
+### Intelligence Modules Added
+
+1. **WebSocket Manager** (`api/websocket_manager.py`)
+   - Connection management
+   - Run-specific subscriptions
+   - Message broadcasting
+   - Support for multiple event types
+
+2. **Evidence Analyzer** (`orchestrator/evidence_analysis.py`)
+   - 5 anomaly detectors
+   - Pattern grouping algorithms
+   - Suspiciousness ranking
+   - Analysis summary generation
+
+3. **Escalation Predictor** (`orchestrator/escalation_prediction.py`)
+   - Risk factor calculation
+   - Likelihood prediction
+   - Path prediction
+   - Policy recommendation engine
+
+4. **Policy Template Engine** (`orchestrator/policy_templates.py`)
+   - 6 default templates
+   - Template recommendation
+   - Custom template creation
+   - Configuration validation
+
+5. **Escalation Analytics** (`orchestrator/escalation_analytics.py`)
+   - Cross-project pattern detection
+   - Failure mode analysis
+   - Time-to-stable trends
+   - Project health scoring
+
+### Real-time Transport Used
+
+**WebSocket (Primary):**
+- Endpoint: `/runs/{run_id}/ws`
+- Bidirectional communication
+- Run-specific subscriptions
+- Event types: run_update, evidence_update, escalation_prediction, anomaly_detected
+- Keep-alive mechanism
+
+**SSE (Legacy):**
+- Endpoint: `/runs/{run_id}/updates`
+- Unidirectional streaming
+- Backward compatibility maintained
+
+### Prediction/Recommendation Outputs
+
+**Escalation Prediction:**
+```json
+{
+  "run_id": "run-1",
+  "escalation_likelihood": 0.75,
+  "predicted_path": "deep",
+  "prediction_confidence": "high",
+  "reasons": [
+    "Fallback ratio (0.80) exceeds threshold (0.50)",
+    "Confidence score (0.50) below threshold (0.70)",
+    "Gate test failed"
+  ],
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+**Policy Recommendation:**
+```json
+{
+  "recommended_config": {
+    "fallback_threshold": 0.6,
+    "confidence_threshold": 0.84,
+    "max_escalation_depth": 3,
+    "auto_escalate_on_fail": true,
+    "auto_escalate_on_flaky": true
+  },
+  "confidence": 0.85,
+  "reasons": [
+    "Adjusted for high historical escalation rate: 60%",
+    "Based on team preference: balanced"
+  ],
+  "alternative_templates": ["conservative_web", "aggressive_model"]
+}
+```
+
+**Evidence Analysis:**
+```json
+{
+  "anomalies": [
+    {
+      "evidence_id": "ev1",
+      "anomaly_type": "unexpected_response",
+      "severity": "critical",
+      "description": "HTTP 500 response detected",
+      "confidence": 0.9
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_type": "error_pattern",
+      "description": "Repeated error: Connection refused",
+      "frequency": 3
+    }
+  ],
+  "rankings": [
+    {
+      "evidence_id": "ev1",
+      "suspicious_score": 0.8,
+      "rank": 1,
+      "reasons": ["Critical anomaly: HTTP 500 response detected"]
+    }
+  ],
+  "summary": {
+    "total_evidence": 10,
+    "anomaly_count": 3,
+    "pattern_count": 2,
+    "high_risk_count": 1
+  }
+}
+```
+
+### Recommended v3.1 Roadmap
+
+1. **ML Model Training** - Train machine learning models on historical data for improved prediction accuracy
+2. **Evidence AI Analysis** - Add AI-powered semantic analysis for evidence content and anomaly detection
+3. **Custom Evidence Types** - Allow plugins to define custom evidence types with custom analyzers
+4. **Evidence Search with Semantic Matching** - Add vector-based semantic search for evidence content
+5. **Escalation Policy Auto-tuning** - Automatically adjust policy thresholds based on ongoing performance
+6. **Multi-Model Prediction Ensemble** - Combine multiple prediction models for improved accuracy
+7. **Real-time Anomaly Alerts** - Push notifications for detected anomalies in real-time
+8. **Escalation Chain Visualization** - Interactive visualization of escalation chains with drill-down
+
 ## v2.9.0 - Policy UI and Escalation Timeline
 
 Version 2.9.0 adds UI configuration for escalation policies, escalation timeline visualization, evidence export capabilities, and improved evidence search.

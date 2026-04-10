@@ -7,11 +7,12 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.deps import get_project_service, get_user_context, require_maintainer
+from api.websocket_manager import manager
 from orchestrator.models import RunStatus
 
 router = APIRouter()
@@ -351,30 +352,30 @@ async def run_updates_stream(
 ):
     """
     Stream real-time updates for a run using Server-Sent Events (SSE).
-    
+
     Args:
         run_id: The run ID to stream updates for.
-        
+
     Returns:
         Streaming response with SSE events.
     """
     run = service.get_run(run_id)
-    
+
     if not run:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Run {run_id} not found"
         )
-    
+
     project = service.get_project(run.project_id)
-    
+
     # Check workspace access
     if project and project.workspace_id and project.workspace_id != user.workspace_id and user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this run"
         )
-    
+
     async def event_generator():
         """Generate SSE events for run updates."""
         try:
@@ -387,11 +388,11 @@ async def run_updates_stream(
                 real_execution_ratio=run.real_execution_ratio,
                 timestamp=run.started_at.isoformat(),
             ).model_dump())}\n\n"
-            
+
             # Poll for updates (in production, use WebSocket or message queue)
             for i in range(10):  # Limit to 10 updates for demo
                 await asyncio.sleep(2)
-                
+
                 # Refresh run state
                 updated_run = service.get_run(run_id)
                 if updated_run:
@@ -403,13 +404,13 @@ async def run_updates_stream(
                         real_execution_ratio=updated_run.real_execution_ratio,
                         timestamp=datetime.utcnow().isoformat(),
                     ).model_dump())}\n\n"
-                    
+
                     # Stop if run is completed
                     if updated_run.status in (RunStatus.COMPLETED, RunStatus.FAILED):
                         break
         except asyncio.CancelledError:
             pass
-    
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
@@ -419,3 +420,61 @@ async def run_updates_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.websocket("/{run_id}/ws")
+async def websocket_run_updates(
+    websocket: WebSocket,
+    run_id: str,
+):
+    """
+    WebSocket endpoint for real-time run intelligence updates.
+
+    Args:
+        websocket: The WebSocket connection.
+        run_id: The run ID to subscribe to updates for.
+    """
+    await websocket.accept()
+    client_id = f"client_{id(websocket)}"
+    
+    try:
+        await manager.connect(websocket, client_id)
+        await manager.subscribe_to_run(websocket, run_id)
+        
+        # Send initial state
+        from orchestrator.project_service import ProjectService
+        from pathlib import Path
+        service = ProjectService(Path("data/projects"))
+        
+        run = service.get_run(run_id)
+        if run:
+            await manager.send_run_update(
+                run_id=run_id,
+                status=run.status.value,
+                confidence_score=run.confidence_score,
+                fallback_ratio=run.fallback_ratio,
+                execution_path=run.execution_path.value,
+                escalation_state={
+                    "parent_run_id": run.parent_run_id,
+                    "depth": run.metadata.get("escalation_depth", 0) if run.metadata else 0,
+                },
+            )
+        
+        # Keep connection alive and handle incoming messages
+        while True:
+            try:
+                # Receive ping/pong or control messages
+                data = await websocket.receive_text()
+                
+                # Echo back for keep-alive
+                if data == "ping":
+                    await websocket.send_text("pong")
+                    
+            except WebSocketDisconnect:
+                break
+                
+    except Exception as e:
+        print(f"WebSocket error for run {run_id}: {e}")
+    finally:
+        manager.disconnect(websocket, client_id)
+        await manager.unsubscribe_from_run(websocket, run_id)
