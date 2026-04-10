@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from api.deps import get_project_service, get_user_context
+from api.deps import get_project_service, get_user_context, require_maintainer
 from orchestrator.models import RunStatus
 
 router = APIRouter()
@@ -63,6 +63,135 @@ class RunUpdate(BaseModel):
     fallback_ratio: float
     real_execution_ratio: float
     timestamp: str
+
+
+@router.get("/{run_id}")
+async def get_run(
+    run_id: str,
+    service = Depends(get_project_service),
+    user = Depends(get_user_context),
+):
+    """
+    Get a specific run by ID.
+    
+    Args:
+        run_id: The run ID.
+        
+    Returns:
+        The run details.
+    """
+    run = service.get_run(run_id)
+    
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run {run_id} not found"
+        )
+    
+    project = service.get_project(run.project_id)
+    
+    # Check workspace access
+    if project and project.workspace_id and project.workspace_id != user.workspace_id and user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this run"
+        )
+    
+    return {
+        "run_id": run.run_id,
+        "project_id": run.project_id,
+        "status": run.status.value,
+        "started_at": run.started_at.isoformat(),
+        "output_path": str(run.output_path),
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "gate_result": run.gate_result.value if run.gate_result else None,
+        "flaky": run.flaky,
+        "metadata": run.metadata,
+        "execution_path": run.execution_path.value,
+        "parent_run_id": run.parent_run_id,
+        "confidence_score": run.confidence_score,
+        "fallback_ratio": run.fallback_ratio,
+        "real_execution_ratio": run.real_execution_ratio,
+    }
+
+
+@router.post("/{run_id}/escalate")
+async def trigger_escalation_rerun(
+    run_id: str,
+    reason: str,
+    service = Depends(get_project_service),
+    user = Depends(require_maintainer),
+):
+    """
+    Trigger an escalation rerun for a completed run.
+    
+    Args:
+        run_id: The parent run ID to escalate from.
+        reason: Reason for escalation.
+        
+    Returns:
+        The new escalated run details.
+    """
+    parent_run = service.get_run(run_id)
+    
+    if not parent_run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run {run_id} not found"
+        )
+    
+    project = service.get_project(parent_run.project_id)
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {parent_run.project_id} not found"
+        )
+    
+    # Check workspace access
+    if project.workspace_id and project.workspace_id != user.workspace_id and user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this project"
+        )
+    
+    # Determine next escalation path
+    from orchestrator.models import ExecutionPath
+    current_path = parent_run.execution_path
+    
+    if current_path == ExecutionPath.SMOKE:
+        new_path = ExecutionPath.STANDARD
+    elif current_path == ExecutionPath.STANDARD:
+        new_path = ExecutionPath.DEEP
+    elif current_path == ExecutionPath.DEEP:
+        new_path = ExecutionPath.INTELLIGENT
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot escalate from INTELLIGENT path"
+        )
+    
+    # Trigger escalation rerun
+    new_run = service.trigger_escalation_run(
+        parent_run_id=run_id,
+        new_path=new_path,
+        reason=reason,
+    )
+    
+    if not new_run:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create escalation rerun"
+        )
+    
+    return {
+        "run_id": new_run.run_id,
+        "project_id": new_run.project_id,
+        "status": new_run.status.value,
+        "execution_path": new_run.execution_path.value,
+        "parent_run_id": new_run.parent_run_id,
+        "started_at": new_run.started_at.isoformat(),
+    }
 
 
 @router.get("/{project_id}/runs", response_model=List[RunResponse])

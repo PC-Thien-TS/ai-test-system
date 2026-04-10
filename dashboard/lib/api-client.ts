@@ -102,6 +102,7 @@ export const api = {
   // Runs
   listRuns: (projectId: string, limit = 50) =>
     apiClient.get<Run[]>(`/projects/${projectId}/runs?limit=${limit}`),
+  getRun: (runId: string) => apiClient.get<Run>(`/runs/${runId}`),
   getProjectSummary: (projectId: string) =>
     apiClient.get<ProjectSummary>(`/projects/${projectId}/summary`),
   getProjectTrends: (projectId: string, limit = 50) =>

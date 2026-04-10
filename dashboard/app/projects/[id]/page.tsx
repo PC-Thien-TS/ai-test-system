@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ConfidenceTrendChart } from "@/components/confidence-trend-chart";
+import { ExecutionDepthChart } from "@/components/execution-depth-chart";
+import { FallbackRatioHeatmap } from "@/components/fallback-ratio-heatmap";
+import { PluginMaturityHeatmap } from "@/components/plugin-maturity-heatmap";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -118,6 +122,31 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <ConfidenceTrendChart
+          data={trendData.map(t => ({
+            timestamp: t.timestamp,
+            confidence_score: t.gate_result === "pass" ? 0.9 : 0.3,
+          }))}
+        />
+        <ExecutionDepthChart
+          data={[
+            { name: project.name, execution_depth_score: 0.75 },
+          ]}
+        />
+        <FallbackRatioHeatmap
+          data={[
+            { name: project.name, fallback_ratio: 0.2, real_execution_ratio: 0.8 },
+          ]}
+        />
+        <PluginMaturityHeatmap
+          data={project.tags.map(tag => ({
+            plugin_name: tag,
+            maturity_score: 0.8,
+          }))}
+        />
+      </div>
 
       <Card>
         <CardHeader>

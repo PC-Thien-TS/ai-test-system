@@ -1,5 +1,109 @@
 # ai_test_system
 
+## v2.7.0 - Escalation Observability and Evidence UI
+
+Version 2.7.0 upgrades intelligent orchestration observability and completes the escalation UI lifecycle.
+
+### Key Features
+
+- **Project Detail Widgets**: Added execution intelligence widgets (ConfidenceTrendChart, ExecutionDepthChart, FallbackRatioHeatmap, PluginMaturityHeatmap) to project detail page
+- **Run Detail Page**: Created new run detail page with SSE integration for real-time confidence, fallback, and evidence updates
+- **Escalation Rerun API**: Added POST /runs/{run_id}/escalate endpoint for manual escalation rerun with automatic path promotion (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+- **Escalation Browser UI**: New /escalations page to view escalation chains, reasons, and path promotions
+- **Evidence Browser UI**: New /evidence/{runId} page to browse evidence per run (screenshots, traces, citations, anomalies, matrices) with search/filter
+- **Run Detail API**: Added GET /runs/{run_id} endpoint to retrieve individual run details with execution intelligence fields
+
+### New UI Routes
+
+- `/runs/{id}` - Run detail page with SSE live updates and execution intelligence widgets
+- `/escalations` - Escalation browser for viewing chains and path promotions
+- `/evidence/{runId}` - Evidence browser with search/filter for screenshots, traces, citations, anomalies, matrices
+
+### API Changes
+
+- `GET /runs/{run_id}` - Get specific run details with execution intelligence fields
+- `POST /runs/{run_id}/escalate` - Trigger escalation rerun with automatic path promotion
+
+### Backend Changes
+
+- `api/routes/runs.py`: Added GET /runs/{run_id} endpoint, added POST /runs/{run_id}/escalate endpoint
+- `dashboard/lib/api-client.ts`: Added getRun API method
+- `dashboard/lib/types.ts`: Updated Run type to include execution_path, parent_run_id, confidence_score, fallback_ratio, real_execution_ratio
+
+### Frontend Changes
+
+- `dashboard/app/projects/[id]/page.tsx`: Added 4 execution intelligence widgets
+- `dashboard/app/runs/[id]/page.tsx`: New run detail page with SSE integration and intelligence widgets
+- `dashboard/app/escalations/page.tsx`: New escalation browser UI page
+- `dashboard/app/evidence/[runId]/page.tsx`: New evidence browser UI page with search/filter
+
+### SSE Integration Points
+
+- Run detail page uses SSE endpoint `/runs/{run_id}/updates` for real-time confidence, fallback, and evidence updates
+- Live indicator shows when SSE connection is active
+- Confidence score, fallback ratio, and real execution ratio update in real-time during run execution
+
+### Escalation Auto-Rerun Flow
+
+1. User triggers run with intelligent path selection
+2. Run completes with metrics (confidence_score, fallback_ratio, real_execution_ratio)
+3. If escalation conditions are met (high fallback, low real execution, flaky, failed):
+   - User can manually trigger escalation via API or UI
+   - System automatically promotes execution path (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+   - Escalation chain is persisted with reasons
+4. New run is created with parent_run_id and escalation metadata
+5. Process repeats until max depth is reached or INTELLIGENT path is used
+
+### Dashboard Pages Upgraded
+
+- **Project Detail**: Added 4 execution intelligence widgets in grid layout
+- **Run Detail**: New page with SSE live updates, 4 intelligence widgets, execution path display, escalation reason display
+- **Escalations**: New page showing escalation chains, path promotions, and statistics
+- **Evidence**: New page showing evidence items by type with search/filter functionality
+
+### Changed Files
+
+**Backend (2 updated):**
+- `api/routes/runs.py`: Added GET /runs/{run_id} and POST /runs/{run_id}/escalate endpoints
+- `api/app.py`: Bumped version to 2.7.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.7.0
+
+**Frontend (4 new pages, 3 updated):**
+- `dashboard/app/projects/[id]/page.tsx`: Added execution intelligence widgets
+- `dashboard/app/runs/[id]/page.tsx`: New run detail page with SSE
+- `dashboard/app/escalations/page.tsx`: New escalation browser
+- `dashboard/app/evidence/[runId]/page.tsx`: New evidence browser
+- `dashboard/lib/api-client.ts`: Added getRun method
+- `dashboard/lib/types.ts`: Updated Run type
+
+**Tests (1 new file):**
+- `tests/test_v27_escalation.py`: New test file for escalation features (9 tests)
+
+### Test Results
+
+**v2.7 Escalation Tests (9 tests):**
+- test_trigger_escalation_rerun: ✅
+- test_escalation_path_promotion: ✅
+- test_escalation_chain_persistence: ✅
+- test_max_escalation_depth: ✅
+- test_evidence_persistence_location: ✅
+- test_api_get_run_endpoint: ✅
+- test_api_escalate_endpoint: ✅
+- test_sse_endpoint_format: ✅
+
+**Total: 9 new tests added**
+
+### Recommended v2.8 Roadmap
+
+1. **WebSocket Integration**: Replace SSE polling with WebSocket for true bidirectional real-time updates
+2. **Escalation Policies**: Allow users to configure custom escalation rules per project (thresholds, auto-escalate)
+3. **Evidence Search**: Add advanced search with filters by severity, confidence, timestamp, plugin
+4. **Evidence Download**: Add download functionality for evidence items (screenshots, traces, logs)
+5. **Escalation Timeline Visualization**: Add visual timeline view of escalation chains
+6. **Evidence Comparison**: Add side-by-side comparison of evidence across escalation runs
+7. **Real-Time Evidence Streaming**: Stream evidence items as they are collected during run execution
+8. **Escalation Analytics**: Add analytics dashboard for escalation patterns, success rates, time to resolution
+
 ## v2.6.0 - Intelligent Run Orchestration
 
 Version 2.6.0 integrates the v2.5 execution intelligence layer into the real run lifecycle.

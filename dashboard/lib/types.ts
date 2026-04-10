@@ -56,8 +56,12 @@ export interface Run {
   completed_at?: string;
   gate_result?: string;
   flaky: boolean;
-  fallback_ratio: number;
-  real_execution_ratio: number;
+  metadata?: Record<string, any>;
+  execution_path?: string;
+  parent_run_id?: string;
+  confidence_score?: number;
+  fallback_ratio?: number;
+  real_execution_ratio?: number;
 }
 
 export interface PluginMetadata {
