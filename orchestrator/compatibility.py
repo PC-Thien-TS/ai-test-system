@@ -170,10 +170,10 @@ BUILTIN_PLUGINS: Dict[str, PluginMetadata] = {
 class CompatibilityAnalyzer:
     """Analyzes plugin compatibility with the platform and projects."""
 
-    def __init__(self, platform_version: str = "2.8.0"):
+    def __init__(self, platform_version: str = "2.9.0"):
         """
         Initialize the compatibility analyzer.
-        
+
         Args:
             platform_version: Current platform version.
         """

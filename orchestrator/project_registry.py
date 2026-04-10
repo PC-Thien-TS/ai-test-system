@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from orchestrator.models import Project, ProductType
+from orchestrator.models import EscalationPolicy, Project, ProductType
 
 
 class ProjectRegistry:
@@ -139,24 +139,26 @@ class ProjectRegistry:
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         active: Optional[bool] = None,
+        escalation_policy: Optional[EscalationPolicy] = None,
     ) -> Optional[Project]:
         """
         Update an existing project.
-        
+
         Args:
             project_id: The project ID to update.
             name: Optional new name.
             description: Optional new description.
             tags: Optional new tags.
             active: Optional new active status.
-            
+            escalation_policy: Optional escalation policy.
+
         Returns:
             The updated Project if found, None otherwise.
         """
         project = self._projects.get(project_id)
         if not project:
             return None
-        
+
         if name is not None:
             project.name = name
         if description is not None:
@@ -165,7 +167,9 @@ class ProjectRegistry:
             project.tags = tags
         if active is not None:
             project.active = active
-        
+        if escalation_policy is not None:
+            project.escalation_policy = escalation_policy
+
         project.updated_at = datetime.utcnow()
         self._save_index()
         return project

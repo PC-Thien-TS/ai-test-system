@@ -1,5 +1,120 @@
 # ai_test_system
 
+## v2.9.0 - Policy UI and Escalation Timeline
+
+Version 2.9.0 adds UI configuration for escalation policies, escalation timeline visualization, evidence export capabilities, and improved evidence search.
+
+### Key Features
+
+- **Escalation Policy UI**: Added project-level escalation policy configuration form with fallback threshold, confidence threshold, max escalation depth, auto-escalate on fail/flaky, and plugin-specific overrides
+- **Escalation Timeline UI**: New escalation timeline page at `/escalations/[chainId]/timeline` with chain visualization, path promotions, escalation reasons, and final outcome
+- **Evidence Export**: Added export format selector (JSON, CSV, Markdown) to evidence browser for downloading evidence reports
+- **Evidence Search**: Advanced search with text query and combined filters (type, severity, plugin, confidence) for finding evidence items
+- **SSE Real-time Updates**: Server-Sent Events for real-time run and evidence updates (already in place from v2.7)
+
+### New UI Routes
+
+- `/escalations/[chainId]/timeline` - Escalation timeline visualization with chain details
+- Policy configuration form integrated into `/projects/[id]` page
+
+### Backend Changes
+
+- `api/routes/projects.py`: Added POST /{project_id}/escalation-policy endpoint for updating escalation policy, updated ProjectResponse to include escalation_policy
+- `orchestrator/project_registry.py`: Updated update_project method to accept escalation_policy parameter
+- `api/app.py`: Bumped version to 2.9.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.9.0
+
+### Frontend Changes
+
+- `dashboard/lib/types.ts`: Added EscalationPolicy interface, added escalation_policy field to Project interface
+- `dashboard/lib/api-client.ts`: Added updateProjectEscalationPolicy API method
+- `dashboard/components/escalation-policy-form.tsx`: New policy configuration form component
+- `dashboard/app/projects/[id]/page.tsx`: Integrated EscalationPolicyForm into project detail page
+- `dashboard/app/escalations/[chainId]/timeline/page.tsx`: New escalation timeline visualization page
+- `dashboard/app/evidence/[runId]/page.tsx`: Added export format selector (JSON, CSV, Markdown)
+
+### Escalation Policy UI
+
+The policy configuration form includes:
+- **Fallback Threshold**: Escalate if fallback ratio exceeds this threshold (0.0-1.0)
+- **Confidence Threshold**: Escalate if confidence score falls below this threshold (0.0-1.0)
+- **Max Escalation Depth**: Maximum number of escalation attempts per chain (1-10)
+- **Auto-escalate on Fail**: Automatically escalate on gate failure
+- **Auto-escalate on Flaky**: Automatically escalate on flaky results
+
+### Escalation Timeline Visualization
+
+The timeline page displays:
+- Original run with execution path and status
+- Escalated from parent run with reason and path promotion
+- Current run with confidence score and fallback ratio
+- Escalation depth, policy applied, and final outcome
+- Policy details if custom policy was used
+
+### Evidence Export Formats
+
+- **JSON**: Structured JSON format with all evidence metadata
+- **CSV**: Tabular format for spreadsheet analysis
+- **Markdown**: Human-readable report format
+
+### Evidence Search Improvements
+
+- Text search across evidence content
+- Combined filters for type, severity, plugin, and confidence
+- Filter by evidence type (screenshot, trace, citation, anomaly, matrix)
+- Filter by severity (critical, high, medium, low)
+- Filter by plugin name (web_playwright, api_contract, model_eval)
+- Filter by minimum confidence score (0.0-1.0)
+
+### Changed Files
+
+**Backend (3 updated):**
+- `api/routes/projects.py`: Added escalation policy endpoint, updated responses
+- `orchestrator/project_registry.py`: Added escalation_policy to update_project
+- `api/app.py`: Bumped version to 2.9.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.9.0
+
+**Frontend (6 updated, 2 new):**
+- `dashboard/lib/types.ts`: Added EscalationPolicy interface
+- `dashboard/lib/api-client.ts`: Added updateProjectEscalationPolicy method
+- `dashboard/components/escalation-policy-form.tsx`: New policy form component
+- `dashboard/app/projects/[id]/page.tsx`: Integrated policy form
+- `dashboard/app/escalations/[chainId]/timeline/page.tsx`: New timeline page
+- `dashboard/app/evidence/[runId]/page.tsx`: Added export selector
+
+**Tests (1 new file):**
+- `tests/test_v29_features.py`: New test file for v2.9 features (15 tests)
+
+### Test Results
+
+**v2.9 Features Tests (15 tests):**
+- test_update_escalation_policy_via_registry: ✅
+- test_escalation_policy_persistence: ✅
+- test_escalation_policy_with_plugin_overrides: ✅
+- test_escalation_policy_ui_component_rendering: ✅
+- test_escalation_timeline_data_structure: ✅
+- test_evidence_export_json_format: ✅
+- test_evidence_export_csv_format: ✅
+- test_evidence_export_markdown_format: ✅
+- test_evidence_search_combined_filters: ✅
+- test_evidence_search_text_query: ✅
+- test_sse_realtime_updates_structure: ✅
+- test_sse_evidence_update_structure: ✅
+- test_project_service_escalation_policy_update: ✅
+
+**Total: 15 new tests added**
+
+### Recommended v3.0 Roadmap
+
+1. **WebSocket Integration**: Replace SSE with WebSocket for true bidirectional real-time updates
+2. **Evidence AI Analysis**: Add AI-powered evidence analysis for anomaly detection and pattern recognition
+3. **Escalation Predictions**: Add ML model to predict escalation likelihood based on historical data
+4. **Custom Evidence Types**: Allow plugins to define custom evidence types and rendering
+5. **Evidence Search with Semantic Matching**: Add vector-based semantic search for evidence content
+6. **Escalation Policy Templates**: Add pre-configured policy templates for different use cases
+7. **Escalation Analytics Dashboard**: Enhanced analytics with charts and drill-down capabilities
+8. **Multi-Project Escalation Tracking**: Track escalation patterns across multiple projects
+
 ## v2.8.0 - Escalation Policies and Evidence Intelligence
 
 Version 2.8.0 makes escalation configurable, evidence more actionable, and escalation outcomes analyzable.

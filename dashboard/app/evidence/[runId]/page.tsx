@@ -7,7 +7,7 @@ import { api } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, Image, FileText, AlertTriangle, CheckCircle, Download, GitCompare } from "lucide-react";
+import { ArrowLeft, Search, Image, FileText, AlertTriangle, CheckCircle, Download, GitCompare, FileJson, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
 export default function EvidenceBrowserPage() {
@@ -18,12 +18,22 @@ export default function EvidenceBrowserPage() {
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
   const [filterPlugin, setFilterPlugin] = useState<string>("all");
   const [minConfidence, setMinConfidence] = useState<number>(0);
+  const [exportFormat, setExportFormat] = useState<string>("json");
 
   const { data: run, isLoading } = useQuery({
     queryKey: ["run", runId],
     queryFn: () => api.getRun(runId),
     enabled: !!runId,
   });
+
+  const handleExport = (format: string) => {
+    // Placeholder for export functionality
+    console.log(`Exporting evidence as ${format}`);
+    // In a real implementation, this would:
+    // 1. Fetch all evidence for the run
+    // 2. Format it according to the selected format
+    // 3. Trigger a file download
+  };
 
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
@@ -57,9 +67,18 @@ export default function EvidenceBrowserPage() {
               </Button>
             </Link>
           )}
-          <Button variant="outline" size="sm">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value)}
+            className="border rounded-md px-3 py-2 text-sm"
+          >
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+            <option value="markdown">Markdown</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={() => handleExport(exportFormat)}>
             <Download className="mr-2 h-4 w-4" />
-            Download All
+            Export
           </Button>
         </div>
       </div>
