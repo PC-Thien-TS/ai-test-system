@@ -14,6 +14,7 @@ from orchestrator.plugins.base import (
 )
 from orchestrator.plugins.executor import PluginExecutor
 from orchestrator.plugins.playwright import PlaywrightPlugin
+from orchestrator.plugins.api_contract import ApiContractPlugin
 from orchestrator.plugins.registry import PluginRegistry, get_plugin_registry
 
 
@@ -37,6 +38,8 @@ class PluginOrchestrator:
         """Register built-in executable plugins."""
         # Register Playwright plugin
         self.registry.register_plugin_class(PlaywrightPlugin)
+        # Register API Contract plugin
+        self.registry.register_plugin_class(ApiContractPlugin)
     
     async def execute_run_plugins(
         self,
@@ -209,5 +212,7 @@ def initialize_plugin_system():
     
     # Register Playwright plugin
     registry.register_plugin_class(PlaywrightPlugin)
+    # Register API Contract plugin
+    registry.register_plugin_class(ApiContractPlugin)
     
     return registry
