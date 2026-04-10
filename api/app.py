@@ -26,7 +26,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Universal Testing Platform API",
         description="Platform API for managing testing projects, runs, and quality gates",
-        version="2.4.0",
+        version="2.5.0",
         lifespan=lifespan,
     )
     
