@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from orchestrator.compatibility import CompatibilityAnalyzer
 from orchestrator.models import (
     CompatibilitySummary,
+    EscalationPolicy,
     ExecutionPath,
     GateResult,
     PluginMetadata,
@@ -172,23 +173,33 @@ class ProjectService:
     ) -> Optional[Run]:
         """
         Trigger an escalation run with a deeper execution path.
-        
+
         Args:
             parent_run_id: The parent run ID.
             new_path: The new execution path.
             reason: Reason for escalation.
-            
+
         Returns:
             The created Run if successful, None otherwise.
         """
         parent_run = self.run_registry.get_run(parent_run_id)
         if not parent_run:
             return None
-        
+
         project = self.project_registry.get_project(parent_run.project_id)
         if not project:
             return None
-        
+
+        # Use project's escalation policy or default
+        escalation_policy = project.escalation_policy or EscalationPolicy()
+
+        # Check if escalation is allowed based on policy
+        chain = self.run_orchestrator.get_escalation_chain(
+            parent_run.metadata.get("original_run_id", parent_run.run_id)
+        )
+        if chain and len(chain.escalation_path) >= escalation_policy.max_escalation_depth:
+            return None
+
         # Create escalation chain
         self.run_orchestrator.create_escalation_chain(
             original_run_id=parent_run.metadata.get("original_run_id", parent_run.run_id),
@@ -196,21 +207,21 @@ class ProjectService:
             path=new_path,
             reason=reason,
         )
-        
+
         # Create output directory
         output_base = self.repo_root / "outputs" / project.name
         output_base.mkdir(parents=True, exist_ok=True)
-        
+
         import time
         run_dir_name = f"{int(time.time())}"
         output_dir = output_base / run_dir_name
-        
+
         # Create run with escalation metadata
         run = self.run_registry.create_run(
             project_id=project.project_id,
             output_path=output_dir,
         )
-        
+
         if run:
             run.execution_path = new_path
             run.parent_run_id = parent_run_id
@@ -218,15 +229,16 @@ class ProjectService:
             run.metadata["escalation_to"] = new_path.value
             run.metadata["escalation_reason"] = reason
             run.metadata["original_run_id"] = parent_run.metadata.get("original_run_id", parent_run.run_id)
-            
+            run.metadata["escalation_policy"] = escalation_policy.to_dict()
+
             self.run_registry.update_run(run_id=run.run_id, metadata=run.metadata)
-            
+
             # Update escalation chain with new run ID
             chain = self.run_orchestrator.get_escalation_chain(run.metadata["original_run_id"])
             if chain:
                 chain.current_run_id = run.run_id
                 self.run_orchestrator._save_escalation_chain(run.metadata["original_run_id"])
-        
+
         return run
 
     def get_run(self, run_id: str) -> Optional[Run]:

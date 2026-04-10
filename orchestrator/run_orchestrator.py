@@ -24,6 +24,7 @@ from orchestrator.execution_intelligence import (
 )
 from orchestrator.models import (
     EscalationChain,
+    EscalationPolicy,
     ExecutionPath as ExecutionPathModel,
     ProductType,
     Run,
@@ -120,6 +121,7 @@ class RunOrchestrator:
         self,
         run: Run,
         plugin_names: List[str],
+        escalation_policy: Optional[EscalationPolicy] = None,
     ) -> Optional[ExecutionPathModel]:
         """
         Determine if a run should be escalated to a deeper path.
@@ -127,6 +129,7 @@ class RunOrchestrator:
         Args:
             run: The completed run.
             plugin_names: Plugin names used.
+            escalation_policy: Optional project escalation policy.
 
         Returns:
             New execution path if escalation is needed, None otherwise.
@@ -134,12 +137,43 @@ class RunOrchestrator:
         if not self.config.enable_escalation:
             return None
 
+        # Use provided policy or default
+        policy = escalation_policy or EscalationPolicy()
+
         # Check if we've exceeded max escalation depth
         if run.parent_run_id:
             chain = self.get_escalation_chain(run.parent_run_id)
-            if chain and len(chain.escalation_path) >= self.config.max_escalation_depth:
+            if chain and len(chain.escalation_path) >= policy.max_escalation_depth:
                 return None
 
+        # Check auto-escalate conditions based on policy
+        should_escalate = False
+        escalation_reason = ""
+
+        # Check fallback threshold
+        if run.fallback_ratio > policy.fallback_threshold:
+            should_escalate = True
+            escalation_reason = f"Fallback ratio {run.fallback_ratio:.2f} exceeds threshold {policy.fallback_threshold}"
+
+        # Check confidence threshold
+        elif run.confidence_score < policy.confidence_threshold:
+            should_escalate = True
+            escalation_reason = f"Confidence score {run.confidence_score:.2f} below threshold {policy.confidence_threshold}"
+
+        # Check gate failure
+        elif policy.auto_escalate_on_fail and run.gate_result and run.gate_result.value == "fail":
+            should_escalate = True
+            escalation_reason = "Gate result is FAIL"
+
+        # Check flaky results
+        elif policy.auto_escalate_on_flaky and run.flaky:
+            should_escalate = True
+            escalation_reason = "Run is marked as flaky"
+
+        if not should_escalate:
+            return None
+
+        # Determine next path
         current_path = ExecutionPath(run.execution_path.value)
         new_path = self.intelligence_engine.should_escalate_path(
             current_path=current_path,

@@ -1,5 +1,128 @@
 # ai_test_system
 
+## v2.8.0 - Escalation Policies and Evidence Intelligence
+
+Version 2.8.0 makes escalation configurable, evidence more actionable, and escalation outcomes analyzable.
+
+### Key Features
+
+- **Escalation Policies**: Added project-level escalation policies with configurable thresholds (fallback, confidence), max escalation depth, auto-escalate on fail/flaky, and plugin-specific overrides
+- **Policy Integration**: Integrated escalation policies into run orchestration and escalation decisions for automatic escalation based on policy rules
+- **Advanced Evidence Filters**: Upgraded evidence browser with filters for severity (critical/high/medium/low), confidence threshold, plugin, and type
+- **Evidence Download**: Added download all evidence artifacts functionality
+- **Evidence Comparison**: Added side-by-side evidence comparison across escalation runs
+- **Escalation Analytics**: New escalation analytics page showing escalation frequency, success rate, average escalation depth, time to stable result, and common escalation reasons
+
+### New UI Routes
+
+- `/evidence/[runId]` - Evidence browser with advanced filters (severity, confidence, plugin, type, timestamp)
+- `/evidence/compare/[runAId]/[runBId]` - Evidence comparison page for escalation runs
+- `/analytics/escalations` - Escalation analytics dashboard
+
+### Backend Changes
+
+- `orchestrator/models.py`: Added EscalationPolicy dataclass with configurable thresholds and overrides, added escalation_policy field to Project model
+- `orchestrator/run_orchestrator.py`: Updated should_escalate method to use escalation policy for decision making
+- `orchestrator/project_service.py`: Updated trigger_escalation_run to use project's escalation policy and check max depth
+- `api/app.py`: Bumped version to 2.8.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.8.0
+
+### Frontend Changes
+
+- `dashboard/app/evidence/[runId]/page.tsx`: Added advanced filters (severity, confidence, plugin, type), download button, compare escalation link
+- `dashboard/app/evidence/compare/[runAId]/[runBId]/page.tsx`: New evidence comparison page for side-by-side escalation run comparison
+- `dashboard/app/analytics/escalations/page.tsx`: New escalation analytics dashboard
+
+### Escalation Policy Model
+
+```python
+@dataclass
+class EscalationPolicy:
+    fallback_threshold: float = 0.5  # Escalate if fallback ratio > threshold
+    confidence_threshold: float = 0.7  # Escalate if confidence < threshold
+    max_escalation_depth: int = 3  # Maximum escalation attempts
+    auto_escalate_on_fail: bool = True  # Auto-escalate on gate failure
+    auto_escalate_on_flaky: bool = True  # Auto-escalate on flaky results
+    plugin_overrides: Dict[str, Dict[str, Any]] = {}  # Plugin-specific overrides
+```
+
+### Escalation Decision Logic
+
+1. Check if escalation is enabled
+2. Check if max escalation depth is exceeded (from policy)
+3. Evaluate escalation conditions based on policy:
+   - Fallback ratio > fallback_threshold
+   - Confidence score < confidence_threshold
+   - Gate result is FAIL (if auto_escalate_on_fail)
+   - Run is flaky (if auto_escalate_on_flaky)
+4. If any condition met, determine next execution path
+5. Return new path or None if no escalation needed
+
+### Evidence Browser Filters
+
+- **Search**: Text search across evidence items
+- **Type Filter**: Filter by evidence type (screenshot, trace, citation, anomaly, matrix)
+- **Severity Filter**: Filter by severity level (critical, high, medium, low)
+- **Plugin Filter**: Filter by plugin name (web_playwright, api_contract, model_eval)
+- **Confidence Filter**: Filter by minimum confidence score (0.0 to 1.0)
+
+### Escalation Analytics Metrics
+
+- **Escalation Frequency**: Total number of escalations across all projects
+- **Success Rate**: Percentage of escalations that passed the quality gate
+- **Average Escalation Depth**: Average number of escalation steps per chain
+- **Time to Stable**: Average time to reach a stable (non-escalated) result
+- **Common Escalation Reasons**: Top reasons for escalation (fallback, confidence, fail, flaky)
+- **Path Distribution**: Distribution of escalation paths (SMOKE->STANDARD, STANDARD->DEEP, DEEP->INTELLIGENT)
+
+### Changed Files
+
+**Backend (4 updated):**
+- `orchestrator/models.py`: Added EscalationPolicy dataclass, added escalation_policy field to Project
+- `orchestrator/run_orchestrator.py`: Updated should_escalate to use policy
+- `orchestrator/project_service.py`: Updated trigger_escalation_run to use policy
+- `api/app.py`: Bumped version to 2.8.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.8.0
+
+**Frontend (3 new pages, 1 updated):**
+- `dashboard/app/evidence/[runId]/page.tsx`: Added advanced filters, download, comparison
+- `dashboard/app/evidence/compare/[runAId]/[runBId]/page.tsx`: New comparison page
+- `dashboard/app/analytics/escalations/page.tsx`: New analytics page
+
+**Tests (1 new file):**
+- `tests/test_v28_policies.py`: New test file for escalation policies (13 tests)
+
+### Test Results
+
+**v2.8 Policy Tests (13 tests):**
+- test_escalation_policy_defaults: ✅
+- test_escalation_policy_custom: ✅
+- test_escalation_policy_serialization: ✅
+- test_should_escalate_with_policy_fallback: ✅
+- test_should_escalate_with_policy_confidence: ✅
+- test_should_escalate_with_policy_gate_fail: ✅
+- test_should_escalate_with_policy_flaky: ✅
+- test_should_not_escalate_with_policy: ✅
+- test_max_escalation_depth_enforced: ✅
+- test_project_service_escalation_with_policy: ✅
+- test_evidence_filter_by_severity: ✅
+- test_evidence_filter_by_confidence: ✅
+- test_evidence_comparison_page: ✅
+- test_escalation_analytics_page: ✅
+
+**Total: 13 new tests added**
+
+### Recommended v2.9 Roadmap
+
+1. **WebSocket Integration**: Replace SSE polling with WebSocket for true bidirectional real-time updates
+2. **Evidence Search**: Add full-text search with semantic matching across evidence content
+3. **Evidence Export**: Add export to PDF, JSON, CSV formats for evidence reports
+4. **Escalation Policy UI**: Add UI for configuring escalation policies per project
+5. **Escalation Timeline Visualization**: Add visual timeline view of escalation chains
+6. **Evidence AI Analysis**: Add AI-powered evidence analysis for anomaly detection and pattern recognition
+7. **Escalation Predictions**: Add ML model to predict escalation likelihood based on historical data
+8. **Custom Evidence Types**: Allow plugins to define custom evidence types and rendering
+
 ## v2.7.0 - Escalation Observability and Evidence UI
 
 Version 2.7.0 upgrades intelligent orchestration observability and completes the escalation UI lifecycle.
