@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.deps import get_project_service, get_user_context
@@ -49,6 +53,16 @@ class TrendDataPoint(BaseModel):
     gate_result: Optional[str]
     flaky: bool
     duration: Optional[float]
+
+
+class RunUpdate(BaseModel):
+    """Real-time run update."""
+    run_id: str
+    status: str
+    confidence_score: float
+    fallback_ratio: float
+    real_execution_ratio: float
+    timestamp: str
 
 
 @router.get("/{project_id}/runs", response_model=List[RunResponse])
@@ -198,3 +212,81 @@ async def get_project_trends(
         )
         for t in trends
     ]
+
+
+@router.get("/{run_id}/updates")
+async def run_updates_stream(
+    run_id: str,
+    service = Depends(get_project_service),
+    user = Depends(get_user_context),
+):
+    """
+    Stream real-time updates for a run using Server-Sent Events (SSE).
+    
+    Args:
+        run_id: The run ID to stream updates for.
+        
+    Returns:
+        Streaming response with SSE events.
+    """
+    run = service.get_run(run_id)
+    
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run {run_id} not found"
+        )
+    
+    project = service.get_project(run.project_id)
+    
+    # Check workspace access
+    if project and project.workspace_id and project.workspace_id != user.workspace_id and user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this run"
+        )
+    
+    async def event_generator():
+        """Generate SSE events for run updates."""
+        try:
+            # Send initial state
+            yield f"data: {json.dumps(RunUpdate(
+                run_id=run.run_id,
+                status=run.status.value,
+                confidence_score=run.confidence_score,
+                fallback_ratio=run.fallback_ratio,
+                real_execution_ratio=run.real_execution_ratio,
+                timestamp=run.started_at.isoformat(),
+            ).model_dump())}\n\n"
+            
+            # Poll for updates (in production, use WebSocket or message queue)
+            for i in range(10):  # Limit to 10 updates for demo
+                await asyncio.sleep(2)
+                
+                # Refresh run state
+                updated_run = service.get_run(run_id)
+                if updated_run:
+                    yield f"data: {json.dumps(RunUpdate(
+                        run_id=updated_run.run_id,
+                        status=updated_run.status.value,
+                        confidence_score=updated_run.confidence_score,
+                        fallback_ratio=updated_run.fallback_ratio,
+                        real_execution_ratio=updated_run.real_execution_ratio,
+                        timestamp=datetime.utcnow().isoformat(),
+                    ).model_dump())}\n\n"
+                    
+                    # Stop if run is completed
+                    if updated_run.status in (RunStatus.COMPLETED, RunStatus.FAILED):
+                        break
+        except asyncio.CancelledError:
+            pass
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

@@ -47,6 +47,7 @@ class RunTriggerResponse(BaseModel):
     status: str
     output_path: str
     started_at: str
+    execution_path: str
 
 
 @router.get("", response_model=List[ProjectResponse])
@@ -178,6 +179,7 @@ async def get_project(
 @router.post("/{project_id}/run", response_model=RunTriggerResponse)
 async def trigger_run(
     project_id: str,
+    execution_path: Optional[str] = None,
     service = Depends(get_project_service),
     user = Depends(require_maintainer),
 ):
@@ -186,6 +188,7 @@ async def trigger_run(
     
     Args:
         project_id: The project ID.
+        execution_path: Optional forced execution path (smoke, standard, deep, intelligent).
         
     Returns:
         Created run metadata.
@@ -205,7 +208,11 @@ async def trigger_run(
             detail="Access denied to this project"
         )
     
-    run = service.trigger_run(project_id)
+    # Convert execution_path string to enum if provided
+    from orchestrator.models import ExecutionPath
+    forced_path = ExecutionPath(execution_path) if execution_path else None
+    
+    run = service.trigger_run(project_id, forced_path=forced_path)
     
     if not run:
         raise HTTPException(
@@ -219,4 +226,5 @@ async def trigger_run(
         status=run.status.value,
         output_path=str(run.output_path),
         started_at=run.started_at.isoformat(),
+        execution_path=run.execution_path.value,
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -45,6 +46,14 @@ class SupportLevel(str, Enum):
     PARTIAL = "partial"
     FALLBACK = "fallback"
     NONE = "none"
+
+
+class ExecutionPath(str, Enum):
+    """Execution path types."""
+    SMOKE = "smoke"
+    STANDARD = "standard"
+    DEEP = "deep"
+    INTELLIGENT = "intelligent"
 
 
 @dataclass
@@ -129,6 +138,9 @@ class Run:
     metadata: Dict[str, Any] = field(default_factory=dict)
     fallback_ratio: float = 0.0  # 0.0 to 1.0, ratio of fallback executions
     real_execution_ratio: float = 0.0  # 0.0 to 1.0, ratio of real executions
+    execution_path: ExecutionPath = ExecutionPath.STANDARD  # Execution path used
+    parent_run_id: Optional[str] = None  # Parent run if this is an escalation rerun
+    confidence_score: float = 0.0  # Overall confidence score
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -144,6 +156,9 @@ class Run:
             "metadata": self.metadata,
             "fallback_ratio": self.fallback_ratio,
             "real_execution_ratio": self.real_execution_ratio,
+            "execution_path": self.execution_path.value,
+            "parent_run_id": self.parent_run_id,
+            "confidence_score": self.confidence_score,
         }
 
     @classmethod
@@ -161,6 +176,47 @@ class Run:
             metadata=data.get("metadata", {}),
             fallback_ratio=data.get("fallback_ratio", 0.0),
             real_execution_ratio=data.get("real_execution_ratio", 0.0),
+            execution_path=ExecutionPath(data.get("execution_path", "standard")),
+            parent_run_id=data.get("parent_run_id"),
+            confidence_score=data.get("confidence_score", 0.0),
+        )
+
+
+@dataclass
+class EscalationChain:
+    """Tracks escalation chain for a run."""
+    original_run_id: str
+    current_run_id: str
+    escalation_path: List[Dict[str, Any]]  # List of {run_id, path, reason, timestamp}
+    created_at: datetime = field(default_factory=datetime.utcnow)
+
+    def add_escalation(self, run_id: str, path: ExecutionPath, reason: str):
+        """Add an escalation step to the chain."""
+        self.escalation_path.append({
+            "run_id": run_id,
+            "path": path.value,
+            "reason": reason,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        self.current_run_id = run_id
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "original_run_id": self.original_run_id,
+            "current_run_id": self.current_run_id,
+            "escalation_path": self.escalation_path,
+            "created_at": self.created_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EscalationChain":
+        """Create from dictionary."""
+        return cls(
+            original_run_id=data["original_run_id"],
+            current_run_id=data["current_run_id"],
+            escalation_path=data["escalation_path"],
+            created_at=datetime.fromisoformat(data["created_at"]),
         )
 
 
@@ -230,21 +286,25 @@ class ProjectSummary:
 
 @dataclass
 class PlatformSummary:
-    """Platform-wide summary for dashboard."""
+    """Platform-wide summary across all projects."""
+    generated_at: datetime
     total_projects: int
     active_projects: int
     total_runs: int
     failing_projects: int
     flaky_projects: int
-    gate_overview: Dict[GateResult, int]
-    plugin_usage: Dict[str, int]
-    generated_at: datetime = field(default_factory=datetime.utcnow)
-    avg_execution_depth_score: float = 0.0  # Platform average
-    avg_evidence_richness_score: float = 0.0  # Platform average
-    avg_confidence_score: float = 0.0  # Platform average
-    avg_fallback_ratio: float = 0.0  # Platform average
-    avg_real_execution_ratio: float = 0.0  # Platform average
-    plugin_maturity_trend: Dict[str, float] = field(default_factory=dict)  # Plugin name -> maturity score
+    avg_execution_depth_score: float = 0.0
+    avg_evidence_richness_score: float = 0.0
+    avg_confidence_score: float = 0.0
+    avg_fallback_ratio: float = 0.0
+    avg_real_execution_ratio: float = 0.0
+    plugin_maturity_trend: Dict[str, float] = field(default_factory=dict)
+    gate_overview: Dict[str, int] = field(default_factory=dict)
+    plugin_usage: Dict[str, int] = field(default_factory=dict)
+    confidence_trend: List[Dict[str, Any]] = field(default_factory=list)
+    plugin_depth_scores: List[Dict[str, Any]] = field(default_factory=list)
+    fallback_ratios: List[Dict[str, Any]] = field(default_factory=list)
+    plugin_maturity_scores: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -263,4 +323,8 @@ class PlatformSummary:
             "avg_fallback_ratio": self.avg_fallback_ratio,
             "avg_real_execution_ratio": self.avg_real_execution_ratio,
             "plugin_maturity_trend": self.plugin_maturity_trend,
+            "confidence_trend": self.confidence_trend,
+            "plugin_depth_scores": self.plugin_depth_scores,
+            "fallback_ratios": self.fallback_ratios,
+            "plugin_maturity_scores": self.plugin_maturity_scores,
         }
