@@ -1,0 +1,122 @@
+{
+  "generatedAtUtc": "2026-04-15T09:30:30.880000+00:00",
+  "metadata": {
+    "baseUrl": "http://192.168.1.103:19066",
+    "merchantStoreId": null,
+    "totalDiscoveredOrders": 0,
+    "allowCreate": true
+  },
+  "results": [
+    {
+      "slot": "API_PAID_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_REJECTABLE_PAID_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_ACCEPTED_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_ARRIVED_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_MERCHANT_CANCELLABLE_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_NO_SHOW_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_PENDING_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_CANCELLED_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_COMPLETED_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_NON_PAID_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_STALE_TRANSITION_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    },
+    {
+      "slot": "API_CONSISTENCY_ORDER_ID",
+      "orderId": null,
+      "status": null,
+      "statusName": null,
+      "source": "missing",
+      "note": "no candidate discovered"
+    }
+  ],
+  "diagnostics": [
+    "customer_login=customer login request failed: HTTPConnectionPool(host='192.168.1.103', port=19066): Max retries exceeded with url: /api/v1/auth/login (Caused by ConnectTimeoutError(<HTTPConnection(host='192.168.1.103', port=19066) at 0x1ede447ed50>, 'Connection to 192.168.1.103 timed out. (connect timeout=30.0)'))",
+    "merchant_login=merchant login request failed: HTTPConnectionPool(host='192.168.1.103', port=19066): Max retries exceeded with url: /api/v1/auth/login (Caused by ConnectTimeoutError(<HTTPConnection(host='192.168.1.103', port=19066) at 0x1ede4df1fa0>, 'Connection to 192.168.1.103 timed out. (connect timeout=30.0)'))",
+    "merchant_store_context=skipped (merchant login unavailable)",
+    "merchant_discovery=blocked (store-scoped merchant token unavailable)"
+  ],
+  "mutations": []
+}

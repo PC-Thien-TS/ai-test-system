@@ -1,0 +1,37 @@
+{
+  "generated_at_utc": "2026-04-15T10:49:53.923386+00:00",
+  "order_id": 760,
+  "store_id": 9768,
+  "payment_attempt_id": 192,
+  "payment_transaction_id": null,
+  "initial_status": "pending",
+  "final_status": "pending",
+  "user_visible": true,
+  "merchant_visible": true,
+  "admin_visible": false,
+  "notes": [
+    "Golden path created order 760 for store 9768 and verified user detail/history."
+  ],
+  "branches": {
+    "payment": {
+      "order_id": 760,
+      "status": 200,
+      "note": "Payment init+verify contract completed without webhook mutation."
+    },
+    "merchant_visibility": {
+      "order_id": 760,
+      "status": 200,
+      "note": "Merchant list/detail visibility confirmed."
+    },
+    "cancel": {
+      "order_id": 761,
+      "status": 10,
+      "note": "create -> cancel branch verified by user detail"
+    },
+    "no_show": {
+      "order_id": null,
+      "status": null,
+      "note": "Missing API_NO_SHOW_ORDER_ID seed."
+    }
+  }
+}
