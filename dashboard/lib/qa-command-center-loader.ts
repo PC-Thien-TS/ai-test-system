@@ -15,6 +15,7 @@ type ArtifactMap = {
   dashboardSnapshot: LoadState<Record<string, unknown>>;
   defectCluster: LoadState<Record<string, unknown>>;
   rerunPlan: LoadState<Record<string, unknown>>;
+  snapshotHistory: LoadState<Record<string, unknown>>;
 };
 
 type CommandCenterArtifacts = {
@@ -27,6 +28,7 @@ const ARTIFACT_FILES = [
   { key: "dashboardSnapshot", fileName: "dashboard_snapshot.json" },
   { key: "defectCluster", fileName: "defect_cluster_report.json" },
   { key: "rerunPlan", fileName: "autonomous_rerun_plan.json" },
+  { key: "snapshotHistory", fileName: "qa_snapshot_history.json" },
 ] as const;
 
 function candidatePaths(fileName: string): string[] {
@@ -96,6 +98,7 @@ export async function loadQaCommandCenterArtifacts(): Promise<CommandCenterArtif
     dashboardSnapshot: loaded.find((item) => item.key === "dashboardSnapshot")!,
     defectCluster: loaded.find((item) => item.key === "defectCluster")!,
     rerunPlan: loaded.find((item) => item.key === "rerunPlan")!,
+    snapshotHistory: loaded.find((item) => item.key === "snapshotHistory")!,
   };
 
   return {

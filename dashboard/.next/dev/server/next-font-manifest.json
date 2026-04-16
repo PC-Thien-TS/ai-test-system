@@ -1,15 +1,6 @@
 {
   "app": {
-    "[project]/app/page": [
-      "static/media/83afe278b6a6bb3c-s.p.0q-301v4kxxnr.woff2"
-    ],
-    "[project]/app/plugins/page": [
-      "static/media/83afe278b6a6bb3c-s.p.0q-301v4kxxnr.woff2"
-    ],
-    "[project]/app/projects/page": [
-      "static/media/83afe278b6a6bb3c-s.p.0q-301v4kxxnr.woff2"
-    ],
-    "[project]/app/runs/page": [
+    "[project]/app/qa-command-center/page": [
       "static/media/83afe278b6a6bb3c-s.p.0q-301v4kxxnr.woff2"
     ]
   },
