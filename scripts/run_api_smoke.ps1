@@ -19,6 +19,38 @@ function Get-RepoRoot {
     return (Resolve-Path (Join-Path $scriptDir "..")).Path
 }
 
+function Import-DotEnvFile {
+    param([string]$FilePath)
+
+    if (-not (Test-Path -LiteralPath $FilePath)) {
+        return
+    }
+
+    Get-Content -LiteralPath $FilePath | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
+            return
+        }
+
+        $eq = $line.IndexOf("=")
+        if ($eq -le 0) {
+            return
+        }
+
+        $key = $line.Substring(0, $eq).Trim()
+        $value = $line.Substring($eq + 1).Trim()
+
+        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        $existing = [Environment]::GetEnvironmentVariable($key)
+        if ([string]::IsNullOrWhiteSpace($existing)) {
+            [Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+
 function Join-ApiUrl {
     param(
         [string]$BaseUrl,
@@ -527,6 +559,8 @@ function Get-SwaggerDocument {
 }
 
 $repoRoot = Get-RepoRoot
+$envFilePath = Join-Path $repoRoot ".env"
+Import-DotEnvFile -FilePath $envFilePath
 $artifactDir = Join-Path $repoRoot "artifacts\test-results\api"
 New-Item -Path $artifactDir -ItemType Directory -Force | Out-Null
 
@@ -667,7 +701,7 @@ try {
         $apiPass = Get-RequiredEnvValue -Name "API_PASS"
     }
     catch {
-        $message = $_.Exception.Message
+        $message = $_.Exception.Message + " | Set env vars directly or create $envFilePath from .env.example."
         Add-Result -Id "API-ENV" -Name "Environment validation" -Ok $false -Status $null -Notes $message
 
         $summary = [ordered]@{

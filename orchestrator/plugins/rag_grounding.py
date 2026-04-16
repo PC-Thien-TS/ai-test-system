@@ -31,6 +31,7 @@ class RAGGroundingConfig:
 
 class RAGGroundingPlugin(BasePlugin):
     """RAG Grounding plugin with real execution for RAG system validation."""
+    RAGGroundingConfig = RAGGroundingConfig
     
     def __init__(self):
         super().__init__()
@@ -238,7 +239,7 @@ class RAGGroundingPlugin(BasePlugin):
             print(f"RAG Grounding plugin cleanup error: {e}")
             return False
     
-    async def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """
         Validate RAG Grounding plugin configuration.
         

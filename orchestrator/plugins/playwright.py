@@ -216,7 +216,7 @@ class PlaywrightPlugin(BasePlugin):
             print(f"Playwright cleanup error: {e}")
             return False
     
-    async def validate_config(self, config: Dict[str, Any]) -> tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> tuple[bool, List[str]]:
         """
         Validate Playwright plugin configuration.
         

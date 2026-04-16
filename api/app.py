@@ -42,7 +42,9 @@ def create_app() -> FastAPI:
     # Register routers
     app.include_router(health.router, prefix="/health", tags=["health"])
     app.include_router(projects.router, prefix="/projects", tags=["projects"])
+    # Keep legacy /projects run routes while exposing canonical /runs endpoints.
     app.include_router(runs.router, prefix="/projects", tags=["runs"])
+    app.include_router(runs.router, prefix="/runs", tags=["runs"])
     app.include_router(platform.router, prefix="/platform", tags=["platform"])
     app.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
     

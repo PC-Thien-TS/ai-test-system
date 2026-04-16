@@ -62,6 +62,7 @@ class EscalationPredictor:
             "gate_failure": 0.15,
             "escalation_depth": 0.1,
         }
+        self._path_escalation_threshold = 0.4
 
     def predict_escalation(
         self,
@@ -232,7 +233,7 @@ class EscalationPredictor:
         escalation_depth: int,
     ) -> Optional[ExecutionPath]:
         """Predict the next execution path if escalation occurs."""
-        if escalation_likelihood < 0.5:
+        if escalation_likelihood < self._path_escalation_threshold:
             return None  # Not likely to escalate
 
         path_order = [ExecutionPath.SMOKE, ExecutionPath.STANDARD, ExecutionPath.DEEP, ExecutionPath.INTELLIGENT]

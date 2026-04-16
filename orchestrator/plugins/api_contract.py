@@ -179,7 +179,7 @@ class ApiContractPlugin(BasePlugin):
             print(f"API Contract plugin cleanup error: {e}")
             return False
     
-    async def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """
         Validate API Contract plugin configuration.
         
@@ -350,8 +350,10 @@ class ApiContractPlugin(BasePlugin):
                     response_json = response.json()
                     validate(instance=response_json, schema=schema)
                     schema_validations_passed += 1
+                    assertions_passed += 1
                 except JsonSchemaValidationError as e:
                     schema_validations_failed += 1
+                    assertions_failed += 1
                     evidence_items.append(EvidenceItem(
                         evidence_type=EvidenceType.ASSERTION,
                         content={
