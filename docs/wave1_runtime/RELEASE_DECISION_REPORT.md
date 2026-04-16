@@ -1,68 +1,77 @@
 # RELEASE_DECISION_REPORT
 
-## Executive Summary
+## Executive Decision
 
 - Decision: `release_with_caution`
 - Confidence: `medium`
-- Generated at: `2026-04-15T11:24:02.554840+00:00`
-- Summary: Core Wave 1 signals are healthy enough for cautious release, but known defects and environment/coverage blockers remain.
+- Generated at: `2026-04-16T04:10:32.248203+00:00`
+- Summary: Core Wave 1 signals are healthy enough for cautious release, but defect/blocker penalties and depth gaps remain.
 
-## Current Tested Phases
+## Weighted Score Summary
 
-| Phase | Status |
-|---|---|
-| Auth | `green` |
-| Order Core | `green` |
-| Order Lifecycle | `usable` |
-| Admin Consistency | `green` |
-| Merchant Transition | `partial_seed_blocked` |
-| Payment Webhook Realism | `blocked_by_runtime_config` |
-| Search + Store | `known_backend_regression_present` |
+- Weighted score: `72` / `100`
 
-## What Is Green
+## Phase Contribution Table
 
-- lifecycle_seed_order_available: Lifecycle seed provides deterministic order_id=760.
-- order_core_phase: Order lifecycle report shows successful order creation and user visibility.
-- admin_consistency_phase: Admin consistency report shows no cross-surface inconsistency findings.
-- auth_phase: Cross-surface user/merchant/admin checks imply role auth paths were functional in captured run.
+| Phase | Score Contribution |
+|---|---:|
+| `auth` | `25` |
+| `order_core` | `25` |
+| `search_store` | `12` |
+| `lifecycle` | `15` |
+| `admin_consistency` | `20` |
+| `merchant_depth` | `-4` |
+| `payment_realism` | `-8` |
 
-## Known Product Defects
+## Product Defect Penalties
 
-- STORE-API-004 (aligned with STO-009 evidence): invalid store lookup returns 500 instead of controlled 400/404.
-- STO-011: invalid store unique-id lookup returns 500 instead of controlled 400/404 (from regression evidence).
+| ID | Severity | Penalty | Note |
+|---|---|---:|---|
+| `STORE-API-004` | `P2` | `-8` | Invalid store lookup returns 500 instead of controlled 400/404 |
+| `STO-011` | `P2` | `0` | Invalid store uniqueId lookup returns 500 instead of controlled 400/404 |
 
-## Environment Blockers
+## Environment Blocker Penalties
 
-- Merchant seed builder diagnostics show runtime connectivity/auth failures while discovering merchant state seeds.
-- Stripe webhook integrity remains environment-blocked by missing runtime secret/signing alignment.
-- Payment sandbox/gateway wiring inconsistency risk remains for callback-realism coverage.
+| ID | Severity | Penalty | Note |
+|---|---|---:|---|
+| `BLK-W1-003` | `medium` | `-5` | Stripe webhook secret/signing alignment blocked in runtime |
 
-## Coverage Gaps
+## Coverage Gap Penalties
 
-- Merchant transition seed coverage is incomplete (13 seed slots missing).
-- Payment webhook realism coverage is incomplete until Stripe secret alignment is fixed.
+| ID | Severity | Penalty | Note |
+|---|---|---:|---|
+| `GAP-MERCHANT-DEPTH` | `medium` | `0` | Merchant transition depth partially seed-blocked (13 slots missing) |
+| `GAP-PAYMENT-REALISM` | `medium` | `0` | Payment webhook realism coverage is incomplete |
 
-## Release Recommendation
+## Evidence Gap Penalties
 
-- `release_with_caution` with `medium` confidence.
+| ID | Severity | Penalty | Note |
+|---|---|---:|---|
+| `none` | `` | `0` | No penalties |
 
-## Rationale
+## Confidence Rationale
 
-- Known backend defects remain open in store negative-path handling.
-- Environment/runtime constraints still block full merchant/payment realism coverage.
-- Coverage depth for merchant terminal transitions and webhook integrity is incomplete.
+- Core phases are green but defect/blocker penalties reduce certainty.
+- Known product defects remain open and are explicitly penalized.
+- Environment blockers are separated from product defects and penalized moderately.
+- Coverage depth remains incomplete for merchant/payment realism paths.
 
-## Required Next Actions Before Release
+## Scenario Drift Validation
 
-- Fix invalid-store lookup regression so negative store-path behavior returns controlled 400/404.
-- Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment integrity realism checks.
-- Regenerate merchant state seeds to unlock deeper merchant transition and terminal-state coverage.
+| Scenario | Expected | Actual | Score | Confidence | Match |
+|---|---|---|---:|---|---|
+| `A_current_real_repo_evidence` | `release_with_caution` | `release_with_caution` | `72` | `medium` | `True` |
+| `B_improved_future_state` | `release` | `release` | `100` | `high` | `True` |
+| `C_regressed_auth_or_admin` | `block_release` | `block_release` | `47` | `low` | `True` |
 
-## Recommended Actions After Release
+## Recommended Next Actions
 
-- Monitor invalid-store error-rate and 5xx signals for store lookup endpoints.
-- Track payment callback anomalies until webhook realism coverage is fully unlocked.
-- Schedule merchant transition depth rerun after deterministic seed slots are filled.
+- Before release: Fix STORE-API-004 negative-path regression so invalid store lookups return controlled 400/404.
+- Before release: Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment realism checks.
+- Before release: Unlock merchant state seeds for transition-depth and terminal-state verification.
+- After release: Monitor store lookup 5xx rate and invalid-lookup error handling.
+- After release: Monitor payment callback anomalies until full webhook realism coverage is stable.
+- After release: Keep merchant transition reruns in nightly cycle until seed depth is fully deterministic.
 
 ## Evidence Sources
 

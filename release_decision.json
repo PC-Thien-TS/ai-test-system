@@ -1,31 +1,127 @@
 {
   "decision": "release_with_caution",
   "confidence": "medium",
-  "generated_at_utc": "2026-04-15T11:24:02.554840+00:00",
-  "summary": "Core Wave 1 signals are healthy enough for cautious release, but known defects and environment/coverage blockers remain.",
+  "weighted_score": 72,
+  "max_score": 100,
+  "generated_at_utc": "2026-04-16T04:10:32.248203+00:00",
+  "summary": "Core Wave 1 signals are healthy enough for cautious release, but defect/blocker penalties and depth gaps remain.",
+  "phase_scores": {
+    "auth": 25,
+    "order_core": 25,
+    "search_store": 12,
+    "lifecycle": 15,
+    "admin_consistency": 20,
+    "merchant_depth": -4,
+    "payment_realism": -8
+  },
   "critical_green_signals": [
-    "lifecycle_seed_order_available: Lifecycle seed provides deterministic order_id=760.",
-    "order_core_phase: Order lifecycle report shows successful order creation and user visibility.",
-    "admin_consistency_phase: Admin consistency report shows no cross-surface inconsistency findings.",
-    "auth_phase: Cross-surface user/merchant/admin checks imply role auth paths were functional in captured run."
+    "Auth phase inferred green from successful user/merchant/admin cross-surface evidence.",
+    "Order core green from lifecycle report and deterministic order seed.",
+    "Search + Store suite is present and evidence indicates mostly green behavior.",
+    "Lifecycle flow is usable with deterministic order seed and merchant visibility.",
+    "Admin consistency phase is green with no reported inconsistencies."
+  ],
+  "product_defect_penalties": [
+    {
+      "id": "STORE-API-004",
+      "title": "Invalid store lookup returns 500 instead of controlled 400/404",
+      "severity": "P2",
+      "penalty": -8,
+      "category": "product_defect",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md",
+      "in_active_path": false
+    },
+    {
+      "id": "STO-011",
+      "title": "Invalid store uniqueId lookup returns 500 instead of controlled 400/404",
+      "severity": "P2",
+      "penalty": 0,
+      "category": "product_defect",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md",
+      "in_active_path": false
+    }
+  ],
+  "env_blocker_penalties": [
+    {
+      "id": "BLK-W1-003",
+      "title": "Stripe webhook secret/signing alignment blocked in runtime",
+      "severity": "medium",
+      "penalty": -5,
+      "category": "env_blocker",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_execution\\RANKMATE_WAVE1_BLOCKERS_AND_DEPENDENCIES.md",
+      "in_active_path": false
+    }
+  ],
+  "coverage_gap_penalties": [
+    {
+      "id": "GAP-MERCHANT-DEPTH",
+      "title": "Merchant transition depth partially seed-blocked (13 slots missing)",
+      "severity": "medium",
+      "penalty": 0,
+      "category": "coverage_gap",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json",
+      "in_active_path": false
+    },
+    {
+      "id": "GAP-PAYMENT-REALISM",
+      "title": "Payment webhook realism coverage is incomplete",
+      "severity": "medium",
+      "penalty": 0,
+      "category": "coverage_gap",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_execution\\RANKMATE_WAVE1_BLOCKERS_AND_DEPENDENCIES.md",
+      "in_active_path": false
+    }
+  ],
+  "evidence_gaps": [],
+  "decision_reasoning": [
+    "Core phases are green but defect/blocker penalties reduce certainty.",
+    "Known product defects remain open and are explicitly penalized.",
+    "Environment blockers are separated from product defects and penalized moderately.",
+    "Coverage depth remains incomplete for merchant/payment realism paths."
+  ],
+  "hard_block_reasons": [],
+  "scenario_drift_validation": [
+    {
+      "name": "A_current_real_repo_evidence",
+      "expected_decision": "release_with_caution",
+      "actual_decision": "release_with_caution",
+      "weighted_score": 72,
+      "confidence": "medium",
+      "matches_expectation": true
+    },
+    {
+      "name": "B_improved_future_state",
+      "expected_decision": "release",
+      "actual_decision": "release",
+      "weighted_score": 100,
+      "confidence": "high",
+      "matches_expectation": true
+    },
+    {
+      "name": "C_regressed_auth_or_admin",
+      "expected_decision": "block_release",
+      "actual_decision": "block_release",
+      "weighted_score": 47,
+      "confidence": "low",
+      "matches_expectation": true
+    }
   ],
   "known_product_defects": [
-    "STORE-API-004 (aligned with STO-009 evidence): invalid store lookup returns 500 instead of controlled 400/404.",
-    "STO-011: invalid store unique-id lookup returns 500 instead of controlled 400/404 (from regression evidence)."
+    "Invalid store lookup returns 500 instead of controlled 400/404",
+    "Invalid store uniqueId lookup returns 500 instead of controlled 400/404"
   ],
   "env_blockers": [
-    "Merchant seed builder diagnostics show runtime connectivity/auth failures while discovering merchant state seeds.",
-    "Stripe webhook integrity remains environment-blocked by missing runtime secret/signing alignment.",
-    "Payment sandbox/gateway wiring inconsistency risk remains for callback-realism coverage."
+    "Stripe webhook secret/signing alignment blocked in runtime"
   ],
   "coverage_gaps": [
-    "Merchant transition seed coverage is incomplete (13 seed slots missing).",
-    "Payment webhook realism coverage is incomplete until Stripe secret alignment is fixed."
+    "Merchant transition depth partially seed-blocked (13 slots missing)",
+    "Payment webhook realism coverage is incomplete"
   ],
   "release_risk_factors": [
-    "Known backend defects remain open in store negative-path handling.",
-    "Environment/runtime constraints still block full merchant/payment realism coverage.",
-    "Coverage depth for merchant terminal transitions and webhook integrity is incomplete."
+    "Core phases are green but defect/blocker penalties reduce certainty.",
+    "Known product defects remain open and are explicitly penalized.",
+    "Environment blockers are separated from product defects and penalized moderately.",
+    "Coverage depth remains incomplete for merchant/payment realism paths."
   ],
   "evidence_sources": [
     "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\ORDER_LIFECYCLE_REPORT.md",
@@ -40,22 +136,22 @@
     "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md"
   ],
   "recommended_actions_before_release": [
-    "Fix invalid-store lookup regression so negative store-path behavior returns controlled 400/404.",
-    "Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment integrity realism checks.",
-    "Regenerate merchant state seeds to unlock deeper merchant transition and terminal-state coverage."
+    "Fix STORE-API-004 negative-path regression so invalid store lookups return controlled 400/404.",
+    "Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment realism checks.",
+    "Unlock merchant state seeds for transition-depth and terminal-state verification."
   ],
   "recommended_actions_after_release": [
-    "Monitor invalid-store error-rate and 5xx signals for store lookup endpoints.",
-    "Track payment callback anomalies until webhook realism coverage is fully unlocked.",
-    "Schedule merchant transition depth rerun after deterministic seed slots are filled."
+    "Monitor store lookup 5xx rate and invalid-lookup error handling.",
+    "Monitor payment callback anomalies until full webhook realism coverage is stable.",
+    "Keep merchant transition reruns in nightly cycle until seed depth is fully deterministic."
   ],
   "phase_snapshot": {
     "auth": "green",
     "order_core": "green",
-    "order_lifecycle": "usable",
+    "search_store": "mostly_green_with_regression",
+    "lifecycle": "usable",
     "admin_consistency": "green",
-    "merchant_transition": "partial_seed_blocked",
-    "payment_webhook_realism": "blocked_by_runtime_config",
-    "search_store": "known_backend_regression_present"
+    "merchant_depth": "partial_seed_blocked",
+    "payment_realism": "blocked_by_runtime_config"
   }
 }
