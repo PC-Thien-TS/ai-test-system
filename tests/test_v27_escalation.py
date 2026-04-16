@@ -4,6 +4,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import api.deps
 
 from orchestrator.models import (
     ExecutionPath,
@@ -203,6 +204,7 @@ def test_api_get_run_endpoint():
         
         run = service.trigger_run(project.project_id)
         
+        api.deps.REPO_ROOT = Path(tmpdir)
         app = create_app()
         client = TestClient(app)
         
@@ -238,6 +240,7 @@ def test_api_escalate_endpoint():
         
         run = service.trigger_run(project.project_id, forced_path=ExecutionPath.STANDARD)
         
+        api.deps.REPO_ROOT = Path(tmpdir)
         app = create_app()
         client = TestClient(app)
         
@@ -271,6 +274,7 @@ def test_sse_endpoint_format():
         
         run = service.trigger_run(project.project_id)
         
+        api.deps.REPO_ROOT = Path(tmpdir)
         app = create_app()
         client = TestClient(app)
         

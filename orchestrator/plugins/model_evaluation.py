@@ -16,8 +16,8 @@ from sklearn.metrics import (
     roc_auc_score,
     precision_recall_curve,
     roc_curve,
-    calibration_curve,
 )
+from sklearn.calibration import calibration_curve
 from sklearn.preprocessing import label_binarize
 
 from orchestrator.models import ExecutionPath, ProductType
@@ -43,6 +43,7 @@ class ModelEvaluationConfig:
 
 class ModelEvaluationPlugin(BasePlugin):
     """Model Evaluation plugin with real execution using scikit-learn + numpy."""
+    ModelEvaluationConfig = ModelEvaluationConfig
     
     def __init__(self):
         super().__init__()
@@ -183,10 +184,12 @@ class ModelEvaluationPlugin(BasePlugin):
             if "confusion_matrix" in evaluation_scope:
                 cm_evidence = self._evaluate_confusion_matrix(context)
                 evidence_items.extend(cm_evidence)
+                metrics_dict["confusion_matrix"] = True
             
             if "threshold_sweep" in evaluation_scope:
                 threshold_evidence = self._evaluate_threshold_sweep(context)
                 evidence_items.extend(threshold_evidence)
+                metrics_dict["threshold_sweep"] = True
             
             if "calibration" in evaluation_scope:
                 calibration_evidence = self._evaluate_calibration(context)
@@ -254,7 +257,7 @@ class ModelEvaluationPlugin(BasePlugin):
             print(f"Model Evaluation plugin cleanup error: {e}")
             return False
     
-    async def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """
         Validate Model Evaluation plugin configuration.
         

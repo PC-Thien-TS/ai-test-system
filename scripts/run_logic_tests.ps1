@@ -49,6 +49,22 @@ function Get-SourcePathFromEvidence {
     return ""
 }
 
+function Resolve-SiblingSourcePath {
+    param(
+        [string]$RepoRoot,
+        [string[]]$Candidates
+    )
+
+    $parentDir = Split-Path -Parent $RepoRoot
+    foreach ($candidate in $Candidates) {
+        $candidatePath = Join-Path $parentDir $candidate
+        if (Test-Path -LiteralPath $candidatePath) {
+            return $candidatePath
+        }
+    }
+    return ""
+}
+
 function Ensure-Command {
     param([string]$Name)
     $cmd = Get-Command $Name -ErrorAction SilentlyContinue
@@ -79,12 +95,25 @@ function Invoke-Native {
 
 $repoRoot = Resolve-RepoRoot
 $evidenceFile = Join-Path $repoRoot "evidence_sources.yaml"
+$npmCommand = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
+if ([string]::IsNullOrWhiteSpace($BackendPath)) {
+    $BackendPath = [Environment]::GetEnvironmentVariable("BACKEND_PATH")
+}
 if ([string]::IsNullOrWhiteSpace($BackendPath)) {
     $BackendPath = Get-SourcePathFromEvidence -EvidenceFile $evidenceFile -SourceName "backend"
 }
 if ([string]::IsNullOrWhiteSpace($FrontendPath)) {
+    $FrontendPath = [Environment]::GetEnvironmentVariable("FRONTEND_PATH")
+}
+if ([string]::IsNullOrWhiteSpace($FrontendPath)) {
     $FrontendPath = Get-SourcePathFromEvidence -EvidenceFile $evidenceFile -SourceName "web_admin"
+}
+if ([string]::IsNullOrWhiteSpace($BackendPath)) {
+    $BackendPath = Resolve-SiblingSourcePath -RepoRoot $repoRoot -Candidates @("rankmate_be", "rankmate_be_phase1")
+}
+if ([string]::IsNullOrWhiteSpace($FrontendPath)) {
+    $FrontendPath = Resolve-SiblingSourcePath -RepoRoot $repoRoot -Candidates @("rankmate_fe", "didaunao_mc_web")
 }
 if ([string]::IsNullOrWhiteSpace($ArtifactsRoot)) {
     $ArtifactsRoot = Join-Path $repoRoot "artifacts\test-results"
@@ -107,10 +136,16 @@ else {
     Write-Host "MODE: FULL"
 }
 
-if (-not (Test-Path $BackendPath)) {
+if ([string]::IsNullOrWhiteSpace($BackendPath)) {
+    throw "Backend path is not configured. Provide -BackendPath, set BACKEND_PATH, or add backend.path in evidence_sources.yaml."
+}
+if ([string]::IsNullOrWhiteSpace($FrontendPath)) {
+    throw "Frontend path is not configured. Provide -FrontendPath, set FRONTEND_PATH, or add web_admin.path in evidence_sources.yaml."
+}
+if (-not (Test-Path -LiteralPath $BackendPath)) {
     throw "Backend path not found: $BackendPath"
 }
-if (-not (Test-Path $FrontendPath)) {
+if (-not (Test-Path -LiteralPath $FrontendPath)) {
     throw "Frontend path not found: $FrontendPath"
 }
 
@@ -223,7 +258,7 @@ else {
     }
 }
 
-if (-not (Ensure-Command -Name "npm")) {
+if (-not (Ensure-Command -Name $npmCommand)) {
     Write-Host ""
     Write-Host "ERROR: npm not found in PATH. Install Node.js 18+."
     $hasFailures = $true
@@ -235,7 +270,7 @@ else {
             Push-Location $FrontendPath
             if (-not (Test-Path (Join-Path $FrontendPath "node_modules"))) {
                 Invoke-Native -ErrorMessage "npm install failed" -Action {
-                    npm install
+                    & $npmCommand install
                 }
             }
             Pop-Location
@@ -244,7 +279,7 @@ else {
         Run-Step "Frontend unit tests (.junit.xml)" {
             Push-Location $FrontendPath
             Invoke-Native -ErrorMessage "frontend tests failed" -Action {
-                npm test -- --reporter=default --reporter=junit --outputFile="$frontendResults\frontend_tests.junit.xml"
+                & $npmCommand test -- --reporter=default --reporter=junit --outputFile="$frontendResults\frontend_tests.junit.xml"
             }
             Pop-Location
         }

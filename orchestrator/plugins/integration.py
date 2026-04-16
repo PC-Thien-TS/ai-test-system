@@ -35,6 +35,16 @@ class PluginOrchestrator:
         
         # Register built-in plugins
         self._register_builtin_plugins()
+
+    def _run_sync(self, coro):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        raise RuntimeError(
+            "Cannot run sync plugin orchestrator API inside an active event loop. "
+            "Use execute_run_plugins_async instead."
+        )
     
     def _register_builtin_plugins(self):
         """Register built-in executable plugins."""
@@ -47,7 +57,26 @@ class PluginOrchestrator:
         # Register RAG Grounding plugin
         self.registry.register_plugin_class(RAGGroundingPlugin)
     
-    async def execute_run_plugins(
+    def execute_run_plugins(
+        self,
+        run: Run,
+        plugin_names: List[str],
+        config_overrides: Optional[Dict] = None,
+        parallel: bool = True,
+        timeout_seconds: Optional[int] = None,
+    ) -> Dict[str, PluginExecutionResult]:
+        """Synchronous compatibility wrapper for run plugin execution."""
+        return self._run_sync(
+            self.execute_run_plugins_async(
+                run=run,
+                plugin_names=plugin_names,
+                config_overrides=config_overrides,
+                parallel=parallel,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    async def execute_run_plugins_async(
         self,
         run: Run,
         plugin_names: List[str],
@@ -56,7 +85,7 @@ class PluginOrchestrator:
         timeout_seconds: Optional[int] = None,
     ) -> Dict[str, PluginExecutionResult]:
         """
-        Execute plugins for a run.
+        Execute plugins for a run asynchronously.
         
         Args:
             run: The run being executed.
@@ -80,7 +109,7 @@ class PluginOrchestrator:
         )
         
         # Execute plugins
-        results = await self.executor.execute_plugins(
+        results = await self.executor.execute_plugins_async(
             plugin_names=plugin_names,
             context=context,
             parallel=parallel,

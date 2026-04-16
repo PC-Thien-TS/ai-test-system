@@ -4,6 +4,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import List
 
 from orchestrator.models import ExecutionPath, ProductType
 from orchestrator.plugins.base import (
@@ -245,9 +246,9 @@ def test_plugin_executor_parallel():
 def test_plugin_executor_retry():
     """Test plugin execution with retry."""
     registry = PluginRegistry()
-    plugin = MockPlugin()
-    plugin.set_should_fail(True)
     registry.register_plugin_class(MockPlugin)
+    plugin = registry.get_plugin("mock_plugin")
+    plugin.set_should_fail(True)
     
     executor = PluginExecutor(registry)
     

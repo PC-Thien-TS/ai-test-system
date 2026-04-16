@@ -19,7 +19,7 @@ from orchestrator.confidence_scorer import ConfidenceScorer, ConfidenceScore
 from orchestrator.evidence_collector import EvidenceCollector, EvidenceSummary
 from orchestrator.execution_intelligence import (
     ExecutionIntelligenceEngine,
-    ExecutionPath,
+    ExecutionPath as IntelligenceExecutionPath,
     ExecutionStrategy,
 )
 from orchestrator.models import (
@@ -97,7 +97,7 @@ class RunOrchestrator:
         if not self.config.enable_intelligence:
             # Default to standard if intelligence is disabled
             return ExecutionStrategy(
-                path=ExecutionPath.STANDARD,
+                path=IntelligenceExecutionPath.STANDARD,
                 reason="Intelligence disabled - using standard path",
                 confidence_threshold=0.5,
                 fallback_threshold=0.3,
@@ -137,12 +137,16 @@ class RunOrchestrator:
         if not self.config.enable_escalation:
             return None
 
-        # Use provided policy or default
-        policy = escalation_policy or EscalationPolicy()
+        # Use provided policy or default aligned with orchestrator config.
+        policy = escalation_policy or EscalationPolicy(
+            max_escalation_depth=self.config.max_escalation_depth
+        )
 
         # Check if we've exceeded max escalation depth
         if run.parent_run_id:
             chain = self.get_escalation_chain(run.parent_run_id)
+            if not chain and run.metadata.get("original_run_id"):
+                chain = self.get_escalation_chain(run.metadata["original_run_id"])
             if chain and len(chain.escalation_path) >= policy.max_escalation_depth:
                 return None
 
@@ -174,14 +178,15 @@ class RunOrchestrator:
             return None
 
         # Determine next path
-        current_path = ExecutionPath(run.execution_path.value)
+        current_path = IntelligenceExecutionPath(run.execution_path.value)
         new_path = self.intelligence_engine.should_escalate_path(
             current_path=current_path,
             run=run,
             plugin_names=plugin_names,
         )
-
-        return new_path
+        if new_path is None:
+            return None
+        return ExecutionPathModel(new_path.value)
 
     def create_escalation_chain(
         self,
@@ -245,6 +250,8 @@ class RunOrchestrator:
         # Check if this is a current run ID in any chain
         for chain in self.escalation_chains.values():
             if chain.current_run_id == run_id:
+                return chain
+            if any(step.get("run_id") == run_id for step in chain.escalation_path):
                 return chain
         
         return None

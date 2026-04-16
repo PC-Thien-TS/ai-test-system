@@ -185,8 +185,14 @@ class RunRegistry:
         Returns:
             The latest Run if found, None otherwise.
         """
-        runs = self.list_runs_by_project(project_id, limit=1)
-        return runs[0] if runs else None
+        latest_run: Optional[Run] = None
+        for run in self._runs.values():
+            if run.project_id != project_id:
+                continue
+            # On timestamp ties, keep the later inserted run for deterministic behavior.
+            if latest_run is None or run.started_at >= latest_run.started_at:
+                latest_run = run
+        return latest_run
 
     def import_from_output_dir(self, output_dir: Path, project_id: str) -> Optional[Run]:
         """

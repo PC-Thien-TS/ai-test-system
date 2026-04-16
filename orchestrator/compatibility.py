@@ -100,7 +100,7 @@ BUILTIN_PLUGINS: Dict[str, PluginMetadata] = {
         min_platform_version="2.4.0",
         execution_depth_score=0.78,
         evidence_richness_score=0.88,
-        confidence_score=0.80,
+        confidence_score=0.83,
     ),
     "llm_consistency": PluginMetadata(
         name="llm_consistency",

@@ -9,7 +9,7 @@ This module provides intelligent execution path selection based on:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
@@ -100,25 +100,17 @@ class ExecutionIntelligenceEngine:
         # Calculate plugin aggregate depth
         avg_depth_score = self._calculate_plugin_depth_score(plugin_names)
 
-        # Determine path based on health and depth
-        if health_score < 0.5 and avg_depth_score < 0.6:
-            # Project is unhealthy and plugins have low depth - start with smoke
+        # Determine path based on health and depth.
+        if health_score < 0.5:
+            # Unhealthy projects start with smoke regardless of plugin depth.
             return self._create_strategy(
                 ExecutionPath.SMOKE,
-                reason="Low project health and plugin depth - starting with smoke validation",
+                reason="Low project health - starting with smoke validation",
                 confidence_threshold=0.3,
                 fallback_threshold=0.2,
             )
-        elif health_score < 0.7:
-            # Project is somewhat unhealthy - use standard
-            return self._create_strategy(
-                ExecutionPath.STANDARD,
-                reason="Moderate project health - using standard validation",
-                confidence_threshold=0.5,
-                fallback_threshold=0.3,
-            )
         elif avg_depth_score >= 0.8:
-            # High depth plugins available - use deep validation
+            # High depth plugins available - use deep validation.
             return self._create_strategy(
                 ExecutionPath.DEEP,
                 reason=f"High plugin depth ({avg_depth_score:.2f}) - using deep validation",
@@ -128,6 +120,14 @@ class ExecutionIntelligenceEngine:
                 enable_retry_rollback=True,
                 enable_anomaly_detection=True,
                 estimated_duration_multiplier=2.5,
+            )
+        elif health_score < 0.7:
+            # Project is somewhat unhealthy - use standard.
+            return self._create_strategy(
+                ExecutionPath.STANDARD,
+                reason="Moderate project health - using standard validation",
+                confidence_threshold=0.5,
+                fallback_threshold=0.3,
             )
         else:
             # Default to intelligent adaptive path
@@ -246,8 +246,10 @@ class ExecutionIntelligenceEngine:
 
         from orchestrator.models import GateResult
 
+        # Backward compatibility: historical completed runs without gate_result are
+        # treated as pass for path-selection health scoring.
         passed_runs = [
-            r for r in completed_runs if r.gate_result == GateResult.PASS
+            r for r in completed_runs if r.gate_result in (None, GateResult.PASS)
         ]
         pass_rate = len(passed_runs) / len(completed_runs)
 

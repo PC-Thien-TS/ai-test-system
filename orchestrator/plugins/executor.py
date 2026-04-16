@@ -1,13 +1,10 @@
 """Plugin executor layer for running plugins with orchestration."""
 
 import asyncio
-from datetime import datetime
+import inspect
 from typing import Dict, List, Optional
-from pathlib import Path
 
-from orchestrator.models import ExecutionPath, Run
 from orchestrator.plugins.base import (
-    BasePlugin,
     ExecutionContext,
     ExecutionStatus,
     PluginExecutionResult,
@@ -17,44 +14,49 @@ from orchestrator.plugins.registry import PluginRegistry
 
 class PluginExecutionError(Exception):
     """Exception raised when plugin execution fails."""
-    pass
 
 
 class PluginExecutor:
     """Executes plugins with orchestration and error handling."""
-    
+
     def __init__(self, registry: Optional[PluginRegistry] = None):
-        """
-        Initialize the plugin executor.
-        
-        Args:
-            registry: Optional plugin registry. If not provided, uses global registry.
-        """
         self.registry = registry or PluginRegistry()
         self._active_executions: Dict[str, asyncio.Task] = {}
-    
-    async def execute_plugin(
+
+    def _run_sync(self, coro):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        raise RuntimeError(
+            "Cannot run sync plugin executor API inside an active event loop. "
+            "Use execute_plugin_async/execute_plugins_async methods instead."
+        )
+
+    def execute_plugin(
         self,
         plugin_name: str,
         context: ExecutionContext,
         timeout_seconds: Optional[int] = None,
     ) -> PluginExecutionResult:
-        """
-        Execute a single plugin.
-        
-        Args:
-            plugin_name: The plugin name to execute.
-            context: Execution context.
-            timeout_seconds: Optional timeout in seconds.
-            
-        Returns:
-            PluginExecutionResult with execution results.
-            
-        Raises:
-            PluginExecutionError: If plugin execution fails critically.
-        """
+        """Synchronous compatibility wrapper for single plugin execution."""
+        return self._run_sync(
+            self.execute_plugin_async(
+                plugin_name=plugin_name,
+                context=context,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    async def execute_plugin_async(
+        self,
+        plugin_name: str,
+        context: ExecutionContext,
+        timeout_seconds: Optional[int] = None,
+    ) -> PluginExecutionResult:
+        """Execute a single plugin asynchronously."""
         plugin = self.registry.get_plugin(plugin_name)
-        
+
         if not plugin:
             return PluginExecutionResult(
                 plugin_name=plugin_name,
@@ -63,62 +65,65 @@ class PluginExecutor:
                 error_message=f"Plugin {plugin_name} not found or not executable",
                 error_details={"reason": "plugin_not_found"},
             )
-        
-        # Validate plugin supports execution path
+
         if not plugin.supports_execution_path(context.execution_path):
             return PluginExecutionResult(
                 plugin_name=plugin_name,
                 status=ExecutionStatus.SKIPPED,
                 success=False,
-                error_message=f"Plugin {plugin_name} does not support execution path {context.execution_path.value}",
+                error_message=(
+                    f"Plugin {plugin_name} does not support execution path "
+                    f"{context.execution_path.value}"
+                ),
                 error_details={"reason": "unsupported_execution_path"},
             )
-        
-        # Validate configuration
-        is_valid, errors = await plugin.validate_config(context.config)
+
+        validation_result = plugin.validate_config(context.config)
+        if inspect.isawaitable(validation_result):
+            is_valid, errors = await validation_result
+        else:
+            is_valid, errors = validation_result
+
         if not is_valid:
             return PluginExecutionResult(
                 plugin_name=plugin_name,
                 status=ExecutionStatus.FAILED,
                 success=False,
-                error_message=f"Plugin configuration validation failed",
+                error_message="Plugin configuration validation failed",
                 error_details={"validation_errors": errors},
             )
-        
+
         result = PluginExecutionResult(
             plugin_name=plugin_name,
             status=ExecutionStatus.RUNNING,
             success=False,
         )
-        
+
         try:
-            # Initialize plugin
             init_success = await plugin.initialize(context)
             if not init_success:
                 result.status = ExecutionStatus.FAILED
                 result.error_message = "Plugin initialization failed"
                 result.mark_completed()
                 return result
-            
-            # Execute with timeout if specified
+
             if timeout_seconds:
                 result = await asyncio.wait_for(
                     plugin.execute(context),
-                    timeout=timeout_seconds
+                    timeout=timeout_seconds,
                 )
             else:
                 result = await plugin.execute(context)
-            
-            # Cleanup
+
             await plugin.cleanup(context)
-            
+
         except asyncio.TimeoutError:
             result.status = ExecutionStatus.TIMEOUT
             result.success = False
             result.error_message = f"Plugin execution timed out after {timeout_seconds}s"
             result.error_details = {"timeout": timeout_seconds}
             await plugin.cleanup(context)
-            
+
         except Exception as e:
             result.status = ExecutionStatus.FAILED
             result.success = False
@@ -127,40 +132,45 @@ class PluginExecutor:
             try:
                 await plugin.cleanup(context)
             except Exception:
-                pass  # Ignore cleanup errors
-        
+                pass
+
         result.mark_completed()
         return result
-    
-    async def execute_plugins(
+
+    def execute_plugins(
         self,
         plugin_names: List[str],
         context: ExecutionContext,
         parallel: bool = True,
         timeout_seconds: Optional[int] = None,
     ) -> Dict[str, PluginExecutionResult]:
-        """
-        Execute multiple plugins.
-        
-        Args:
-            plugin_names: List of plugin names to execute.
-            context: Execution context.
-            parallel: Whether to execute plugins in parallel.
-            timeout_seconds: Optional timeout in seconds per plugin.
-            
-        Returns:
-            Dictionary mapping plugin names to execution results.
-        """
-        results = {}
-        
+        """Synchronous compatibility wrapper for multi-plugin execution."""
+        return self._run_sync(
+            self.execute_plugins_async(
+                plugin_names=plugin_names,
+                context=context,
+                parallel=parallel,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    async def execute_plugins_async(
+        self,
+        plugin_names: List[str],
+        context: ExecutionContext,
+        parallel: bool = True,
+        timeout_seconds: Optional[int] = None,
+    ) -> Dict[str, PluginExecutionResult]:
+        """Execute multiple plugins asynchronously."""
+        results: Dict[str, PluginExecutionResult] = {}
+
         if parallel:
-            # Execute all plugins in parallel
             tasks = [
-                self.execute_plugin(name, context, timeout_seconds)
+                self.execute_plugin_async(name, context, timeout_seconds)
                 for name in plugin_names
             ]
             plugin_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for name, result in zip(plugin_names, plugin_results):
                 if isinstance(result, Exception):
                     results[name] = PluginExecutionResult(
@@ -173,13 +183,12 @@ class PluginExecutor:
                 else:
                     results[name] = result
         else:
-            # Execute plugins sequentially
             for name in plugin_names:
-                results[name] = await self.execute_plugin(name, context, timeout_seconds)
-        
+                results[name] = await self.execute_plugin_async(name, context, timeout_seconds)
+
         return results
-    
-    async def execute_plugin_with_retry(
+
+    def execute_plugin_with_retry(
         self,
         plugin_name: str,
         context: ExecutionContext,
@@ -187,61 +196,52 @@ class PluginExecutor:
         retry_delay_seconds: float = 1.0,
         timeout_seconds: Optional[int] = None,
     ) -> PluginExecutionResult:
-        """
-        Execute a plugin with retry logic.
-        
-        Args:
-            plugin_name: The plugin name to execute.
-            context: Execution context.
-            max_retries: Maximum number of retry attempts.
-            retry_delay_seconds: Delay between retries in seconds.
-            timeout_seconds: Optional timeout in seconds per attempt.
-            
-        Returns:
-            PluginExecutionResult with execution results.
-        """
-        last_result = None
-        
+        """Synchronous compatibility wrapper for retry execution."""
+        return self._run_sync(
+            self.execute_plugin_with_retry_async(
+                plugin_name=plugin_name,
+                context=context,
+                max_retries=max_retries,
+                retry_delay_seconds=retry_delay_seconds,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    async def execute_plugin_with_retry_async(
+        self,
+        plugin_name: str,
+        context: ExecutionContext,
+        max_retries: int = 3,
+        retry_delay_seconds: float = 1.0,
+        timeout_seconds: Optional[int] = None,
+    ) -> PluginExecutionResult:
+        """Execute plugin with retry logic asynchronously."""
+        last_result: Optional[PluginExecutionResult] = None
+
         for attempt in range(max_retries + 1):
             context.retry_count = attempt
             context.max_retries = max_retries
-            
-            result = await self.execute_plugin(plugin_name, context, timeout_seconds)
+
+            result = await self.execute_plugin_async(plugin_name, context, timeout_seconds)
             last_result = result
-            
-            # If successful, return immediately
+
             if result.success:
                 return result
-            
-            # If not the last attempt, wait before retry
+
             if attempt < max_retries:
                 await asyncio.sleep(retry_delay_seconds)
-        
-        # All retries exhausted
+
         return last_result
-    
+
     def cancel_execution(self, run_id: str) -> bool:
-        """
-        Cancel an active plugin execution for a run.
-        
-        Args:
-            run_id: The run ID to cancel.
-            
-        Returns:
-            True if cancellation was successful, False otherwise.
-        """
+        """Cancel an active plugin execution for a run."""
         if run_id in self._active_executions:
             task = self._active_executions[run_id]
             task.cancel()
             del self._active_executions[run_id]
             return True
         return False
-    
+
     def get_active_executions(self) -> List[str]:
-        """
-        Get list of run IDs with active executions.
-        
-        Returns:
-            List of run IDs.
-        """
+        """Get list of run IDs with active executions."""
         return list(self._active_executions.keys())

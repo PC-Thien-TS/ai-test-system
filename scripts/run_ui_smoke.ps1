@@ -8,6 +8,35 @@ function RepoRoot {
     return (Resolve-Path (Join-Path $d "..")).Path
 }
 
+function Import-DotEnvFile([string]$filePath) {
+    if (-not (Test-Path -LiteralPath $filePath)) {
+        return
+    }
+
+    Get-Content -LiteralPath $filePath | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
+            return
+        }
+
+        $eq = $line.IndexOf("=")
+        if ($eq -le 0) {
+            return
+        }
+
+        $key = $line.Substring(0, $eq).Trim()
+        $value = $line.Substring($eq + 1).Trim()
+        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        $existing = [Environment]::GetEnvironmentVariable($key)
+        if ([string]::IsNullOrWhiteSpace($existing)) {
+            [Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+
 function Req([string]$name) {
     $v = [Environment]::GetEnvironmentVariable($name)
     if ([string]::IsNullOrWhiteSpace($v)) { throw "Missing required environment variable: $name" }
@@ -59,6 +88,8 @@ function Parse-PlaywrightSummary([string]$reportPath) {
 }
 
 $root = RepoRoot
+$envFilePath = Join-Path $root ".env"
+Import-DotEnvFile $envFilePath
 $suiteDir = Join-Path $root "tests/ui_smoke"
 $outDir = Join-Path $root "artifacts/test-results/ui-smoke"
 $logPath = Join-Path $outDir "ui_smoke.log"
@@ -70,6 +101,8 @@ New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 $global:LogLines = New-Object System.Collections.Generic.List[string]
 $exitCode = 0
 $startedAt = (Get-Date).ToString("o")
+$npmCmd = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
+$npxCmd = if ($env:OS -eq "Windows_NT") { "npx.cmd" } else { "npx" }
 
 function Log([string]$m) {
     $line = "[{0}] {1}" -f (Get-Date).ToString("s"), $m
@@ -78,22 +111,28 @@ function Log([string]$m) {
 }
 
 try {
-    $baseUrl = Req "BASE_URL"
+    try {
+        $baseUrl = Req "BASE_URL"
+    }
+    catch {
+        throw $_.Exception.Message + " | Set BASE_URL or create $envFilePath from .env.example."
+    }
     if (-not (Test-Path $suiteDir)) { throw "UI smoke suite folder not found: $suiteDir" }
     if (-not (HasCommand "node")) { throw "Node.js is required. Install Node.js and ensure 'node' is on PATH." }
-    if (-not (HasCommand "npm")) { throw "npm is required. Install Node.js/npm and ensure 'npm' is on PATH." }
+    if (-not (HasCommand $npmCmd)) { throw "npm is required. Install Node.js/npm and ensure 'npm' is on PATH." }
+    if (-not (HasCommand $npxCmd)) { throw "npx is required. Install Node.js/npm and ensure 'npx' is on PATH." }
 
     Log "UI smoke start. base_url=$baseUrl"
     Push-Location $suiteDir
 
     if (-not (Test-Path (Join-Path $suiteDir "node_modules"))) {
         Log "Installing UI smoke dependencies..."
-        & npm install --no-audit --no-fund 2>&1 | ForEach-Object { Log ([string]$_) }
+        & $npmCmd install --no-audit --no-fund 2>&1 | ForEach-Object { Log ([string]$_) }
         if ($LASTEXITCODE -ne 0) { throw "npm install failed with exit code $LASTEXITCODE" }
     }
 
     Log "Ensuring Playwright Chromium browser is installed..."
-    & npx playwright install chromium 2>&1 | ForEach-Object { Log ([string]$_) }
+    & $npxCmd playwright install chromium 2>&1 | ForEach-Object { Log ([string]$_) }
     if ($LASTEXITCODE -ne 0) {
         Log "WARN: 'npx playwright install chromium' failed. Continuing in case browser is already installed."
     }
@@ -105,7 +144,7 @@ try {
     $env:API_PASS = Opt "API_PASS"
 
     Log "Running Playwright UI smoke tests..."
-    & npx playwright test 2>&1 | ForEach-Object { Log ([string]$_) }
+    & $npxCmd playwright test 2>&1 | ForEach-Object { Log ([string]$_) }
     $runCode = $LASTEXITCODE
 
     Pop-Location

@@ -186,7 +186,7 @@ class BasePlugin(ABC):
         """
         pass
     
-    async def validate_config(self, config: Dict[str, Any]) -> tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> tuple[bool, List[str]]:
         """
         Validate plugin configuration.
         
