@@ -1,0 +1,122 @@
+{
+  "generated_at_utc": "2026-04-16T09:15:25.791867+00:00",
+  "rerun_action": "targeted_rerun",
+  "priority": "P1",
+  "reason": "Targeted rerun needed for uncovered/high-risk areas while keeping current green baseline stable.",
+  "release_decision_context": {
+    "decision": "block_release",
+    "confidence": "medium",
+    "weighted_score": 57,
+    "max_score": 100
+  },
+  "target_suites": [
+    "tests/rankmate_wave1/test_payment_api.py",
+    "tests/rankmate_wave1/test_search_store_api.py",
+    "tests/rankmate_wave1/test_merchant_transition_api.py"
+  ],
+  "suite_plan": [
+    {
+      "suite": "tests/rankmate_wave1/test_payment_api.py",
+      "priority": "P1",
+      "blast_radius": "release-critical",
+      "trigger": "payment realism coverage gap",
+      "blocked": true,
+      "blocker_reason": "unchanged Stripe webhook runtime secret/config blocker"
+    },
+    {
+      "suite": "tests/rankmate_wave1/test_search_store_api.py",
+      "priority": "P1",
+      "blast_radius": "release-critical",
+      "trigger": "product defect STORE-API-004; product defect STO-011",
+      "blocked": false,
+      "blocker_reason": null
+    },
+    {
+      "suite": "tests/rankmate_wave1/test_merchant_transition_api.py",
+      "priority": "P2",
+      "blast_radius": "partial-surface",
+      "trigger": "merchant depth coverage gap",
+      "blocked": true,
+      "blocker_reason": "merchant transition seeds missing"
+    }
+  ],
+  "powershell_commands": [
+    "python scripts/build_merchant_state_seeds.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_search_store_api.py"
+  ],
+  "deferred_powershell_commands": [
+    "python -m pytest -q -rs tests/rankmate_wave1/test_payment_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py"
+  ],
+  "blockers": [
+    "Payment realism rerun is blocked until Stripe webhook secret/signing alignment changes.",
+    "Merchant transition depth rerun requires refreshed deterministic merchant state seeds."
+  ],
+  "escalations": [
+    "Escalate to DevOps/BE to align deployed Stripe webhook secret and signing path for QA runtime.",
+    "Escalate to QA/BE to regenerate merchant state seeds with store-scoped merchant visibility."
+  ],
+  "blast_radius": [
+    "partial-surface",
+    "release-critical"
+  ],
+  "decision_reasoning": [
+    "Weighted score is below release-with-caution threshold (65).",
+    "Known product defects remain open and are explicitly penalized.",
+    "Environment blockers are separated from product defects and penalized moderately.",
+    "Coverage depth remains incomplete for merchant/payment realism paths.",
+    "Confirmed P1 merchant terminal mutation defect is now included from rerun cluster evidence.",
+    "Targeted rerun needed for uncovered/high-risk areas while keeping current green baseline stable."
+  ],
+  "scenario_validation": [
+    {
+      "name": "A_current_real_state",
+      "expected": "targeted_rerun",
+      "actual": "targeted_rerun",
+      "expected_targets": [
+        "tests/rankmate_wave1/test_payment_api.py",
+        "tests/rankmate_wave1/test_merchant_transition_api.py"
+      ],
+      "actual_targets": [
+        "tests/rankmate_wave1/test_payment_api.py",
+        "tests/rankmate_wave1/test_merchant_transition_api.py"
+      ]
+    },
+    {
+      "name": "B_blockers_cleared_score_ge_85",
+      "expected": "no_rerun_needed",
+      "actual": "no_rerun_needed",
+      "expected_targets": [],
+      "actual_targets": []
+    },
+    {
+      "name": "C_auth_or_admin_regression",
+      "expected": "phased_rerun",
+      "actual": "phased_rerun",
+      "expected_targets": [
+        "tests/rankmate_wave1/test_auth_api.py",
+        "tests/rankmate_wave1/test_order_api.py",
+        "tests/rankmate_wave1/test_admin_consistency_api.py"
+      ],
+      "actual_targets": [
+        "tests/rankmate_wave1/test_auth_api.py",
+        "tests/rankmate_wave1/test_order_api.py",
+        "tests/rankmate_wave1/test_admin_consistency_api.py"
+      ]
+    }
+  ],
+  "next_checkpoint": "After executing runnable commands, regenerate release decision and rerun this planner.",
+  "ready_for_self_healing_loop_v2": true,
+  "evidence_sources": [
+    "C:\\Projects\\Rankmate\\ai_test_system\\release_decision.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\RELEASE_DECISION_REPORT.md",
+    "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\ORDER_LIFECYCLE_REPORT.md",
+    "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\ADMIN_CONSISTENCY_REPORT.md",
+    "C:\\Projects\\Rankmate\\ai_test_system\\order_lifecycle_seed.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json"
+  ],
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao"
+  }
+}

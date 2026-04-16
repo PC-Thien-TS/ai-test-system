@@ -14,6 +14,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from orchestrator.adapters import get_active_adapter
+from orchestrator.adapters.evidence_context import get_adapter_evidence_context
+
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -28,36 +31,26 @@ LEGACY_API_REGRESSION_NOTES = REPO_ROOT / "artifacts" / "test-results" / "api-re
 ORDER_LIFECYCLE_SEED = REPO_ROOT / "order_lifecycle_seed.json"
 MERCHANT_STATE_SEEDS_JSON = REPO_ROOT / "merchant_state_seeds.json"
 MERCHANT_STATE_SEEDS_ENV = REPO_ROOT / "merchant_state_seeds.env"
+DEFECT_CLUSTER_REPORT = REPO_ROOT / "defect_cluster_report.json"
 
-OUTPUT_JSON = REPO_ROOT / "release_decision.json"
-OUTPUT_MD = REPO_ROOT / "docs" / "wave1_runtime" / "RELEASE_DECISION_REPORT.md"
-
-
-PHASE_WEIGHTS = {
+ADAPTER = get_active_adapter()
+EVIDENCE_CTX = get_adapter_evidence_context(ADAPTER.get_adapter_id())
+OUTPUT_JSON = EVIDENCE_CTX.get_release_decision_path()
+REPORT_NAME = "RELEASE_DECISION_REPORT.md"
+SCORING_RULES = ADAPTER.get_release_scoring_rules()
+PHASE_WEIGHTS = dict(SCORING_RULES.get("phase_weights", {})) or {
     "auth": 25,
     "order_core": 25,
     "search_store": 15,
     "lifecycle": 15,
     "admin_consistency": 20,
 }
-MAX_SCORE = sum(PHASE_WEIGHTS.values())  # 100
+MAX_SCORE = sum(PHASE_WEIGHTS.values())
 
-SEVERITY_PENALTIES = {
-    "P0": -25,
-    "P1": -15,
-    "P2": -8,
-}
-
-ENV_BLOCKER_PENALTIES = {
-    "critical": -10,
-    "medium": -5,
-}
-
-COVERAGE_GAP_PENALTIES = {
-    "high": -6,
-    "medium": -4,
-    "low": -3,
-}
+SEVERITY_PENALTIES = dict(SCORING_RULES.get("severity_penalties", {})) or {"P0": -25, "P1": -15, "P2": -8}
+ENV_BLOCKER_PENALTIES = dict(SCORING_RULES.get("env_blocker_penalties", {})) or {"critical": -10, "medium": -5}
+COVERAGE_GAP_PENALTIES = dict(SCORING_RULES.get("coverage_gap_penalties", {})) or {"high": -6, "medium": -4, "low": -3}
+DECISION_THRESHOLDS = dict(SCORING_RULES.get("thresholds", {})) or {"release": 85, "release_with_caution": 65}
 
 
 def _read_text(path: Path) -> str:
@@ -124,6 +117,7 @@ def _penalty_item(
     source: str,
     category: str,
     in_active_path: bool = False,
+    impacted_flows: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "id": finding_id,
@@ -133,6 +127,7 @@ def _penalty_item(
         "category": category,
         "source": source,
         "in_active_path": in_active_path,
+        "impacted_flows": impacted_flows or [],
     }
 
 
@@ -148,6 +143,7 @@ def _collect_evidence() -> dict[str, Any]:
     order_seed = _read_json(ORDER_LIFECYCLE_SEED)
     merchant_seeds_json = _read_json(MERCHANT_STATE_SEEDS_JSON)
     merchant_seeds_env = _read_text(MERCHANT_STATE_SEEDS_ENV)
+    defect_cluster = _read_json(DEFECT_CLUSTER_REPORT)
 
     evidence_sources: list[str] = []
     for path in (
@@ -157,6 +153,7 @@ def _collect_evidence() -> dict[str, Any]:
         ORDER_LIFECYCLE_SEED,
         MERCHANT_STATE_SEEDS_JSON,
         MERCHANT_STATE_SEEDS_ENV,
+        DEFECT_CLUSTER_REPORT,
         WAVE1_BLOCKERS,
         RUNTIME_ENV_CONTRACT,
         SEARCH_STORE_TEST,
@@ -227,6 +224,9 @@ def _collect_evidence() -> dict[str, Any]:
 
     product_defect_penalties: list[dict[str, Any]] = []
     if search_store_known_regression:
+        impacted_flows = ADAPTER.map_defect_to_flows(
+            "STORE-API-004", "Invalid store lookup returns 500 instead of controlled 400/404"
+        )
         product_defect_penalties.append(
             _penalty_item(
                 finding_id="STORE-API-004",
@@ -236,9 +236,13 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(LEGACY_API_REGRESSION_NOTES),
                 category="product_defect",
                 in_active_path=False,
+                impacted_flows=impacted_flows,
             )
         )
     if "STO-011" in legacy_regression_notes:
+        impacted_flows = ADAPTER.map_defect_to_flows(
+            "STO-011", "Invalid store uniqueId lookup returns 500 instead of controlled 400/404"
+        )
         product_defect_penalties.append(
             _penalty_item(
                 finding_id="STO-011",
@@ -248,6 +252,52 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(LEGACY_API_REGRESSION_NOTES),
                 category="product_defect",
                 in_active_path=False,
+                impacted_flows=impacted_flows,
+            )
+        )
+
+    # Confirmed merchant stale terminal mutation defect (MER-API-021) from rerun cluster evidence.
+    merchant_terminal_defect = False
+    merchant_terminal_family = None
+    families = defect_cluster.get("defect_families", [])
+    if isinstance(families, list):
+        for family in families:
+            if not isinstance(family, dict):
+                continue
+            if str(family.get("family_id", "")).strip() != "DF-MERCHANT-STALE-TERMINAL-MUTATION":
+                continue
+            member_cases = family.get("member_cases", [])
+            has_mer021 = isinstance(member_cases, list) and "MER-API-021" in member_cases
+            is_product = str(family.get("type", "")).strip().lower() == "product_defect"
+            if has_mer021 and is_product:
+                merchant_terminal_defect = True
+                merchant_terminal_family = family
+                break
+
+    if merchant_terminal_defect and not any(
+        str(item.get("id", "")).strip() == "DF-MERCHANT-STALE-TERMINAL-MUTATION"
+        for item in product_defect_penalties
+    ):
+        merchant_title = (
+            str(merchant_terminal_family.get("title", "")).strip()
+            if isinstance(merchant_terminal_family, dict)
+            else ""
+        )
+        if not merchant_title:
+            merchant_title = "Merchant stale/double complete returns 200 on terminal order status"
+        product_defect_penalties.append(
+            _penalty_item(
+                finding_id="DF-MERCHANT-STALE-TERMINAL-MUTATION",
+                title=merchant_title,
+                severity="P1",
+                penalty=SEVERITY_PENALTIES["P1"],
+                source=str(DEFECT_CLUSTER_REPORT),
+                category="product_defect",
+                in_active_path=True,
+                impacted_flows=ADAPTER.map_defect_to_flows(
+                    "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+                    "Merchant stale/double complete returns 200 on terminal order status",
+                ),
             )
         )
 
@@ -262,6 +312,10 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(WAVE1_BLOCKERS),
                 category="env_blocker",
                 in_active_path=False,
+                impacted_flows=ADAPTER.map_defect_to_flows(
+                    "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
+                    "Stripe webhook secret/signing alignment blocked in runtime",
+                ),
             )
         )
 
@@ -276,6 +330,10 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(MERCHANT_STATE_SEEDS_JSON),
                 category="coverage_gap",
                 in_active_path=False,
+                impacted_flows=ADAPTER.map_defect_to_flows(
+                    "DF-MERCHANT-SEED-COVERAGE-GAP",
+                    "Merchant transition depth partially seed-blocked",
+                ),
             )
         )
     if payment_realism_blocked:
@@ -288,6 +346,10 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(WAVE1_BLOCKERS),
                 category="coverage_gap",
                 in_active_path=False,
+                impacted_flows=ADAPTER.map_defect_to_flows(
+                    "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
+                    "Payment webhook realism coverage is incomplete",
+                ),
             )
         )
 
@@ -302,6 +364,7 @@ def _collect_evidence() -> dict[str, Any]:
                 source=str(RUNTIME_ENV_CONTRACT),
                 category="evidence_gap",
                 in_active_path=False,
+                impacted_flows=[],
             )
         )
 
@@ -329,6 +392,7 @@ def _collect_evidence() -> dict[str, Any]:
         "coverage_gap_penalties": coverage_gap_penalties,
         "evidence_gaps": evidence_gaps,
         "missing_seed_slots": missing_seed_slots,
+        "merchant_terminal_defect_confirmed": merchant_terminal_defect,
     }
 
 
@@ -381,15 +445,19 @@ def _score_model(model: dict[str, Any]) -> dict[str, Any]:
 
     if hard_block_reasons:
         decision = "block_release"
-    elif weighted_score >= 85:
+    elif weighted_score >= int(DECISION_THRESHOLDS.get("release", 85)):
         decision = "release"
-    elif weighted_score >= 65:
+    elif weighted_score >= int(DECISION_THRESHOLDS.get("release_with_caution", 65)):
         decision = "release_with_caution"
     else:
         decision = "block_release"
 
-    if hard_block_reasons or weighted_score < 65:
+    evidence_certainty_high = bool(model.get("merchant_terminal_defect_confirmed"))
+    if hard_block_reasons:
         confidence = "low"
+    elif weighted_score < 65:
+        # Low score from confirmed defect evidence should not be treated as low-confidence ambiguity.
+        confidence = "medium" if evidence_certainty_high else "low"
     elif weighted_score < 85:
         confidence = "medium"
     else:
@@ -412,6 +480,10 @@ def _score_model(model: dict[str, Any]) -> dict[str, Any]:
         decision_reasoning.append("Environment blockers are separated from product defects and penalized moderately.")
     if model["merchant_depth_partial"] or model["payment_realism_blocked"]:
         decision_reasoning.append("Coverage depth remains incomplete for merchant/payment realism paths.")
+    if model.get("merchant_terminal_defect_confirmed"):
+        decision_reasoning.append(
+            "Confirmed P1 merchant terminal mutation defect is now included from rerun cluster evidence."
+        )
 
     return {
         "decision": decision,
@@ -436,11 +508,11 @@ def _scenario_drift(base_model: dict[str, Any]) -> list[dict[str, Any]]:
     scenarios.append(
         {
             "name": "A_current_real_repo_evidence",
-            "expected_decision": "release_with_caution",
+            "expected_decision": "block_release",
             "actual_decision": current_result["decision"],
             "weighted_score": current_result["weighted_score"],
             "confidence": current_result["confidence"],
-            "matches_expectation": current_result["decision"] == "release_with_caution",
+            "matches_expectation": current_result["decision"] == "block_release",
         }
     )
 
@@ -491,24 +563,28 @@ def _scenario_drift(base_model: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _build_payload() -> dict[str, Any]:
+    if ADAPTER.get_adapter_id() != "rankmate":
+        return _build_bootstrap_payload()
+
+    previous_snapshot = EVIDENCE_CTX.load_json("release_decision")
+    rerun_snapshot = EVIDENCE_CTX.load_json("autonomous_rerun_plan")
     evidence_model = _collect_evidence()
     scored = _score_model(evidence_model)
     scenarios = _scenario_drift(evidence_model)
 
-    summary = (
-        "Core Wave 1 signals are healthy enough for cautious release, but defect/blocker penalties and depth gaps remain."
-        if scored["decision"] == "release_with_caution"
-        else (
-            "Release is blocked due to hard blockers or low weighted score."
-            if scored["decision"] == "block_release"
-            else "Weighted score and evidence support release."
-        )
-    )
+    if scored["decision"] == "release_with_caution":
+        summary = "Core Wave 1 signals remain healthy but active product defects and blockers require high caution."
+    elif scored["decision"] == "block_release":
+        summary = "Release is near/under block threshold due to confirmed merchant terminal mutation risk and open defects."
+    else:
+        summary = "Weighted score and evidence support release."
 
     recommended_actions_before_release = [
+        "Fix stale/double complete guard in merchant complete endpoint so terminal orders reject repeat complete with controlled 4xx.",
         "Fix STORE-API-004 negative-path regression so invalid store lookups return controlled 400/404.",
         "Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment realism checks.",
         "Unlock merchant state seeds for transition-depth and terminal-state verification.",
+        "If merchant settlement is release-critical in this release train, consider temporary release block until MER-API-021 is fixed.",
     ]
     if scored["decision"] == "release":
         recommended_actions_before_release = [
@@ -520,6 +596,69 @@ def _build_payload() -> dict[str, Any]:
         "Monitor payment callback anomalies until full webhook realism coverage is stable.",
         "Keep merchant transition reruns in nightly cycle until seed depth is fully deterministic.",
     ]
+
+    previous_score = previous_snapshot.get("weighted_score")
+    previous_decision = previous_snapshot.get("decision")
+    # Preserve prior baseline delta across repeated regeneration runs.
+    prior_delta = previous_snapshot.get("evidence_delta_since_previous_snapshot", {})
+    if isinstance(prior_delta, dict):
+        prior_score_delta = prior_delta.get("score_delta", {})
+        prior_decision_delta = prior_delta.get("decision_delta", {})
+        if (
+            isinstance(prior_score_delta, dict)
+            and isinstance(previous_score, int)
+            and previous_score == scored["weighted_score"]
+            and isinstance(prior_score_delta.get("previous_score"), int)
+        ):
+            previous_score = prior_score_delta.get("previous_score")
+        if (
+            isinstance(prior_decision_delta, dict)
+            and isinstance(previous_decision, str)
+            and previous_decision == scored["decision"]
+            and isinstance(prior_decision_delta.get("previous_decision"), str)
+        ):
+            previous_decision = prior_decision_delta.get("previous_decision")
+    rerun_context = rerun_snapshot.get("release_decision_context", {}) if isinstance(rerun_snapshot, dict) else {}
+    if isinstance(rerun_context, dict):
+        rerun_score = rerun_context.get("weighted_score")
+        rerun_decision = rerun_context.get("decision")
+        if (
+            isinstance(rerun_score, int)
+            and isinstance(previous_score, int)
+            and previous_score == scored["weighted_score"]
+            and rerun_score != scored["weighted_score"]
+        ):
+            previous_score = rerun_score
+        if (
+            isinstance(rerun_decision, str)
+            and isinstance(previous_decision, str)
+            and previous_decision == scored["decision"]
+            and rerun_decision != scored["decision"]
+        ):
+            previous_decision = rerun_decision
+    score_delta = None
+    if isinstance(previous_score, int):
+        score_delta = scored["weighted_score"] - previous_score
+
+    evidence_delta = {
+        "merchant_terminal_mutation_defect": {
+            "case_id": "MER-API-021",
+            "family_id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+            "status_before": "suspected_or_unmodeled",
+            "status_now": "confirmed_backend_defect",
+            "rerun_evidence": "terminal status=23; mark_arrived returns 400; complete_order incorrectly returns 200",
+        },
+        "score_delta": {
+            "previous_score": previous_score,
+            "current_score": scored["weighted_score"],
+            "delta": score_delta,
+        },
+        "decision_delta": {
+            "previous_decision": previous_decision,
+            "current_decision": scored["decision"],
+        },
+        "risk_delta": "Merchant terminal mutation safety elevated to top active release-critical risk.",
+    }
 
     return {
         "decision": scored["decision"],
@@ -555,6 +694,96 @@ def _build_payload() -> dict[str, Any]:
             "merchant_depth": "partial_seed_blocked" if evidence_model["merchant_depth_partial"] else "unlocked",
             "payment_realism": "blocked_by_runtime_config" if evidence_model["payment_realism_blocked"] else "validated",
         },
+        "adapter": {
+            "adapter_id": ADAPTER.get_adapter_id(),
+            "product_name": ADAPTER.get_product_name(),
+            "release_critical_flows": list(ADAPTER.get_release_critical_flows()),
+        },
+        "evidence_delta_since_previous_snapshot": evidence_delta,
+    }
+
+
+def _build_bootstrap_payload() -> dict[str, Any]:
+    local_artifacts = {
+        "release_decision": EVIDENCE_CTX.get_release_decision_path(),
+        "dashboard_snapshot": EVIDENCE_CTX.get_dashboard_snapshot_path(),
+        "defect_cluster_report": EVIDENCE_CTX.get_defect_cluster_report_path(),
+        "autonomous_rerun_plan": EVIDENCE_CTX.get_rerun_plan_path(),
+    }
+    found = [str(path) for path in local_artifacts.values() if path.exists()]
+    missing = [str(path) for path in local_artifacts.values() if not path.exists()]
+    max_score = sum(PHASE_WEIGHTS.values())
+
+    summary = (
+        "Adapter-local release evidence is not yet established. "
+        "This adapter is in bootstrap/insufficient-evidence mode."
+    )
+    return {
+        "decision": "insufficient_evidence",
+        "confidence": "low",
+        "weighted_score": None,
+        "max_score": max_score,
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "phase_scores": {},
+        "critical_green_signals": [],
+        "product_defect_penalties": [],
+        "env_blocker_penalties": [],
+        "coverage_gap_penalties": [],
+        "evidence_gaps": [
+            {
+                "id": "GAP-ADAPTER-BOOTSTRAP",
+                "title": "Adapter-local evidence artifacts are missing",
+                "severity": "low",
+                "penalty": 0,
+                "category": "evidence_gap",
+                "source": str(EVIDENCE_CTX.artifact_dir),
+                "in_active_path": False,
+                "impacted_flows": [],
+            }
+        ],
+        "decision_reasoning": [
+            "No adapter-local evidence snapshot is available yet.",
+            "Cross-adapter fallback is disabled to prevent evidence leakage.",
+        ],
+        "hard_block_reasons": [],
+        "scenario_drift_validation": [],
+        "known_product_defects": [],
+        "env_blockers": [],
+        "coverage_gaps": ["Adapter bootstrap: local evidence not available"],
+        "release_risk_factors": [
+            "insufficient adapter-local evidence",
+            "bootstrap adapter state",
+        ],
+        "evidence_sources": found,
+        "recommended_actions_before_release": [
+            "Generate adapter-local evidence by running change-aware trigger and orchestrator for this adapter.",
+            "Run core suite scaffolding and produce first local release evidence snapshot.",
+            "Replace scaffold placeholders (suites/defect families/mappings) before production gating.",
+        ],
+        "recommended_actions_after_release": [
+            "Track onboarding completion of adapter-local suites and risk mapping.",
+        ],
+        "phase_snapshot": {
+            "auth": "unknown",
+            "order_core": "unknown",
+            "search_store": "unknown",
+            "lifecycle": "unknown",
+            "admin_consistency": "unknown",
+            "merchant_depth": "unknown",
+            "payment_realism": "unknown",
+        },
+        "adapter": {
+            "adapter_id": ADAPTER.get_adapter_id(),
+            "product_name": ADAPTER.get_product_name(),
+            "release_critical_flows": list(ADAPTER.get_release_critical_flows()),
+        },
+        "bootstrap_state": {
+            "is_bootstrap": True,
+            "reason": "insufficient_adapter_local_evidence",
+            "missing_artifacts": missing,
+        },
+        "evidence_delta_since_previous_snapshot": {},
     }
 
 
@@ -574,11 +803,13 @@ def _render_penalty_table(title: str, rows: list[dict[str, Any]]) -> list[str]:
 
 def _build_markdown(payload: dict[str, Any]) -> str:
     scenario_rows = payload.get("scenario_drift_validation", [])
+    evidence_delta = payload.get("evidence_delta_since_previous_snapshot", {})
     lines: list[str] = [
         "# RELEASE_DECISION_REPORT",
         "",
         "## Executive Decision",
         "",
+        f"- Adapter: `{payload.get('adapter', {}).get('adapter_id')}` ({payload.get('adapter', {}).get('product_name')})",
         f"- Decision: `{payload['decision']}`",
         f"- Confidence: `{payload['confidence']}`",
         f"- Generated at: `{payload['generated_at_utc']}`",
@@ -632,6 +863,35 @@ def _build_markdown(payload: dict[str, Any]) -> str:
 
     lines.extend(
         [
+            "## Evidence Delta Since Previous Snapshot",
+            "",
+        ]
+    )
+    merchant_delta = evidence_delta.get("merchant_terminal_mutation_defect", {})
+    score_delta = evidence_delta.get("score_delta", {})
+    decision_delta = evidence_delta.get("decision_delta", {})
+    if merchant_delta:
+        lines.append(
+            f"- `{merchant_delta.get('case_id')}` (`{merchant_delta.get('family_id')}`): "
+            f"{merchant_delta.get('status_before')} -> {merchant_delta.get('status_now')}"
+        )
+        lines.append(f"- Rerun evidence: {merchant_delta.get('rerun_evidence')}")
+    if score_delta:
+        lines.append(
+            f"- Score delta: `{score_delta.get('previous_score')}` -> `{score_delta.get('current_score')}` "
+            f"(delta `{score_delta.get('delta')}`)"
+        )
+    if decision_delta:
+        lines.append(
+            f"- Decision delta: `{decision_delta.get('previous_decision')}` -> `{decision_delta.get('current_decision')}`"
+        )
+    risk_delta = evidence_delta.get("risk_delta")
+    if risk_delta:
+        lines.append(f"- Risk delta: {risk_delta}")
+    lines.append("")
+
+    lines.extend(
+        [
             "## Recommended Next Actions",
             "",
         ]
@@ -657,15 +917,14 @@ def _build_markdown(payload: dict[str, Any]) -> str:
 
 def main() -> None:
     payload = _build_payload()
-    OUTPUT_JSON.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    OUTPUT_MD.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_MD.write_text(_build_markdown(payload), encoding="utf-8")
+    output_json = EVIDENCE_CTX.write_json("release_decision", payload)
+    output_md = EVIDENCE_CTX.write_report(REPORT_NAME, _build_markdown(payload))
     print(
-        f"[release-decision-v1.1] decision={payload['decision']} "
+        f"[release-decision-v1.2] decision={payload['decision']} "
         f"confidence={payload['confidence']} score={payload['weighted_score']}/{payload['max_score']}"
     )
-    print(f"[release-decision-v1.1] json={OUTPUT_JSON}")
-    print(f"[release-decision-v1.1] report={OUTPUT_MD}")
+    print(f"[release-decision-v1.2] json={output_json}")
+    print(f"[release-decision-v1.2] report={output_md}")
 
 
 if __name__ == "__main__":

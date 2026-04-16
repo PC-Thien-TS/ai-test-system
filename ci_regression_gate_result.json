@@ -1,0 +1,91 @@
+{
+  "generated_at_utc": "2026-04-16T11:15:53.047128+00:00",
+  "adapter": "rankmate",
+  "adapter_validation_status": "pass_with_warnings",
+  "adapter_warnings": [
+    "build_defect_families currently returns no families; implement project-specific clustering."
+  ],
+  "adapter_errors": [],
+  "changed_files": [
+    "merchant/order_transition_service.cs",
+    "merchant/dashboard_complete_order.ts"
+  ],
+  "selected_intent": "merchant_flow_regression",
+  "selected_mode": "balanced",
+  "regression_plan_status": "generated",
+  "execution_status": "not_executed",
+  "execute_requested": false,
+  "release_decision": "block_release",
+  "release_score": 57,
+  "confidence": "medium",
+  "ci_gate_status": "fail",
+  "summary": "Gate detected blocking risk (adapter/step failure or block_release decision).",
+  "next_actions": [
+    "Address adapter validation warnings before production onboarding.",
+    "Fix stale/double complete guard in merchant complete endpoint so terminal orders reject repeat complete with controlled 4xx.",
+    "Fix STORE-API-004 negative-path regression so invalid store lookups return controlled 400/404.",
+    "Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment realism checks.",
+    "Run selected regression commands to convert planning signal into execution signal."
+  ],
+  "recommended_commands": [
+    "python -m pytest -q -rs tests/rankmate_wave1/test_auth_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_lifecycle_flow_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_admin_consistency_api.py"
+  ],
+  "selected_suites": [
+    "tests/rankmate_wave1/test_auth_api.py",
+    "tests/rankmate_wave1/test_order_api.py",
+    "tests/rankmate_wave1/test_order_lifecycle_flow_api.py",
+    "tests/rankmate_wave1/test_merchant_transition_api.py",
+    "tests/rankmate_wave1/test_admin_consistency_api.py"
+  ],
+  "suppressed_suites": [],
+  "blocked_suites": [
+    {
+      "suite": "tests/rankmate_wave1/test_merchant_transition_api.py",
+      "reason": "Partial seed blocker: API_ACCEPTED_ORDER_ID, API_NO_SHOW_ORDER_ID, API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+      "flow_id": "merchant_handling",
+      "blocked_type": "seed_blocker_partial"
+    }
+  ],
+  "step_results": [
+    {
+      "step": "change_aware_trigger",
+      "command": "C:\\Users\\PC-Thien\\AppData\\Local\\Programs\\Python\\Python312\\python.exe ai_change_aware_regression_trigger.py --files merchant/order_transition_service.cs,merchant/dashboard_complete_order.ts",
+      "returncode": 0,
+      "duration_seconds": 0.1,
+      "stdout_tail": "[change-aware-trigger] adapter=rankmate files=2 selected_flows=2\n[change-aware-trigger] flows:\n  - order_core\n  - merchant_handling\n[change-aware-trigger] json=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\change_aware_regression_plan.json\n[change-aware-trigger] report=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\reports\\CHANGE_AWARE_TRIGGER_REPORT.md",
+      "stderr_tail": "",
+      "succeeded": true
+    },
+    {
+      "step": "regression_orchestrator",
+      "command": "C:\\Users\\PC-Thien\\AppData\\Local\\Programs\\Python\\Python312\\python.exe ai_regression_orchestrator.py --intent merchant_flow_regression --mode balanced",
+      "returncode": 0,
+      "duration_seconds": 0.17,
+      "stdout_tail": "[ai-regression-orchestrator-v1] intent=merchant_flow_regression mode=balanced selected_suites=5 suppressed=0 blocked=1 execute=False\n[ai-regression-orchestrator-v1] plan=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\regression_execution_plan.json\n[ai-regression-orchestrator-v1] report=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\reports\\AI_REGRESSION_ORCHESTRATOR_REPORT.md\n[ai-regression-orchestrator-v1] runnable commands:\n  - python -m pytest -q -rs tests/rankmate_wave1/test_auth_api.py\n  - python -m pytest -q -rs tests/rankmate_wave1/test_order_api.py\n  - python -m pytest -q -rs tests/rankmate_wave1/test_order_lifecycle_flow_api.py\n  - python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py\n  - python -m pytest -q -rs tests/rankmate_wave1/test_admin_consistency_api.py",
+      "stderr_tail": "",
+      "succeeded": true
+    },
+    {
+      "step": "release_gate_refresh",
+      "command": "C:\\Users\\PC-Thien\\AppData\\Local\\Programs\\Python\\Python312\\python.exe release_decision_gate.py",
+      "returncode": 0,
+      "duration_seconds": 0.13,
+      "stdout_tail": "[release-decision-v1.2] decision=block_release confidence=medium score=57/100\n[release-decision-v1.2] json=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\release_decision.json\n[release-decision-v1.2] report=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\reports\\RELEASE_DECISION_REPORT.md",
+      "stderr_tail": "",
+      "succeeded": true
+    },
+    {
+      "step": "dashboard_refresh",
+      "command": "C:\\Users\\PC-Thien\\AppData\\Local\\Programs\\Python\\Python312\\python.exe ai_qa_lead_dashboard.py",
+      "returncode": 0,
+      "duration_seconds": 0.13,
+      "stdout_tail": "[qa-dashboard] decision=block_release score=57 confidence=medium\n[qa-dashboard] top_risk=merchant handling flow\n[qa-dashboard] next_action=Enforce terminal transition guards for stale/double complete and return controlled 4xx.\n[qa-dashboard] json=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\dashboard_snapshot.json\n[qa-dashboard] report=C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\reports\\AI_QA_LEAD_DASHBOARD_REPORT.md",
+      "stderr_tail": "",
+      "succeeded": true
+    }
+  ]
+}

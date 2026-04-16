@@ -1,0 +1,132 @@
+{
+  "adapter_name": "rankmate",
+  "status": "pass_with_warnings",
+  "generated_at_utc": "2026-04-16T11:15:52.894527+00:00",
+  "contract_checks": [
+    {
+      "name": "required_methods",
+      "status": "pass",
+      "details": "All required adapter methods are callable (21 methods)."
+    },
+    {
+      "name": "product_name",
+      "status": "pass",
+      "details": "Product name: RankMate / Didaunao"
+    },
+    {
+      "name": "flow_registry_contract",
+      "status": "pass",
+      "details": "Flow registry has 6 flow definitions."
+    },
+    {
+      "name": "suite_registry_contract",
+      "status": "pass",
+      "details": "Suite registry has 9 entries."
+    },
+    {
+      "name": "defect_registry_contract",
+      "status": "pass",
+      "details": "Defect family registry is structurally valid (4 entries)."
+    },
+    {
+      "name": "blocker_classification_contract",
+      "status": "pass",
+      "details": "Blocker classification returns type 'coverage_gap'."
+    },
+    {
+      "name": "risk_rules_contract",
+      "status": "pass",
+      "details": "Risk and release scoring rules are available."
+    }
+  ],
+  "loader_checks": [
+    {
+      "name": "loader_resolution",
+      "status": "pass",
+      "details": "Loader resolved adapter 'rankmate' successfully."
+    }
+  ],
+  "structure_checks": [
+    {
+      "name": "flow_registry_non_empty",
+      "status": "pass",
+      "details": "Flow registry contains 6 flows."
+    },
+    {
+      "name": "flow_order_consistency",
+      "status": "pass",
+      "details": "Flow order covers 6 known flow IDs."
+    },
+    {
+      "name": "release_critical_flow_consistency",
+      "status": "pass",
+      "details": "Release-critical flows: auth_foundation, order_core, search_discovery, merchant_handling, admin_consistency, payment_integrity"
+    },
+    {
+      "name": "core_anchor_consistency",
+      "status": "pass",
+      "details": "Core anchors: auth_foundation, order_core, admin_consistency"
+    },
+    {
+      "name": "intent_flow_mapping_consistency",
+      "status": "pass",
+      "details": "Intent mappings validated (6 intents)."
+    },
+    {
+      "name": "suite_registry_non_empty",
+      "status": "pass",
+      "details": "Suite registry contains 9 entries."
+    },
+    {
+      "name": "suite_path_existence",
+      "status": "pass",
+      "details": "All suite paths exist locally."
+    },
+    {
+      "name": "defect_family_presence",
+      "status": "pass",
+      "details": "Defect family registry has 4 entries."
+    },
+    {
+      "name": "placeholder_defect_family_detection",
+      "status": "pass",
+      "details": "No sample/template defect families detected."
+    },
+    {
+      "name": "change_mapping_signal",
+      "status": "pass",
+      "details": "Change mapping produced 5 flow matches for sample inputs."
+    },
+    {
+      "name": "build_defect_families_readiness",
+      "status": "warn",
+      "details": "build_defect_families returns empty list on baseline input."
+    }
+  ],
+  "core_smoke_checks": [
+    {
+      "name": "regression_orchestrator_smoke",
+      "status": "pass",
+      "details": "Regression orchestrator built plan successfully."
+    },
+    {
+      "name": "release_gate_compatibility_smoke",
+      "status": "pass",
+      "details": "Release gate compatibility payload built successfully."
+    },
+    {
+      "name": "change_aware_trigger_smoke",
+      "status": "pass",
+      "details": "Change-aware trigger executed successfully."
+    }
+  ],
+  "warnings": [
+    "build_defect_families currently returns no families; implement project-specific clustering."
+  ],
+  "errors": [],
+  "recommendations": [
+    "Resolve warning items (placeholder suites/families/mappings) before production onboarding."
+  ],
+  "strict_mode": false,
+  "ci_mode": true
+}

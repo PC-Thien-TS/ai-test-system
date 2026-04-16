@@ -1,10 +1,10 @@
 {
-  "decision": "release_with_caution",
+  "decision": "block_release",
   "confidence": "medium",
-  "weighted_score": 72,
+  "weighted_score": 57,
   "max_score": 100,
-  "generated_at_utc": "2026-04-16T04:10:32.248203+00:00",
-  "summary": "Core Wave 1 signals are healthy enough for cautious release, but defect/blocker penalties and depth gaps remain.",
+  "generated_at_utc": "2026-04-16T11:15:53.513910+00:00",
+  "summary": "Release is near/under block threshold due to confirmed merchant terminal mutation risk and open defects.",
   "phase_scores": {
     "auth": 25,
     "order_core": 25,
@@ -29,7 +29,10 @@
       "penalty": -8,
       "category": "product_defect",
       "source": "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md",
-      "in_active_path": false
+      "in_active_path": false,
+      "impacted_flows": [
+        "search_discovery"
+      ]
     },
     {
       "id": "STO-011",
@@ -38,7 +41,23 @@
       "penalty": 0,
       "category": "product_defect",
       "source": "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md",
-      "in_active_path": false
+      "in_active_path": false,
+      "impacted_flows": [
+        "search_discovery"
+      ]
+    },
+    {
+      "id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+      "title": "Merchant stale/double complete mutation safety defect",
+      "severity": "P1",
+      "penalty": -15,
+      "category": "product_defect",
+      "source": "C:\\Projects\\Rankmate\\ai_test_system\\defect_cluster_report.json",
+      "in_active_path": true,
+      "impacted_flows": [
+        "merchant_handling",
+        "order_core"
+      ]
     }
   ],
   "env_blocker_penalties": [
@@ -49,18 +68,24 @@
       "penalty": -5,
       "category": "env_blocker",
       "source": "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_execution\\RANKMATE_WAVE1_BLOCKERS_AND_DEPENDENCIES.md",
-      "in_active_path": false
+      "in_active_path": false,
+      "impacted_flows": [
+        "payment_integrity"
+      ]
     }
   ],
   "coverage_gap_penalties": [
     {
       "id": "GAP-MERCHANT-DEPTH",
-      "title": "Merchant transition depth partially seed-blocked (13 slots missing)",
+      "title": "Merchant transition depth partially seed-blocked (3 slots missing)",
       "severity": "medium",
       "penalty": 0,
       "category": "coverage_gap",
       "source": "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json",
-      "in_active_path": false
+      "in_active_path": false,
+      "impacted_flows": [
+        "merchant_handling"
+      ]
     },
     {
       "id": "GAP-PAYMENT-REALISM",
@@ -69,23 +94,27 @@
       "penalty": 0,
       "category": "coverage_gap",
       "source": "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_execution\\RANKMATE_WAVE1_BLOCKERS_AND_DEPENDENCIES.md",
-      "in_active_path": false
+      "in_active_path": false,
+      "impacted_flows": [
+        "payment_integrity"
+      ]
     }
   ],
   "evidence_gaps": [],
   "decision_reasoning": [
-    "Core phases are green but defect/blocker penalties reduce certainty.",
+    "Weighted score is below release-with-caution threshold (65).",
     "Known product defects remain open and are explicitly penalized.",
     "Environment blockers are separated from product defects and penalized moderately.",
-    "Coverage depth remains incomplete for merchant/payment realism paths."
+    "Coverage depth remains incomplete for merchant/payment realism paths.",
+    "Confirmed P1 merchant terminal mutation defect is now included from rerun cluster evidence."
   ],
   "hard_block_reasons": [],
   "scenario_drift_validation": [
     {
       "name": "A_current_real_repo_evidence",
-      "expected_decision": "release_with_caution",
-      "actual_decision": "release_with_caution",
-      "weighted_score": 72,
+      "expected_decision": "block_release",
+      "actual_decision": "block_release",
+      "weighted_score": 57,
       "confidence": "medium",
       "matches_expectation": true
     },
@@ -101,27 +130,29 @@
       "name": "C_regressed_auth_or_admin",
       "expected_decision": "block_release",
       "actual_decision": "block_release",
-      "weighted_score": 47,
+      "weighted_score": 32,
       "confidence": "low",
       "matches_expectation": true
     }
   ],
   "known_product_defects": [
     "Invalid store lookup returns 500 instead of controlled 400/404",
-    "Invalid store uniqueId lookup returns 500 instead of controlled 400/404"
+    "Invalid store uniqueId lookup returns 500 instead of controlled 400/404",
+    "Merchant stale/double complete mutation safety defect"
   ],
   "env_blockers": [
     "Stripe webhook secret/signing alignment blocked in runtime"
   ],
   "coverage_gaps": [
-    "Merchant transition depth partially seed-blocked (13 slots missing)",
+    "Merchant transition depth partially seed-blocked (3 slots missing)",
     "Payment webhook realism coverage is incomplete"
   ],
   "release_risk_factors": [
-    "Core phases are green but defect/blocker penalties reduce certainty.",
+    "Weighted score is below release-with-caution threshold (65).",
     "Known product defects remain open and are explicitly penalized.",
     "Environment blockers are separated from product defects and penalized moderately.",
-    "Coverage depth remains incomplete for merchant/payment realism paths."
+    "Coverage depth remains incomplete for merchant/payment realism paths.",
+    "Confirmed P1 merchant terminal mutation defect is now included from rerun cluster evidence."
   ],
   "evidence_sources": [
     "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\ORDER_LIFECYCLE_REPORT.md",
@@ -130,15 +161,18 @@
     "C:\\Projects\\Rankmate\\ai_test_system\\order_lifecycle_seed.json",
     "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json",
     "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.env",
+    "C:\\Projects\\Rankmate\\ai_test_system\\defect_cluster_report.json",
     "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_execution\\RANKMATE_WAVE1_BLOCKERS_AND_DEPENDENCIES.md",
     "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\RANKMATE_WAVE1_RUNTIME_ENV_CONTRACT.md",
     "C:\\Projects\\Rankmate\\ai_test_system\\tests\\rankmate_wave1\\test_search_store_api.py",
     "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\test-results\\api-regression\\README.md"
   ],
   "recommended_actions_before_release": [
+    "Fix stale/double complete guard in merchant complete endpoint so terminal orders reject repeat complete with controlled 4xx.",
     "Fix STORE-API-004 negative-path regression so invalid store lookups return controlled 400/404.",
     "Align deployed Stripe webhook secret/signing path with QA runtime to unblock payment realism checks.",
-    "Unlock merchant state seeds for transition-depth and terminal-state verification."
+    "Unlock merchant state seeds for transition-depth and terminal-state verification.",
+    "If merchant settlement is release-critical in this release train, consider temporary release block until MER-API-021 is fixed."
   ],
   "recommended_actions_after_release": [
     "Monitor store lookup 5xx rate and invalid-lookup error handling.",
@@ -153,5 +187,36 @@
     "admin_consistency": "green",
     "merchant_depth": "partial_seed_blocked",
     "payment_realism": "blocked_by_runtime_config"
+  },
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao",
+    "release_critical_flows": [
+      "auth_foundation",
+      "order_core",
+      "search_discovery",
+      "merchant_handling",
+      "admin_consistency",
+      "payment_integrity"
+    ]
+  },
+  "evidence_delta_since_previous_snapshot": {
+    "merchant_terminal_mutation_defect": {
+      "case_id": "MER-API-021",
+      "family_id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+      "status_before": "suspected_or_unmodeled",
+      "status_now": "confirmed_backend_defect",
+      "rerun_evidence": "terminal status=23; mark_arrived returns 400; complete_order incorrectly returns 200"
+    },
+    "score_delta": {
+      "previous_score": 72,
+      "current_score": 57,
+      "delta": -15
+    },
+    "decision_delta": {
+      "previous_decision": "release_with_caution",
+      "current_decision": "block_release"
+    },
+    "risk_delta": "Merchant terminal mutation safety elevated to top active release-critical risk."
   }
 }

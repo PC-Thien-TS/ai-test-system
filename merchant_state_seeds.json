@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-04-16T04:52:36.828544+00:00",
+  "generatedAtUtc": "2026-04-16T09:15:43.096253+00:00",
   "metadata": {
     "baseUrl": "http://tldraft.hopto.org:19066",
     "merchantStoreId": 9768,
@@ -9,7 +9,7 @@
   "results": [
     {
       "slot": "API_PAID_ORDER_ID",
-      "orderId": 768,
+      "orderId": 701,
       "status": 20,
       "statusName": "Paid",
       "source": "discovered",
@@ -17,7 +17,7 @@
     },
     {
       "slot": "API_REJECTABLE_PAID_ORDER_ID",
-      "orderId": 701,
+      "orderId": 700,
       "status": 20,
       "statusName": "Paid",
       "source": "discovered",
@@ -33,7 +33,7 @@
     },
     {
       "slot": "API_ARRIVED_ORDER_ID",
-      "orderId": 127,
+      "orderId": 768,
       "status": 22,
       "statusName": "Arrived",
       "source": "discovered",
@@ -89,9 +89,9 @@
     },
     {
       "slot": "API_NON_PAID_ORDER_ID",
-      "orderId": 767,
-      "status": 10,
-      "statusName": "Pending",
+      "orderId": 768,
+      "status": 22,
+      "statusName": "Arrived",
       "source": "discovered",
       "note": "selected newest order id by deterministic rule (descending id)"
     },
@@ -106,8 +106,8 @@
     {
       "slot": "API_CONSISTENCY_ORDER_ID",
       "orderId": 768,
-      "status": 20,
-      "statusName": "Paid",
+      "status": 22,
+      "statusName": "Arrived",
       "source": "discovered",
       "note": "selected newest order id by deterministic rule (descending id)"
     }

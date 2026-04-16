@@ -1,0 +1,96 @@
+{
+  "generated_at_utc": "2026-04-16T11:15:53.366539+00:00",
+  "intent": "merchant_flow_regression",
+  "mode": "balanced",
+  "selected_flows": [
+    {
+      "flow_id": "auth_foundation",
+      "title": "Auth Foundation Flow",
+      "description": "Authentication contract and token baseline.",
+      "suites": [
+        "tests/rankmate_wave1/test_auth_api.py"
+      ],
+      "selection_reason": "Balanced/deep mode adds core anchors."
+    },
+    {
+      "flow_id": "order_core",
+      "title": "Order Core Flow",
+      "description": "Order contracts, lifecycle seed generation, and core state progression.",
+      "suites": [
+        "tests/rankmate_wave1/test_order_api.py",
+        "tests/rankmate_wave1/test_order_lifecycle_flow_api.py"
+      ],
+      "selection_reason": "Balanced/deep mode adds core anchors."
+    },
+    {
+      "flow_id": "merchant_handling",
+      "title": "Merchant Handling Flow",
+      "description": "Merchant queue/detail and transition-state behavior.",
+      "suites": [
+        "tests/rankmate_wave1/test_merchant_transition_api.py"
+      ],
+      "selection_reason": "Top active risk included: merchant handling flow."
+    },
+    {
+      "flow_id": "admin_consistency",
+      "title": "Admin Consistency Flow",
+      "description": "Cross-surface continuity across user, merchant, and admin.",
+      "suites": [
+        "tests/rankmate_wave1/test_admin_consistency_api.py"
+      ],
+      "selection_reason": "Balanced/deep mode adds core anchors."
+    }
+  ],
+  "selected_suites": [
+    "tests/rankmate_wave1/test_auth_api.py",
+    "tests/rankmate_wave1/test_order_api.py",
+    "tests/rankmate_wave1/test_order_lifecycle_flow_api.py",
+    "tests/rankmate_wave1/test_merchant_transition_api.py",
+    "tests/rankmate_wave1/test_admin_consistency_api.py"
+  ],
+  "suppressed_suites": [],
+  "blocked_suites": [
+    {
+      "suite": "tests/rankmate_wave1/test_merchant_transition_api.py",
+      "reason": "Partial seed blocker: API_ACCEPTED_ORDER_ID, API_NO_SHOW_ORDER_ID, API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+      "flow_id": "merchant_handling",
+      "blocked_type": "seed_blocker_partial"
+    }
+  ],
+  "powershell_commands": [
+    "python -m pytest -q -rs tests/rankmate_wave1/test_auth_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_lifecycle_flow_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_admin_consistency_api.py"
+  ],
+  "expected_release_impact": "Merchant workflow confidence refresh with core context anchors.",
+  "known_risks_included": [
+    "DF-MERCHANT-STALE-TERMINAL-MUTATION: Merchant stale/double complete mutation safety defect",
+    "DF-MERCHANT-SEED-COVERAGE-GAP: Merchant transition seed coverage gaps"
+  ],
+  "known_risks_deferred": [
+    "DF-STORE-NEGATIVE-500: Store invalid lookup negative-path returns 500",
+    "DF-STRIPE-WEBHOOK-ENV-BLOCKER: Stripe webhook realism blocked by runtime secret/signature mismatch"
+  ],
+  "release_context": {
+    "decision": "block_release",
+    "confidence": "medium",
+    "score": 57,
+    "top_risk": "merchant handling flow"
+  },
+  "artifacts_used": [
+    "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\release_decision.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\dashboard_snapshot.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\defect_cluster_report.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\autonomous_rerun_plan.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\order_lifecycle_seed.json"
+  ],
+  "execution_mode": "plan_only",
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao"
+  },
+  "bootstrap_state": false
+}

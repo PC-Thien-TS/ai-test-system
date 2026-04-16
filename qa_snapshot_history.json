@@ -1,0 +1,22 @@
+[
+  {
+    "timestamp": "2026-04-16T06:54:55.668436+00:00",
+    "decision": "block_release",
+    "score": 57,
+    "confidence": "medium",
+    "top_risk": "merchant terminal mutation safety",
+    "active_defect_count": 4,
+    "product_defect_count": 2,
+    "env_blocker_count": 1,
+    "coverage_gap_count": 1,
+    "rerun_action": "targeted_rerun",
+    "healing_actions_run_count": 1,
+    "unresolved_blocker_count": 2,
+    "active_defect_family_ids": [
+      "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+      "DF-STORE-NEGATIVE-500",
+      "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
+      "DF-MERCHANT-SEED-COVERAGE-GAP"
+    ]
+  }
+]

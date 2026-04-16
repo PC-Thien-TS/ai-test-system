@@ -1,0 +1,253 @@
+{
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao"
+  },
+  "executive_summary": {
+    "decision": "block_release",
+    "weighted_score": 57,
+    "max_score": 100,
+    "confidence": "medium",
+    "top_reason_for_caution_or_block": "Weighted score is below release-with-caution threshold (65).",
+    "highest_risk_flow": "merchant handling flow",
+    "last_generated_timestamp_utc": "2026-04-16T11:15:53.637830+00:00",
+    "bootstrap_state": false
+  },
+  "quality_health": {
+    "auth": "green",
+    "order_core": "green",
+    "search_store": "mostly_green_with_regression",
+    "lifecycle": "usable",
+    "admin_consistency": "green",
+    "merchant_depth": "partial_seed_blocked",
+    "payment_realism": "blocked_by_runtime_config"
+  },
+  "active_defect_families": [
+    {
+      "family_id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+      "title": "Merchant stale/double complete mutation safety defect",
+      "type": "product_defect",
+      "suggested_severity": "P1",
+      "release_impact": "release-critical",
+      "member_cases": [
+        "MER-API-021"
+      ],
+      "status": "active",
+      "risk_score": 125,
+      "recommended_next_action": "Enforce terminal transition guards for stale/double complete and return controlled 4xx."
+    },
+    {
+      "family_id": "DF-STORE-NEGATIVE-500",
+      "title": "Store invalid lookup negative-path returns 500",
+      "type": "product_defect",
+      "suggested_severity": "P2",
+      "release_impact": "release-critical",
+      "member_cases": [
+        "STO-011",
+        "STORE-API-004"
+      ],
+      "status": "suppressed",
+      "risk_score": 85,
+      "recommended_next_action": "Fix store invalid-id/unique-id handler to return controlled 400/404 envelopes."
+    },
+    {
+      "family_id": "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
+      "title": "Stripe webhook realism blocked by runtime secret/signature mismatch",
+      "type": "env_blocker",
+      "suggested_severity": "blocker/env",
+      "release_impact": "partial-surface",
+      "member_cases": [
+        "PAY-API-003",
+        "PAY-API-004",
+        "PAY-API-007",
+        "PAY-API-008",
+        "PAY-API-011"
+      ],
+      "status": "blocked",
+      "risk_score": 58,
+      "recommended_next_action": "Align deployed Stripe webhook secret/signing contract with QA environment."
+    },
+    {
+      "family_id": "DF-MERCHANT-SEED-COVERAGE-GAP",
+      "title": "Merchant transition seed coverage gaps",
+      "type": "coverage_gap",
+      "suggested_severity": "coverage-gap",
+      "release_impact": "partial-surface",
+      "member_cases": [
+        "API_ACCEPTED_ORDER_ID",
+        "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+        "API_NO_SHOW_ORDER_ID"
+      ],
+      "status": "blocked",
+      "risk_score": 55,
+      "recommended_next_action": "Extend merchant seed builder and/or create targeted state-producing flows."
+    }
+  ],
+  "env_blockers": [
+    {
+      "family_id": "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
+      "title": "Stripe webhook realism blocked by runtime secret/signature mismatch",
+      "type": "env_blocker",
+      "suggested_severity": "blocker/env",
+      "release_impact": "partial-surface",
+      "member_cases": [
+        "PAY-API-003",
+        "PAY-API-004",
+        "PAY-API-007",
+        "PAY-API-008",
+        "PAY-API-011"
+      ],
+      "status": "blocked",
+      "risk_score": 58,
+      "recommended_next_action": "Align deployed Stripe webhook secret/signing contract with QA environment."
+    }
+  ],
+  "coverage_gaps": [
+    {
+      "family_id": "DF-MERCHANT-SEED-COVERAGE-GAP",
+      "title": "Merchant transition seed coverage gaps",
+      "type": "coverage_gap",
+      "suggested_severity": "coverage-gap",
+      "release_impact": "partial-surface",
+      "member_cases": [
+        "API_ACCEPTED_ORDER_ID",
+        "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+        "API_NO_SHOW_ORDER_ID"
+      ],
+      "status": "blocked",
+      "risk_score": 55,
+      "recommended_next_action": "Extend merchant seed builder and/or create targeted state-producing flows."
+    }
+  ],
+  "seed_blockers": [
+    {
+      "slot": "API_ACCEPTED_ORDER_ID",
+      "reason": "missing deterministic seed"
+    },
+    {
+      "slot": "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+      "reason": "missing deterministic seed"
+    },
+    {
+      "slot": "API_NO_SHOW_ORDER_ID",
+      "reason": "missing deterministic seed"
+    }
+  ],
+  "rerun_operations": {
+    "rerun_action": "targeted_rerun",
+    "target_suites": [
+      "tests/rankmate_wave1/test_merchant_transition_api.py",
+      "tests/rankmate_wave1/test_payment_api.py",
+      "tests/rankmate_wave1/test_search_store_api.py"
+    ],
+    "runnable_commands": [
+      "python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py"
+    ],
+    "blocked_reruns": [
+      {
+        "suite": "tests/rankmate_wave1/test_payment_api.py",
+        "priority": "P1",
+        "blast_radius": "release-critical",
+        "trigger": "payment realism coverage gap",
+        "blocked": true,
+        "blocker_reason": "unchanged Stripe secret/signature env blocker"
+      },
+      {
+        "suite": "tests/rankmate_wave1/test_search_store_api.py",
+        "priority": "P3",
+        "blast_radius": "release-critical",
+        "trigger": "product defect STORE-API-004; product defect STO-011",
+        "blocked": true,
+        "blocker_reason": "known defect family unchanged; rerun deprioritized to avoid duplicate churn"
+      }
+    ],
+    "suppressions": [
+      "Search+Store repeat rerun suppressed/deprioritized because known store defect family is unchanged.",
+      "Payment rerun deferred: Stripe webhook env blocker unchanged."
+    ]
+  },
+  "healing_actions": {
+    "actions_run": [
+      {
+        "action_id": "HEAL-MERCHANT-SEEDS",
+        "status": "success",
+        "command": "python scripts/build_merchant_state_seeds.py",
+        "note": "missing slots before run: API_ACCEPTED_ORDER_ID, API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID, API_NO_SHOW_ORDER_ID",
+        "stdout_tail": "[Wave1API][AuthHelper.login] payload={'email': 'pthienpc+111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\n[Wave1API][AuthHelper.login] payload={'email': 'tieuphiphi020103+71111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\nMerchant seed builder completed: filled=10 missing=3\n- API_PAID_ORDER_ID: 701 status=20 Paid source=discovered\n- API_REJECTABLE_PAID_ORDER_ID: 700 status=20 Paid source=discovered\n- API_ACCEPTED_ORDER_ID: MISSING status=  source=missing\n- API_ARRIVED_ORDER_ID: 768 status=22 Arrived source=discovered\n- API_MERCHANT_CANCELLABLE_ORDER_ID: 767 status=10 Pending source=discovered\n- API_NO_SHOW_ORDER_ID: MISSING status=  source=missing\n- API_PENDING_ORDER_ID: 767 status=10 Pending source=discovered\n- API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID: MISSING status=  source=missing\n- API_CANCELLED_ORDER_ID: 761 status=60 Cancelled source=env_existing\n- API_COMPLETED_ORDER_ID: 762 status=23 Completed source=env_existing\n- API_NON_PAID_ORDER_ID: 768 status=22 Arrived source=discovered\n- API_STALE_TRANSITION_ORDER_ID: 762 status=23 Completed source=discovered\n- API_CONSISTENCY_ORDER_ID: 768 status=22 Arrived source=discovered",
+        "stderr_tail": ""
+      }
+    ],
+    "actions_skipped": [
+      {
+        "action_id": "HEAL-LIFECYCLE-SEED",
+        "reason": "Lifecycle seed exists and is not stale."
+      }
+    ],
+    "effect_summary": {
+      "merchant_missing_slots_before": [
+        "API_ACCEPTED_ORDER_ID",
+        "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+        "API_NO_SHOW_ORDER_ID"
+      ],
+      "merchant_missing_slots_after": [
+        "API_ACCEPTED_ORDER_ID",
+        "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
+        "API_NO_SHOW_ORDER_ID"
+      ],
+      "merchant_critical_missing_slots_after": []
+    },
+    "new_seeds_unlocked": []
+  },
+  "release_manager_view": {
+    "recommended_next_engineering_actions": [
+      "Enforce terminal transition guards for stale/double complete and return controlled 4xx.",
+      "Add a new product-defect penalty in release gate for MER-API-021 family (suggested P1, -15) until fixed.",
+      "Keep STORE-API-004 and STO-011 clustered under one family penalty to avoid duplicate severity inflation.",
+      "Keep Stripe webhook mismatch as env-blocker penalty, not product-defect penalty, until behavior proves otherwise.",
+      "If merchant seed missing-slot count decreases after healing, reduce merchant-depth coverage-gap penalty in next gate run."
+    ],
+    "recommended_next_qa_actions": [
+      "After backend fix deploy, rerun: python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py",
+      "Defer payment rerun until Stripe secret/signature alignment is confirmed.",
+      "Rerun release gate after merchant rerun and any backend fixes to defect families."
+    ],
+    "should_release_be_blocked": true,
+    "should_release_with_caution": false,
+    "top_post_release_watch_items": [
+      "Monitor store lookup 5xx rate and invalid-lookup error handling.",
+      "Monitor payment callback anomalies until full webhook realism coverage is stable.",
+      "Keep merchant transition reruns in nightly cycle until seed depth is fully deterministic."
+    ],
+    "risk_advisory": "Confirmed P1 merchant active-path defect (MER-API-021). Treat release as high caution; if merchant settlement is release-critical, consider temporary release block."
+  },
+  "evidence_delta_since_previous_snapshot": {
+    "merchant_terminal_mutation_defect": {
+      "case_id": "MER-API-021",
+      "family_id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
+      "status_before": "suspected_or_unmodeled",
+      "status_now": "confirmed_backend_defect",
+      "rerun_evidence": "terminal status=23; mark_arrived returns 400; complete_order incorrectly returns 200"
+    },
+    "score_delta": {
+      "previous_score": 72,
+      "current_score": 57,
+      "delta": -15
+    },
+    "decision_delta": {
+      "previous_decision": "release_with_caution",
+      "current_decision": "block_release"
+    },
+    "risk_delta": "Merchant terminal mutation safety elevated to top active release-critical risk."
+  },
+  "supporting_artifacts": {
+    "lifecycle_seed_order_id": 760,
+    "lifecycle_seed_final_status": "pending",
+    "merchant_seed_generated_at": "2026-04-16T09:15:43.096253+00:00"
+  },
+  "bootstrap_state": false,
+  "evidence_sources": [
+    "C:\\Projects\\Rankmate\\ai_test_system\\artifacts\\adapter_evidence\\rankmate\\release_decision.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\order_lifecycle_seed.json",
+    "C:\\Projects\\Rankmate\\ai_test_system\\merchant_state_seeds.json"
+  ]
+}
