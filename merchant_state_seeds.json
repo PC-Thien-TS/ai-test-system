@@ -1,27 +1,27 @@
 {
-  "generatedAtUtc": "2026-04-15T09:30:30.880000+00:00",
+  "generatedAtUtc": "2026-04-16T04:52:36.828544+00:00",
   "metadata": {
-    "baseUrl": "http://192.168.1.103:19066",
-    "merchantStoreId": null,
-    "totalDiscoveredOrders": 0,
-    "allowCreate": true
+    "baseUrl": "http://tldraft.hopto.org:19066",
+    "merchantStoreId": 9768,
+    "totalDiscoveredOrders": 381,
+    "allowCreate": false
   },
   "results": [
     {
       "slot": "API_PAID_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 768,
+      "status": 20,
+      "statusName": "Paid",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_REJECTABLE_PAID_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 701,
+      "status": 20,
+      "statusName": "Paid",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_ACCEPTED_ORDER_ID",
@@ -33,19 +33,19 @@
     },
     {
       "slot": "API_ARRIVED_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 127,
+      "status": 22,
+      "statusName": "Arrived",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_MERCHANT_CANCELLABLE_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 767,
+      "status": 10,
+      "statusName": "Pending",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_NO_SHOW_ORDER_ID",
@@ -57,11 +57,11 @@
     },
     {
       "slot": "API_PENDING_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 767,
+      "status": 10,
+      "statusName": "Pending",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID",
@@ -73,50 +73,49 @@
     },
     {
       "slot": "API_CANCELLED_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 761,
+      "status": 60,
+      "statusName": "Cancelled",
+      "source": "env_existing",
+      "note": "kept existing env value"
     },
     {
       "slot": "API_COMPLETED_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 762,
+      "status": 23,
+      "statusName": "Completed",
+      "source": "env_existing",
+      "note": "kept existing env value"
     },
     {
       "slot": "API_NON_PAID_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 767,
+      "status": 10,
+      "statusName": "Pending",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_STALE_TRANSITION_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 762,
+      "status": 23,
+      "statusName": "Completed",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     },
     {
       "slot": "API_CONSISTENCY_ORDER_ID",
-      "orderId": null,
-      "status": null,
-      "statusName": null,
-      "source": "missing",
-      "note": "no candidate discovered"
+      "orderId": 768,
+      "status": 20,
+      "statusName": "Paid",
+      "source": "discovered",
+      "note": "selected newest order id by deterministic rule (descending id)"
     }
   ],
   "diagnostics": [
-    "customer_login=customer login request failed: HTTPConnectionPool(host='192.168.1.103', port=19066): Max retries exceeded with url: /api/v1/auth/login (Caused by ConnectTimeoutError(<HTTPConnection(host='192.168.1.103', port=19066) at 0x1ede447ed50>, 'Connection to 192.168.1.103 timed out. (connect timeout=30.0)'))",
-    "merchant_login=merchant login request failed: HTTPConnectionPool(host='192.168.1.103', port=19066): Max retries exceeded with url: /api/v1/auth/login (Caused by ConnectTimeoutError(<HTTPConnection(host='192.168.1.103', port=19066) at 0x1ede4df1fa0>, 'Connection to 192.168.1.103 timed out. (connect timeout=30.0)'))",
-    "merchant_store_context=skipped (merchant login unavailable)",
-    "merchant_discovery=blocked (store-scoped merchant token unavailable)"
+    "customer_login=ok",
+    "merchant_login=ok",
+    "merchant_store_context=ok"
   ],
   "mutations": []
 }
