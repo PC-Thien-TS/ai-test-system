@@ -19,18 +19,19 @@ from pathlib import Path
 from typing import Any
 from urllib import request
 
+from orchestrator.adapters import get_active_adapter
+from orchestrator.adapters.evidence_context import get_adapter_evidence_context
+
 
 REPO_ROOT = Path(__file__).resolve().parent
 
-INPUT_RELEASE_DECISION = REPO_ROOT / "release_decision.json"
-INPUT_RERUN_PLAN = REPO_ROOT / "autonomous_rerun_plan.json"
 INPUT_MERCHANT_SEEDS = REPO_ROOT / "merchant_state_seeds.json"
 INPUT_LIFECYCLE_SEED = REPO_ROOT / "order_lifecycle_seed.json"
 INPUT_PYTEST_LASTFAILED = REPO_ROOT / ".pytest_cache" / "v" / "cache" / "lastfailed"
 INPUT_RUNNABLE_MATRIX = REPO_ROOT / "docs" / "wave1_runtime" / "RANKMATE_WAVE1_RUNNABLE_MATRIX.md"
 
-OUTPUT_CLUSTER_JSON = REPO_ROOT / "defect_cluster_report.json"
-OUTPUT_SELF_HEALING_REPORT = REPO_ROOT / "docs" / "wave1_runtime" / "SELF_HEALING_REPORT.md"
+ADAPTER = get_active_adapter()
+EVIDENCE_CTX = get_adapter_evidence_context(ADAPTER.get_adapter_id())
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -172,94 +173,6 @@ def _suite_changed_since_plan(rerun_data: dict[str, Any], suite_path: str) -> bo
         return True
     suite_mtime = datetime.fromtimestamp(suite.stat().st_mtime, tz=timezone.utc)
     return suite_mtime > plan_ts
-
-
-def _build_defect_families(
-    release_data: dict[str, Any],
-    rerun_data: dict[str, Any],
-    lastfailed_case_ids: list[str],
-    merchant_missing_slots: list[str],
-) -> list[dict[str, Any]]:
-    families: list[dict[str, Any]] = []
-
-    product_penalties = release_data.get("product_defect_penalties", [])
-    product_ids = []
-    if isinstance(product_penalties, list):
-        product_ids = [str(item.get("id", "")).upper() for item in product_penalties if isinstance(item, dict)]
-
-    store_members = sorted(
-        {
-            cid
-            for cid in (product_ids + lastfailed_case_ids)
-            if cid in {"STORE-API-004", "STO-011", "STO-009"}
-        }
-    )
-    if store_members:
-        families.append(
-            {
-                "family_id": "DF-STORE-NEGATIVE-500",
-                "title": "Store invalid lookup negative-path returns 500",
-                "member_cases": store_members,
-                "type": "product_defect",
-                "severity_suggestion": "P2",
-                "release_impact": "release-critical",
-                "recommended_next_action": "Fix store invalid-id/unique-id handler to return controlled 400/404 envelopes.",
-                "evidence": ["release_decision.json", ".pytest_cache/v/cache/lastfailed"],
-            }
-        )
-
-    if "MER-API-021" in lastfailed_case_ids:
-        families.append(
-            {
-                "family_id": "DF-MERCHANT-STALE-TERMINAL-MUTATION",
-                "title": "Merchant stale/double complete mutation safety defect",
-                "member_cases": ["MER-API-021"],
-                "type": "product_defect",
-                "severity_suggestion": "P1",
-                "release_impact": "release-critical",
-                "recommended_next_action": "Enforce terminal transition guards for stale/double complete and return controlled 4xx.",
-                "evidence": [".pytest_cache/v/cache/lastfailed", "tests/rankmate_wave1/test_merchant_transition_api.py"],
-            }
-        )
-
-    if _is_known_stripe_blocker(release_data, rerun_data):
-        pay_cases = sorted(
-            {
-            "PAY-API-003",
-            "PAY-API-004",
-            "PAY-API-007",
-            "PAY-API-008",
-            "PAY-API-011",
-            }
-        )
-        families.append(
-            {
-                "family_id": "DF-STRIPE-WEBHOOK-ENV-BLOCKER",
-                "title": "Stripe webhook realism blocked by runtime secret/signature mismatch",
-                "member_cases": pay_cases,
-                "type": "env_blocker",
-                "severity_suggestion": "blocker/env",
-                "release_impact": "partial-surface",
-                "recommended_next_action": "Align deployed Stripe webhook secret/signing contract with QA environment.",
-                "evidence": ["release_decision.json", "autonomous_rerun_plan.json"],
-            }
-        )
-
-    if merchant_missing_slots:
-        families.append(
-            {
-                "family_id": "DF-MERCHANT-SEED-COVERAGE-GAP",
-                "title": "Merchant transition seed coverage gaps",
-                "member_cases": merchant_missing_slots,
-                "type": "coverage_gap",
-                "severity_suggestion": "coverage-gap",
-                "release_impact": "partial-surface",
-                "recommended_next_action": "Extend merchant seed builder and/or create targeted state-producing flows.",
-                "evidence": ["merchant_state_seeds.json"],
-            }
-        )
-
-    return families
 
 
 def _severity_suggestions(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -508,11 +421,59 @@ def _render_markdown(payload: dict[str, Any]) -> str:
 
 
 def main() -> None:
-    release_data = _read_json(INPUT_RELEASE_DECISION)
-    rerun_data = _read_json(INPUT_RERUN_PLAN)
+    release_data = EVIDENCE_CTX.load_json("release_decision")
+    rerun_data = EVIDENCE_CTX.load_json("autonomous_rerun_plan")
     merchant_seed_data = _read_json(INPUT_MERCHANT_SEEDS)
     lifecycle_seed_data = _read_json(INPUT_LIFECYCLE_SEED)
     lastfailed_case_ids = _load_lastfailed_case_ids()
+
+    if (
+        not release_data
+        or not EVIDENCE_CTX.artifact_exists("release_decision")
+        or str(release_data.get("decision", "")).strip().lower() == "insufficient_evidence"
+    ):
+        payload = {
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "release_decision_context": {
+                "decision": release_data.get("decision"),
+                "confidence": release_data.get("confidence"),
+                "weighted_score": release_data.get("weighted_score"),
+                "max_score": release_data.get("max_score"),
+            },
+            "healing_actions_run": [],
+            "healing_actions_skipped": [
+                {
+                    "action_id": "HEAL-BOOTSTRAP",
+                    "reason": "Adapter is in insufficient-evidence bootstrap mode; self-healing deferred.",
+                }
+            ],
+            "updated_rerun_action": "targeted_rerun",
+            "updated_targets": [],
+            "updated_powershell_commands": [],
+            "blocker_suppression_notes": ["insufficient adapter-local evidence"],
+            "defect_families": [],
+            "severity_suggestions": [],
+            "release_gate_adjustment_recommendations": [],
+            "scenario_validation": [],
+            "seed_state_delta": {},
+            "recommended_next_actions": [
+                "Generate adapter-local baseline evidence before self-healing loop.",
+            ],
+            "evidence_sources": [
+                str(EVIDENCE_CTX.get_release_decision_path()),
+            ],
+            "adapter": {
+                "adapter_id": ADAPTER.get_adapter_id(),
+                "product_name": ADAPTER.get_product_name(),
+            },
+            "bootstrap_state": True,
+        }
+        output_json = EVIDENCE_CTX.write_json("defect_cluster_report", payload)
+        output_report = EVIDENCE_CTX.write_report("SELF_HEALING_REPORT.md", _render_markdown(payload))
+        print(f"[self-healing-v2] action={payload['updated_rerun_action']}")
+        print(f"[self-healing-v2] cluster_json={output_json}")
+        print(f"[self-healing-v2] report={output_report}")
+        return
 
     healing_actions_run: list[dict[str, Any]] = []
     healing_actions_skipped: list[dict[str, Any]] = []
@@ -596,7 +557,7 @@ def main() -> None:
     missing_slots_after = _merchant_seed_missing_slots(merchant_seed_data)
     merchant_critical_missing_after = _merchant_critical_missing_slots(merchant_seed_data)
 
-    families = _build_defect_families(
+    families = ADAPTER.build_defect_families(
         release_data=release_data,
         rerun_data=rerun_data,
         lastfailed_case_ids=lastfailed_case_ids,
@@ -661,8 +622,8 @@ def main() -> None:
         "evidence_sources": [
             str(p)
             for p in (
-                INPUT_RELEASE_DECISION,
-                INPUT_RERUN_PLAN,
+                EVIDENCE_CTX.get_release_decision_path(),
+                EVIDENCE_CTX.get_rerun_plan_path(),
                 INPUT_MERCHANT_SEEDS,
                 INPUT_LIFECYCLE_SEED,
                 INPUT_PYTEST_LASTFAILED,
@@ -670,16 +631,18 @@ def main() -> None:
             )
             if p.exists()
         ],
+        "adapter": {
+            "adapter_id": ADAPTER.get_adapter_id(),
+            "product_name": ADAPTER.get_product_name(),
+        },
     }
 
-    OUTPUT_CLUSTER_JSON.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    OUTPUT_SELF_HEALING_REPORT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_SELF_HEALING_REPORT.write_text(_render_markdown(payload), encoding="utf-8")
+    output_json = EVIDENCE_CTX.write_json("defect_cluster_report", payload)
+    output_report = EVIDENCE_CTX.write_report("SELF_HEALING_REPORT.md", _render_markdown(payload))
 
     print(f"[self-healing-v2] action={payload['updated_rerun_action']}")
-    print(f"[self-healing-v2] cluster_json={OUTPUT_CLUSTER_JSON}")
-    print(f"[self-healing-v2] report={OUTPUT_SELF_HEALING_REPORT}")
+    print(f"[self-healing-v2] cluster_json={output_json}")
+    print(f"[self-healing-v2] report={output_report}")
 
 
 if __name__ == "__main__":

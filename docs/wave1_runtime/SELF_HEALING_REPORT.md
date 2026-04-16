@@ -2,9 +2,9 @@
 
 ## Current Context
 
-- Release decision: `release_with_caution`
+- Release decision: `block_release`
 - Release confidence: `medium`
-- Release score: `72` / `100`
+- Release score: `57` / `100`
 - Updated rerun action: `targeted_rerun`
 
 ## Healing Actions Attempted

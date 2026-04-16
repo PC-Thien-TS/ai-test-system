@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2026-04-16T04:52:36.976234+00:00",
+  "generated_at_utc": "2026-04-16T09:15:43.210047+00:00",
   "release_decision_context": {
-    "decision": "release_with_caution",
+    "decision": "block_release",
     "confidence": "medium",
-    "weighted_score": 72,
+    "weighted_score": 57,
     "max_score": 100
   },
   "healing_actions_run": [
@@ -12,7 +12,7 @@
       "status": "success",
       "command": "python scripts/build_merchant_state_seeds.py",
       "note": "missing slots before run: API_ACCEPTED_ORDER_ID, API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID, API_NO_SHOW_ORDER_ID",
-      "stdout_tail": "[Wave1API][AuthHelper.login] payload={'email': 'pthienpc+111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\n[Wave1API][AuthHelper.login] payload={'email': 'tieuphiphi020103+71111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\nMerchant seed builder completed: filled=10 missing=3\n- API_PAID_ORDER_ID: 768 status=20 Paid source=discovered\n- API_REJECTABLE_PAID_ORDER_ID: 701 status=20 Paid source=discovered\n- API_ACCEPTED_ORDER_ID: MISSING status=  source=missing\n- API_ARRIVED_ORDER_ID: 127 status=22 Arrived source=discovered\n- API_MERCHANT_CANCELLABLE_ORDER_ID: 767 status=10 Pending source=discovered\n- API_NO_SHOW_ORDER_ID: MISSING status=  source=missing\n- API_PENDING_ORDER_ID: 767 status=10 Pending source=discovered\n- API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID: MISSING status=  source=missing\n- API_CANCELLED_ORDER_ID: 761 status=60 Cancelled source=env_existing\n- API_COMPLETED_ORDER_ID: 762 status=23 Completed source=env_existing\n- API_NON_PAID_ORDER_ID: 767 status=10 Pending source=discovered\n- API_STALE_TRANSITION_ORDER_ID: 762 status=23 Completed source=discovered\n- API_CONSISTENCY_ORDER_ID: 768 status=20 Paid source=discovered",
+      "stdout_tail": "[Wave1API][AuthHelper.login] payload={'email': 'pthienpc+111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\n[Wave1API][AuthHelper.login] payload={'email': 'tieuphiphi020103+71111@gmail.com', 'password': 'Thien123$', 'phoneNumber': 'string', 'campaign': 'string', 'deviceID': 'string'}\nMerchant seed builder completed: filled=10 missing=3\n- API_PAID_ORDER_ID: 701 status=20 Paid source=discovered\n- API_REJECTABLE_PAID_ORDER_ID: 700 status=20 Paid source=discovered\n- API_ACCEPTED_ORDER_ID: MISSING status=  source=missing\n- API_ARRIVED_ORDER_ID: 768 status=22 Arrived source=discovered\n- API_MERCHANT_CANCELLABLE_ORDER_ID: 767 status=10 Pending source=discovered\n- API_NO_SHOW_ORDER_ID: MISSING status=  source=missing\n- API_PENDING_ORDER_ID: 767 status=10 Pending source=discovered\n- API_ARRIVED_ORDER_WITH_OFFLINE_DUE_ID: MISSING status=  source=missing\n- API_CANCELLED_ORDER_ID: 761 status=60 Cancelled source=env_existing\n- API_COMPLETED_ORDER_ID: 762 status=23 Completed source=env_existing\n- API_NON_PAID_ORDER_ID: 768 status=22 Arrived source=discovered\n- API_STALE_TRANSITION_ORDER_ID: 762 status=23 Completed source=discovered\n- API_CONSISTENCY_ORDER_ID: 768 status=22 Arrived source=discovered",
       "stderr_tail": ""
     }
   ],
@@ -210,5 +210,9 @@
     "C:\\Projects\\Rankmate\\ai_test_system\\order_lifecycle_seed.json",
     "C:\\Projects\\Rankmate\\ai_test_system\\.pytest_cache\\v\\cache\\lastfailed",
     "C:\\Projects\\Rankmate\\ai_test_system\\docs\\wave1_runtime\\RANKMATE_WAVE1_RUNNABLE_MATRIX.md"
-  ]
+  ],
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao"
+  }
 }
