@@ -5,6 +5,7 @@ Dashboard UI for the Universal Testing Platform, built with Next.js, TypeScript,
 ## Features
 
 - **Platform Overview**: View platform-wide metrics including total projects, active projects, total runs, failing projects, flaky projects, quality gate overview, and plugin usage
+- **AI QA Command Center**: Executive quality command-center view backed by local intelligence artifacts (`release_decision.json`, `dashboard_snapshot.json`, `defect_cluster_report.json`, `autonomous_rerun_plan.json`)
 - **Projects List**: Browse all projects with search, filter by product type, filter by gate result, and sorting
 - **Project Detail**: View project metadata, summary, trend charts, flaky summary, compatibility, and latest runs
 - **Runs Explorer**: Explore test runs across all projects with status, duration, timestamps, and artifacts
@@ -46,6 +47,19 @@ Dashboard UI for the Universal Testing Platform, built with Next.js, TypeScript,
    ```
    http://localhost:3000
    ```
+4. Open AI QA Command Center:
+   ```
+   http://localhost:3000/qa-command-center
+   ```
+
+### AI QA Command Center Artifact Inputs
+
+The command center page reads artifact JSON files from the repository root (`../` relative to `dashboard/`) and renders fallback cards when data is unavailable:
+
+- `release_decision.json`
+- `dashboard_snapshot.json`
+- `defect_cluster_report.json`
+- `autonomous_rerun_plan.json`
 
 ## Environment Variables
 

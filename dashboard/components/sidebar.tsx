@@ -10,10 +10,12 @@ import {
   PlayCircle,
   Puzzle,
   Settings,
+  ShieldAlert,
 } from "lucide-react";
 
 const navigation = [
   { name: "Platform Overview", href: "/", icon: LayoutDashboard },
+  { name: "AI QA Command Center", href: "/qa-command-center", icon: ShieldAlert },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Runs Explorer", href: "/runs", icon: PlayCircle },
   { name: "Plugin Catalog", href: "/plugins", icon: Puzzle },
