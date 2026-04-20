@@ -21,6 +21,9 @@ requirements/**/code_facts/*.md
 # ----------------------
 # Test artifacts
 # ----------------------
+.pytest_cache/
+.pytest_tmp/
+tests/tmp_pytest*/
 artifacts/*
 !artifacts/**/.gitkeep
 
