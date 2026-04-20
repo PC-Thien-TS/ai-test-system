@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from orchestrator.project_service import ProjectService
+from orchestrator.storage.application.services import ArtifactService, MemoryService, RunService
+from orchestrator.storage.infrastructure.factory import StorageProvider, build_storage_provider
 
 
 @dataclass
@@ -28,6 +31,26 @@ class UserContext:
 def get_project_service() -> ProjectService:
     """Dependency injection for project service."""
     return ProjectService(REPO_ROOT)
+
+
+@lru_cache(maxsize=1)
+def get_storage_provider() -> StorageProvider:
+    """Dependency injection for storage provider."""
+    return build_storage_provider(repo_root=REPO_ROOT)
+
+
+def get_storage_run_service(provider: StorageProvider = Depends(get_storage_provider)) -> RunService:
+    return provider.run_service
+
+
+def get_storage_artifact_service(
+    provider: StorageProvider = Depends(get_storage_provider),
+) -> ArtifactService:
+    return provider.artifact_service
+
+
+def get_storage_memory_service(provider: StorageProvider = Depends(get_storage_provider)) -> MemoryService:
+    return provider.memory_service
 
 
 def get_user_context(

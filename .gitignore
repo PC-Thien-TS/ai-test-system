@@ -1,62 +1,21 @@
-# ----------------------
 # Python
-# ----------------------
-.venv/
 __pycache__/
 *.pyc
+*.pyo
+.venv/
 
-# ----------------------
-# Requirements KB input docs
-# ----------------------
-requirements/**/**/*.docx
-requirements/**/**/*.pdf
-requirements/**/**/*.pptx
-
-# ----------------------
-# Generated KB artifacts
-# ----------------------
-kb/index/
-requirements/**/code_facts/*.md
-
-# ----------------------
-# Test artifacts
-# ----------------------
-artifacts/*
-!artifacts/**/.gitkeep
-
-*.log
-*.latest.log
-*.summary.json
-
-# Playwright
-playwright-report/
-test-output/
-
-# ----------------------
-# Outputs
-# ----------------------
-outputs/
-
-# ----------------------
-# Local configs
-# ----------------------
-evidence_sources.yaml
-.env
-danhsach.txt
-
-# ----------------------
 # Node
-# ----------------------
 node_modules/
 
-# ----------------------
-# Temp files
-# ----------------------
-*.tmp
-*.cache
+# Next.js
+dashboard/.next/
+dashboard/out/
 
-# local tools
-tools_fix_*.py
+# Artifacts
+artifacts/
+*.log
+*.json
 
-# node
-package-lock.json
+# Env
+.env
+.env.*

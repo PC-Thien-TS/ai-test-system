@@ -1,7 +1,7 @@
 # ADMIN_CONSISTENCY_REPORT
 
-- Generated at: `2026-04-15T11:14:02.698075+00:00`
-- Order ID: `760`
+- Generated at: `2026-04-20T06:49:06.729440+00:00`
+- Order ID: `800`
 - Seed source: `order_lifecycle_seed.json`
 - Lifecycle artifact used: `True`
 
@@ -9,10 +9,10 @@
 
 | Surface | Raw | Semantic |
 |---|---|---|
-| seed | `pending` | `pending` |
-| user | `10` | `pending` |
-| merchant | `10` | `pending` |
-| admin | `10` | `pending` |
+| seed | `None` | `None` |
+| user | `None` | `None` |
+| merchant | `None` | `None` |
+| admin | `None` | `None` |
 
 ## Amount Comparison Matrix
 
@@ -28,4 +28,4 @@
 
 ## Confidence Note
 
-Cross-surface consistency checks completed without detected contradictions for the selected order.
+Consistency evidence partially captured.

@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import health, platform, plugins, projects, runs
+from api.routes import health, platform, plugins, projects, runs, storage
 
 
 @asynccontextmanager
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
     # Keep legacy /projects run routes while exposing canonical /runs endpoints.
     app.include_router(runs.router, prefix="/projects", tags=["runs"])
     app.include_router(runs.router, prefix="/runs", tags=["runs"])
+    app.include_router(storage.router, prefix="/storage", tags=["storage"])
     app.include_router(platform.router, prefix="/platform", tags=["platform"])
     app.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
     
