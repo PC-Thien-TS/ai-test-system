@@ -1,209 +1,254 @@
 from __future__ import annotations
 
-from typing import Optional
+from dataclasses import asdict
+from typing import Any, Dict, Optional
 
-from orchestrator.decision.domain.models import (
+from ..domain.models import (
     DecisionPolicyInput,
     DecisionPolicyProfile,
     DecisionPolicyResult,
     DecisionPolicyType,
-    DecisionStrategy,
+    GovernanceFlags,
+    combine_confidence,
+    merge_governance,
     parse_env_governance,
 )
-from orchestrator.decision.domain.profiles import choose_profile
-from orchestrator.decision.domain.rules import (
+from ..domain.profiles import choose_profile
+from ..domain.rules import (
+    build_secondary_signals,
+    derive_boolean_flags,
     derive_bug_candidate,
     derive_incident_candidate,
     derive_primary_decision_from_score,
+    derive_recommended_owner,
     derive_strategy,
     evaluate_hard_rule,
-    severity_level,
+    secondary_decisions_from_candidates,
 )
-from orchestrator.decision.domain.scoring import compute_decision_score
+from ..domain.scoring import compute_decision_score
 
 
 class DecisionPolicyEngine:
+    """Deterministic policy engine mapping failure + memory signals to operational decisions."""
+
     def __init__(
         self,
         *,
-        profile_name: Optional[str] = None,
-        adapter_id: Optional[str] = None,
-        adapter_profile_overrides: Optional[dict[str, str]] = None,
-    ):
-        self._profile: DecisionPolicyProfile = choose_profile(
-            profile_name,
-            adapter_id=adapter_id,
-            adapter_overrides=adapter_profile_overrides,
-        )
+        default_profile_name: str = "balanced",
+        adapter_profile_overrides: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> None:
+        self.default_profile_name = default_profile_name
+        self.adapter_profile_overrides = adapter_profile_overrides or {}
 
-    @property
-    def profile(self) -> DecisionPolicyProfile:
-        return self._profile
+    def choose_profile(self, input_data: DecisionPolicyInput, profile_name: Optional[str] = None) -> DecisionPolicyProfile:
+        adapter_overrides = self.adapter_profile_overrides.get(input_data.adapter_id, {})
+        return choose_profile(profile_name or self.default_profile_name, adapter_overrides=adapter_overrides)
 
-    def choose_profile(
+    def compute_decision_score(
         self,
+        input_data: DecisionPolicyInput,
+        profile: DecisionPolicyProfile,
+    ) -> tuple[float, Dict[str, float]]:
+        return compute_decision_score(input_data, profile)
+
+    def derive_primary_decision(
+        self,
+        input_data: DecisionPolicyInput,
+        governance: GovernanceFlags,
+        profile: DecisionPolicyProfile,
+        *,
+        decision_score: float,
+        combined_confidence: float,
+    ) -> tuple[DecisionPolicyType, Optional[str]]:
+        hard_outcome = evaluate_hard_rule(input_data, governance, profile, combined_confidence=combined_confidence)
+        if hard_outcome is not None:
+            return hard_outcome.decision, hard_outcome.rationale
+
+        decision = derive_primary_decision_from_score(
+            input_data,
+            governance,
+            profile,
+            decision_score=decision_score,
+        )
+        return decision, None
+
+    def evaluate(
+        self,
+        input_data: DecisionPolicyInput,
         *,
         profile_name: Optional[str] = None,
-        adapter_id: Optional[str] = None,
-        adapter_profile_overrides: Optional[dict[str, str]] = None,
-    ) -> DecisionPolicyProfile:
-        self._profile = choose_profile(
-            profile_name,
-            adapter_id=adapter_id,
-            adapter_overrides=adapter_profile_overrides,
+    ) -> DecisionPolicyResult:
+        profile = self.choose_profile(input_data, profile_name=profile_name)
+        env_governance = parse_env_governance(profile.governance_defaults)
+        governance = merge_governance(env_governance, input_data.governance_flags)
+
+        combined_confidence = combine_confidence(
+            signal_confidence=input_data.confidence,
+            memory_confidence=input_data.memory_confidence,
+            resolution=input_data.resolution_type(),
         )
-        return self._profile
 
-    def compute_decision_score(self, value: DecisionPolicyInput) -> tuple[float, dict[str, float]]:
-        return compute_decision_score(value, self._profile)
+        decision_score, score_components = self.compute_decision_score(input_data, profile)
+        primary_decision, hard_rule_reason = self.derive_primary_decision(
+            input_data,
+            governance,
+            profile,
+            decision_score=decision_score,
+            combined_confidence=combined_confidence,
+        )
+        strategy = derive_strategy(input_data, primary_decision)
 
-    def derive_primary_decision(self, value: DecisionPolicyInput, score: float) -> DecisionPolicyType:
-        hard = evaluate_hard_rule(value, self._profile)
-        if hard:
-            return hard[0]
-        return derive_primary_decision_from_score(value, self._profile, score)
+        bug_candidate = derive_bug_candidate(
+            input_data,
+            governance,
+            profile,
+            combined_confidence=combined_confidence,
+        )
+        incident_candidate = derive_incident_candidate(
+            input_data,
+            governance,
+            profile,
+            combined_confidence=combined_confidence,
+        )
+        secondary_decisions = secondary_decisions_from_candidates(bug_candidate, incident_candidate)
+        decision_flags = derive_boolean_flags(
+            primary_decision,
+            bug_candidate=bug_candidate,
+            incident_candidate=incident_candidate,
+        )
 
-    def derive_strategy(self, value: DecisionPolicyInput, decision: DecisionPolicyType) -> Optional[DecisionStrategy]:
-        return derive_strategy(decision=decision, value=value)
-
-    def derive_bug_candidate(self, value: DecisionPolicyInput) -> bool:
-        return derive_bug_candidate(value, self._profile)
-
-    def derive_incident_candidate(self, value: DecisionPolicyInput) -> bool:
-        return derive_incident_candidate(value, self._profile)
-
-    def evaluate(self, value: DecisionPolicyInput) -> DecisionPolicyResult:
-        # governance from env can tighten/relax per runtime without changing caller payload
-        governance = parse_env_governance(value.governance_flags)
-        value.governance_flags = governance
-
-        score, score_components = self.compute_decision_score(value)
-        hard = evaluate_hard_rule(value, self._profile)
-
-        if hard:
-            primary_decision, strategy, hard_reason = hard
-            rationale = hard_reason
+        rationale = []
+        if hard_rule_reason:
+            rationale.append(hard_rule_reason)
         else:
-            primary_decision = derive_primary_decision_from_score(value, self._profile, score)
-            strategy = derive_strategy(decision=primary_decision, value=value)
-            rationale = self._default_rationale(value=value, score=score, decision=primary_decision)
+            rationale.append("Deterministic score and governance policy evaluation applied.")
 
-        should_block = primary_decision == DecisionPolicyType.BLOCK_RELEASE
-        should_rerun = primary_decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY}
-        should_escalate = primary_decision in {
-            DecisionPolicyType.ESCALATE,
-            DecisionPolicyType.BLOCK_RELEASE,
-            DecisionPolicyType.INCIDENT_CANDIDATE,
-        }
-        should_manual = primary_decision == DecisionPolicyType.MANUAL_INVESTIGATION
+        if primary_decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY}:
+            rationale.append("Rerun selected only because historical action effectiveness meets minimum threshold.")
+        if primary_decision == DecisionPolicyType.MANUAL_INVESTIGATION:
+            rationale.append("Manual review requested due to ambiguity, governance guardrails, or unsafe automation.")
+        if primary_decision == DecisionPolicyType.BLOCK_RELEASE:
+            rationale.append("Release block selected from severe, recurring, or release-critical failure signals.")
+        if primary_decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
+            rationale.append("Suppression limited to non-critical known flaky/noise behavior.")
 
-        should_bug = self.derive_bug_candidate(value)
-        should_incident = self.derive_incident_candidate(value)
-        if should_incident and primary_decision not in {
-            DecisionPolicyType.BLOCK_RELEASE,
-            DecisionPolicyType.ESCALATE,
-        }:
-            primary_decision = DecisionPolicyType.INCIDENT_CANDIDATE
-            strategy = DecisionStrategy.BLOCK_AND_ESCALATE
-            should_escalate = True
-            should_block = governance.allow_auto_block_release
-            rationale = f"{rationale} Repeated critical production-like pattern qualifies as incident candidate."
-        elif should_bug and primary_decision == DecisionPolicyType.NO_ACTION:
-            primary_decision = DecisionPolicyType.BUG_CANDIDATE
-            rationale = f"{rationale} Recurring meaningful issue qualifies as bug candidate."
+        if bug_candidate:
+            rationale.append("Recurring non-transient issue qualifies as bug candidate.")
+        if incident_candidate:
+            rationale.append("Critical repeated production-like pattern qualifies as incident candidate.")
 
-        secondary_signals = {
-            "profile": self._profile.profile_name,
-            "memory_resolution_type": value.memory_resolution_value,
-            "severity_level": severity_level(value.severity),
-            "occurrence_count": value.occurrence_count,
-            "score_components": score_components,
-            "best_action_effectiveness": value.best_action_effectiveness,
-            "release_critical": value.release_critical,
-            "protected_path": value.protected_path,
-        }
+        recommended_owner = derive_recommended_owner(
+            input_data,
+            primary_decision,
+            incident_candidate=incident_candidate,
+        )
+
+        secondary_signals = build_secondary_signals(
+            input_data,
+            decision_score,
+            combined_confidence,
+            strategy,
+        )
+        secondary_signals["profile"] = profile.profile_name
+        secondary_signals["score_components"] = score_components
 
         return DecisionPolicyResult(
             primary_decision=primary_decision,
             strategy=strategy,
             rationale=rationale,
-            confidence=max(0.0, min(1.0, value.confidence)),
-            decision_score=round(score, 4),
+            confidence=combined_confidence,
+            decision_score=decision_score,
             governance_flags=governance,
             secondary_signals=secondary_signals,
-            should_block_release=should_block,
-            should_trigger_rerun=should_rerun,
-            should_escalate=should_escalate,
-            should_open_bug_candidate=should_bug,
-            should_open_incident_candidate=should_incident,
-            should_request_manual_review=should_manual or (
-                governance.require_manual_review_on_critical and severity_level(value.severity) == "critical"
-            ),
-            recommended_owner=self._recommend_owner(value, primary_decision),
+            secondary_decisions=secondary_decisions,
+            should_block_release=decision_flags["should_block_release"],
+            should_trigger_rerun=decision_flags["should_trigger_rerun"],
+            should_escalate=decision_flags["should_escalate"],
+            should_open_bug_candidate=decision_flags["should_open_bug_candidate"],
+            should_open_incident_candidate=decision_flags["should_open_incident_candidate"],
+            should_request_manual_review=decision_flags["should_request_manual_review"],
+            recommended_owner=recommended_owner,
             metadata={
-                "ci_mode": value.ci_mode,
-                "run_id": value.run_id,
-                "adapter_id": value.adapter_id,
-                "project_id": value.project_id,
-                "profile_name": self._profile.profile_name,
+                "profile": asdict(profile),
+                "input_adapter_id": input_data.adapter_id,
+                "input_project_id": input_data.project_id,
             },
         )
 
-    def build_ci_decision_hint(self, result: DecisionPolicyResult) -> dict:
+    def build_ci_decision_hint(self, result: DecisionPolicyResult) -> Dict[str, Any]:
+        if result.should_block_release:
+            return {
+                "gate_signal": "hard_block",
+                "strictness": "harden",
+                "release_penalty": 20,
+                "summary": "Policy engine recommends release block for current failure pattern.",
+            }
+        if result.should_escalate:
+            return {
+                "gate_signal": "escalate",
+                "strictness": "warning",
+                "release_penalty": 10,
+                "summary": "Policy engine recommends escalation before promoting changes.",
+            }
+        if result.should_trigger_rerun:
+            return {
+                "gate_signal": "rerun",
+                "strictness": "normal",
+                "release_penalty": 4,
+                "summary": "Policy engine recommends targeted rerun strategy before gate finalization.",
+            }
+        if result.primary_decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
+            return {
+                "gate_signal": "suppress_flaky",
+                "strictness": "normal",
+                "release_penalty": 0,
+                "summary": "Known flaky/non-critical behavior can be suppressed with explicit annotation.",
+            }
         return {
-            "primary_decision": result.primary_decision.value,
-            "should_block_release": result.should_block_release,
-            "should_escalate": result.should_escalate,
-            "should_request_manual_review": result.should_request_manual_review,
-            "decision_score": result.decision_score,
-            "rationale": result.rationale,
-            "profile": result.secondary_signals.get("profile"),
+            "gate_signal": "observe",
+            "strictness": "normal",
+            "release_penalty": 0,
+            "summary": "No immediate operational action required by policy engine.",
         }
 
-    def build_self_healing_instruction(self, result: DecisionPolicyResult) -> dict:
-        can_execute = result.primary_decision in {
-            DecisionPolicyType.RERUN,
-            DecisionPolicyType.RERUN_WITH_STRATEGY,
-            DecisionPolicyType.SUPPRESS_KNOWN_FLAKY,
-        }
+    def build_self_healing_instruction(self, result: DecisionPolicyResult) -> Dict[str, Any]:
+        if result.should_trigger_rerun:
+            return {
+                "should_execute": True,
+                "instruction_type": "rerun",
+                "strategy": result.strategy.value if result.strategy else "",
+                "owner_hint": result.recommended_owner,
+                "notes": result.rationale,
+            }
+        if result.primary_decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
+            return {
+                "should_execute": False,
+                "instruction_type": "suppress",
+                "strategy": result.strategy.value if result.strategy else "",
+                "owner_hint": result.recommended_owner,
+                "notes": result.rationale,
+            }
+        if result.primary_decision in {DecisionPolicyType.ESCALATE, DecisionPolicyType.BLOCK_RELEASE}:
+            return {
+                "should_execute": False,
+                "instruction_type": "escalate",
+                "strategy": result.strategy.value if result.strategy else "",
+                "owner_hint": result.recommended_owner,
+                "notes": result.rationale,
+            }
+        if result.primary_decision == DecisionPolicyType.MANUAL_INVESTIGATION:
+            return {
+                "should_execute": False,
+                "instruction_type": "manual_review",
+                "strategy": result.strategy.value if result.strategy else "",
+                "owner_hint": result.recommended_owner,
+                "notes": result.rationale,
+            }
         return {
-            "execute_automatically": can_execute,
-            "decision": result.primary_decision.value,
-            "strategy": result.strategy.value if result.strategy else None,
-            "should_stop_blind_retry": not result.should_trigger_rerun,
-            "should_escalate": result.should_escalate,
+            "should_execute": False,
+            "instruction_type": "none",
+            "strategy": "",
             "owner_hint": result.recommended_owner,
-            "rationale": result.rationale,
+            "notes": result.rationale,
         }
 
-    def _default_rationale(
-        self,
-        *,
-        value: DecisionPolicyInput,
-        score: float,
-        decision: DecisionPolicyType,
-    ) -> str:
-        return (
-            f"Decision {decision.value} from deterministic policy score={score:.3f} "
-            f"(severity={severity_level(value.severity)}, recurrence={value.occurrence_count}, "
-            f"memory={value.memory_resolution_value}, release_critical={value.release_critical})."
-        )
-
-    @staticmethod
-    def _recommend_owner(value: DecisionPolicyInput, decision: DecisionPolicyType) -> Optional[str]:
-        plugin = (value.plugin or "").lower()
-        if decision in {
-            DecisionPolicyType.BLOCK_RELEASE,
-            DecisionPolicyType.ESCALATE,
-            DecisionPolicyType.INCIDENT_CANDIDATE,
-        }:
-            if "infra" in plugin:
-                return "sre"
-            if "data" in plugin:
-                return "data-platform"
-            return "backend"
-        if decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY}:
-            return "qa-automation"
-        if decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
-            return "qa-lead"
-        return None

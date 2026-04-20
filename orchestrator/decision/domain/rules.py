@@ -1,178 +1,272 @@
 from __future__ import annotations
 
-from typing import Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
-from orchestrator.decision.domain.models import (
+from .models import (
     DecisionPolicyInput,
     DecisionPolicyProfile,
     DecisionPolicyType,
     DecisionStrategy,
+    GovernanceFlags,
+    MemoryResolutionType,
+    SeverityLevel,
+    clamp01,
 )
 
 
-HIGH_SEVERITIES = {"high", "critical", "p1", "p0"}
-CRITICAL_SEVERITIES = {"critical", "p0"}
-
-
-def severity_level(value: str) -> str:
-    raw = (value or "").strip().lower()
-    if raw in {"p0", "critical"}:
-        return "critical"
-    if raw in {"p1", "high"}:
-        return "high"
-    if raw in {"p2", "medium"}:
-        return "medium"
-    return "low"
+@dataclass
+class HardRuleOutcome:
+    decision: DecisionPolicyType
+    rationale: str
+    strategy: Optional[DecisionStrategy] = None
 
 
 def evaluate_hard_rule(
-    value: DecisionPolicyInput,
+    input_data: DecisionPolicyInput,
+    governance: GovernanceFlags,
     profile: DecisionPolicyProfile,
-) -> Optional[tuple[DecisionPolicyType, Optional[DecisionStrategy], str]]:
-    severity = severity_level(value.severity)
-    memory = value.memory_resolution_value
+    *,
+    combined_confidence: float,
+) -> Optional[HardRuleOutcome]:
+    severity = input_data.severity_level()
+    resolution = input_data.resolution_type()
 
-    # Critical repeated exact issue on active/release paths: hard block
-    if (
-        value.governance_flags.allow_auto_block_release
-        and memory == "EXACT_MATCH"
-        and severity == "critical"
-        and value.occurrence_count >= profile.critical_recurrence_block_count
-    ):
-        return (
-            DecisionPolicyType.BLOCK_RELEASE,
-            DecisionStrategy.BLOCK_AND_ESCALATE,
-            "Repeated critical exact-match failure exceeded release block recurrence threshold.",
+    critical_repeat = (
+        resolution == MemoryResolutionType.EXACT_MATCH
+        and severity in {SeverityLevel.HIGH, SeverityLevel.CRITICAL}
+        and input_data.occurrence_count >= profile.critical_recurrence_block_count
+        and combined_confidence >= 0.70
+    )
+    if critical_repeat:
+        if governance.allow_auto_block_release:
+            return HardRuleOutcome(
+                decision=DecisionPolicyType.BLOCK_RELEASE,
+                rationale="Repeated high/critical exact-match failure crossed recurrence threshold.",
+                strategy=DecisionStrategy.BLOCK_AND_ESCALATE,
+            )
+        return HardRuleOutcome(
+            decision=DecisionPolicyType.ESCALATE,
+            rationale="Repeated high/critical exact-match failure requires escalation (auto-block disabled).",
+            strategy=DecisionStrategy.BLOCK_AND_ESCALATE,
         )
 
-    # Release critical severe issue may block even low recurrence
-    if (
-        value.governance_flags.allow_auto_block_release
-        and value.release_critical
-        and severity in {"high", "critical"}
-        and value.confidence >= 0.75
-        and memory in {"EXACT_MATCH", "SIMILAR_MATCH"}
-    ):
-        return (
-            DecisionPolicyType.BLOCK_RELEASE,
-            DecisionStrategy.BLOCK_AND_ESCALATE,
-            "Release-critical severe issue with high confidence requires immediate block and escalation.",
+    critical_path_severe = (
+        input_data.release_critical
+        and severity in {SeverityLevel.HIGH, SeverityLevel.CRITICAL}
+        and combined_confidence >= 0.80
+        and resolution != MemoryResolutionType.AMBIGUOUS_MATCH
+    )
+    if critical_path_severe and governance.allow_auto_block_release:
+        return HardRuleOutcome(
+            decision=DecisionPolicyType.BLOCK_RELEASE,
+            rationale="Release-critical severe issue with high confidence.",
+            strategy=DecisionStrategy.BLOCK_AND_ESCALATE,
         )
 
-    # Ambiguous high-severity but uncertain: never hard-block
+    if resolution == MemoryResolutionType.AMBIGUOUS_MATCH and severity in {
+        SeverityLevel.HIGH,
+        SeverityLevel.CRITICAL,
+    }:
+        if combined_confidence < 0.70:
+            return HardRuleOutcome(
+                decision=DecisionPolicyType.MANUAL_INVESTIGATION,
+                rationale="Ambiguous severe signal with low certainty; manual verification required.",
+                strategy=DecisionStrategy.INVESTIGATE_BACKEND,
+            )
+
     if (
-        memory == "AMBIGUOUS_MATCH"
-        and severity in {"high", "critical"}
-        and value.confidence < profile.ambiguous_manual_review_confidence
+        input_data.flaky
+        and severity in {SeverityLevel.LOW, SeverityLevel.MEDIUM}
+        and not input_data.release_critical
+        and governance.allow_auto_suppress
     ):
-        return (
-            DecisionPolicyType.MANUAL_INVESTIGATION,
-            DecisionStrategy.INVESTIGATE_BACKEND,
-            "Ambiguous high-severity signal with low certainty requires manual investigation, not hard block.",
+        return HardRuleOutcome(
+            decision=DecisionPolicyType.SUPPRESS_KNOWN_FLAKY,
+            rationale="Known non-critical flaky signal eligible for suppression.",
+            strategy=DecisionStrategy.QUARANTINE_TEST,
         )
 
-    # Known flaky suppression for non-critical paths only when governance allows
-    if (
-        value.governance_flags.allow_auto_suppress
-        and value.flaky
-        and not value.release_critical
-        and severity in {"low", "medium"}
-        and value.occurrence_count >= profile.flaky_suppress_recurrence
-    ):
-        return (
-            DecisionPolicyType.SUPPRESS_KNOWN_FLAKY,
-            DecisionStrategy.QUARANTINE_TEST,
-            "Known flaky non-critical recurring failure eligible for suppression/quarantine under policy.",
+    if severity == SeverityLevel.CRITICAL and governance.require_manual_review_on_critical:
+        return HardRuleOutcome(
+            decision=DecisionPolicyType.MANUAL_INVESTIGATION,
+            rationale="Critical issue requires manual review by governance rule.",
+            strategy=DecisionStrategy.BLOCK_AND_ESCALATE,
         )
 
     return None
 
 
 def derive_primary_decision_from_score(
-    value: DecisionPolicyInput,
+    input_data: DecisionPolicyInput,
+    governance: GovernanceFlags,
     profile: DecisionPolicyProfile,
-    score: float,
+    *,
+    decision_score: float,
 ) -> DecisionPolicyType:
-    severity = severity_level(value.severity)
-    if (
-        score >= profile.block_threshold
-        and value.governance_flags.allow_auto_block_release
-        and severity in {"high", "critical"}
-    ):
-        return DecisionPolicyType.BLOCK_RELEASE
-    if score >= profile.escalate_threshold:
-        if severity in {"high", "critical"} or value.release_critical:
-            return DecisionPolicyType.ESCALATE
-        if value.best_action_effectiveness < profile.min_action_effectiveness_for_rerun:
+    severity = input_data.severity_level()
+
+    if decision_score >= profile.block_threshold:
+        if governance.allow_auto_block_release and input_data.resolution_type() != MemoryResolutionType.AMBIGUOUS_MATCH:
+            return DecisionPolicyType.BLOCK_RELEASE
+        return DecisionPolicyType.ESCALATE
+
+    if decision_score >= profile.escalate_threshold:
+        return DecisionPolicyType.ESCALATE
+
+    if decision_score >= profile.rerun_threshold:
+        if not governance.allow_auto_rerun:
             return DecisionPolicyType.MANUAL_INVESTIGATION
-        if value.governance_flags.allow_auto_rerun:
-            if value.best_action:
-                return DecisionPolicyType.RERUN_WITH_STRATEGY
-            return DecisionPolicyType.RERUN
-        return DecisionPolicyType.MANUAL_INVESTIGATION
-    if score >= profile.rerun_threshold:
-        if not value.governance_flags.allow_auto_rerun:
-            return DecisionPolicyType.MANUAL_INVESTIGATION
-        if value.best_action_effectiveness >= profile.min_action_effectiveness_for_rerun:
-            if value.best_action:
+
+        effectiveness = clamp01(input_data.best_action_effectiveness or 0.0)
+        if effectiveness >= profile.min_action_effectiveness_for_rerun:
+            if input_data.best_action:
                 return DecisionPolicyType.RERUN_WITH_STRATEGY
             return DecisionPolicyType.RERUN
         return DecisionPolicyType.MANUAL_INVESTIGATION
 
-    if severity in {"high", "critical"}:
+    if (
+        input_data.flaky
+        and governance.allow_auto_suppress
+        and severity in {SeverityLevel.LOW, SeverityLevel.MEDIUM}
+        and not input_data.release_critical
+    ):
+        return DecisionPolicyType.SUPPRESS_KNOWN_FLAKY
+
+    if input_data.resolution_type() == MemoryResolutionType.AMBIGUOUS_MATCH:
         return DecisionPolicyType.MANUAL_INVESTIGATION
+
     return DecisionPolicyType.NO_ACTION
 
 
-def derive_strategy(
-    *,
-    decision: DecisionPolicyType,
-    value: DecisionPolicyInput,
-) -> Optional[DecisionStrategy]:
-    if decision == DecisionPolicyType.RERUN:
-        return DecisionStrategy.RETRY_3X
-    if decision == DecisionPolicyType.RERUN_WITH_STRATEGY:
-        action = str((value.best_action or {}).get("action_type", "")).strip().lower()
-        mapping = {
-            "rerun": DecisionStrategy.RETRY_3X,
-            "rerun_with_backoff": DecisionStrategy.RETRY_WITH_BACKOFF,
-            "increase_timeout": DecisionStrategy.INCREASE_TIMEOUT,
-            "isolate_test": DecisionStrategy.ISOLATE_TEST,
-            "rerun_subset": DecisionStrategy.RERUN_SUBSET,
-            "quarantine_test": DecisionStrategy.QUARANTINE_TEST,
-        }
-        return mapping.get(action, DecisionStrategy.RETRY_WITH_BACKOFF)
-    if decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
-        return DecisionStrategy.QUARANTINE_TEST
-    if decision == DecisionPolicyType.BLOCK_RELEASE:
-        return DecisionStrategy.BLOCK_AND_ESCALATE
-    if decision == DecisionPolicyType.ESCALATE:
-        plugin = (value.plugin or "").strip().lower()
-        if "infra" in plugin:
-            return DecisionStrategy.INVESTIGATE_INFRA
-        if "data" in plugin:
-            return DecisionStrategy.INVESTIGATE_DATA
-        return DecisionStrategy.INVESTIGATE_BACKEND
-    if decision == DecisionPolicyType.MANUAL_INVESTIGATION:
-        return DecisionStrategy.INVESTIGATE_BACKEND
+def _to_strategy(action_name: Optional[str]) -> Optional[DecisionStrategy]:
+    if not action_name:
+        return None
+    for strategy in DecisionStrategy:
+        if strategy.value == action_name:
+            return strategy
     return None
 
 
-def derive_bug_candidate(value: DecisionPolicyInput, profile: DecisionPolicyProfile) -> bool:
-    severity = severity_level(value.severity)
-    if not value.governance_flags.allow_bug_candidate:
-        return False
-    if severity in {"low"}:
-        return False
-    return value.occurrence_count >= profile.bug_candidate_recurrence and value.memory_resolution_value != "NEW_MEMORY"
+def derive_strategy(input_data: DecisionPolicyInput, decision: DecisionPolicyType) -> Optional[DecisionStrategy]:
+    explicit = _to_strategy(input_data.best_action)
+    if decision == DecisionPolicyType.RERUN_WITH_STRATEGY:
+        if explicit:
+            return explicit
+        if (input_data.best_action_effectiveness or 0.0) >= 0.70:
+            return DecisionStrategy.RETRY_WITH_BACKOFF
+        return DecisionStrategy.RETRY_3X
+
+    if decision == DecisionPolicyType.RERUN:
+        return DecisionStrategy.RETRY_3X
+
+    if decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
+        return DecisionStrategy.QUARANTINE_TEST
+
+    if decision == DecisionPolicyType.BLOCK_RELEASE:
+        return DecisionStrategy.BLOCK_AND_ESCALATE
+
+    if decision in {DecisionPolicyType.ESCALATE, DecisionPolicyType.MANUAL_INVESTIGATION}:
+        domain = str(input_data.metadata.get("failure_domain", "")).lower()
+        if "infra" in domain or "network" in domain or "timeout" in domain:
+            return DecisionStrategy.INVESTIGATE_INFRA
+        if "data" in domain or "seed" in domain:
+            return DecisionStrategy.INVESTIGATE_DATA
+        return DecisionStrategy.INVESTIGATE_BACKEND
+
+    return None
 
 
-def derive_incident_candidate(value: DecisionPolicyInput, profile: DecisionPolicyProfile) -> bool:
-    if not value.governance_flags.allow_incident_candidate:
+def derive_bug_candidate(
+    input_data: DecisionPolicyInput,
+    governance: GovernanceFlags,
+    profile: DecisionPolicyProfile,
+    *,
+    combined_confidence: float,
+) -> bool:
+    if not governance.allow_bug_candidate:
         return False
-    severity = severity_level(value.severity)
-    if severity != "critical":
+    if input_data.flaky:
         return False
-    if value.occurrence_count < profile.incident_candidate_recurrence:
+    if input_data.occurrence_count < profile.bug_candidate_min_occurrences:
         return False
-    return bool(value.release_critical or value.execution_path.lower() in {"smoke", "release_hardening"})
+    if input_data.resolution_type() not in {MemoryResolutionType.EXACT_MATCH, MemoryResolutionType.SIMILAR_MATCH}:
+        return False
+    return input_data.severity_level() in {SeverityLevel.MEDIUM, SeverityLevel.HIGH, SeverityLevel.CRITICAL} and combined_confidence >= 0.55
+
+
+def derive_incident_candidate(
+    input_data: DecisionPolicyInput,
+    governance: GovernanceFlags,
+    profile: DecisionPolicyProfile,
+    *,
+    combined_confidence: float,
+) -> bool:
+    if not governance.allow_incident_candidate:
+        return False
+    if input_data.severity_level() != SeverityLevel.CRITICAL:
+        return False
+    if input_data.occurrence_count < profile.incident_candidate_min_occurrences:
+        return False
+    if not input_data.release_critical and not input_data.protected_path:
+        return False
+    return combined_confidence >= 0.70
+
+
+def derive_recommended_owner(
+    input_data: DecisionPolicyInput,
+    decision: DecisionPolicyType,
+    *,
+    incident_candidate: bool,
+) -> str:
+    if incident_candidate:
+        return "sre_oncall"
+    if decision in {DecisionPolicyType.BLOCK_RELEASE, DecisionPolicyType.ESCALATE}:
+        if input_data.severity_level() in {SeverityLevel.HIGH, SeverityLevel.CRITICAL}:
+            return "backend_owner"
+        return "qa_lead"
+    if decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY:
+        return "qa_automation"
+    if decision == DecisionPolicyType.MANUAL_INVESTIGATION:
+        return "feature_owner"
+    return "qa_automation"
+
+
+def build_secondary_signals(
+    input_data: DecisionPolicyInput,
+    decision_score: float,
+    combined_confidence: float,
+    strategy: Optional[DecisionStrategy],
+) -> Dict[str, float | bool | str]:
+    return {
+        "severity": input_data.severity_level().value,
+        "decision_score": round(decision_score, 4),
+        "combined_confidence": round(combined_confidence, 4),
+        "memory_resolution_type": input_data.resolution_type().value,
+        "occurrence_count": input_data.occurrence_count,
+        "flaky": input_data.flaky,
+        "strategy": strategy.value if strategy else "",
+        "release_critical": input_data.release_critical,
+        "protected_path": input_data.protected_path,
+    }
+
+
+def derive_boolean_flags(decision: DecisionPolicyType, *, bug_candidate: bool, incident_candidate: bool) -> Dict[str, bool]:
+    return {
+        "should_block_release": decision == DecisionPolicyType.BLOCK_RELEASE,
+        "should_trigger_rerun": decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY},
+        "should_escalate": decision in {DecisionPolicyType.ESCALATE, DecisionPolicyType.BLOCK_RELEASE},
+        "should_request_manual_review": decision == DecisionPolicyType.MANUAL_INVESTIGATION,
+        "should_open_bug_candidate": bug_candidate,
+        "should_open_incident_candidate": incident_candidate,
+    }
+
+
+def secondary_decisions_from_candidates(bug_candidate: bool, incident_candidate: bool) -> List[DecisionPolicyType]:
+    secondary: List[DecisionPolicyType] = []
+    if bug_candidate:
+        secondary.append(DecisionPolicyType.BUG_CANDIDATE)
+    if incident_candidate:
+        secondary.append(DecisionPolicyType.INCIDENT_CANDIDATE)
+    return secondary
+

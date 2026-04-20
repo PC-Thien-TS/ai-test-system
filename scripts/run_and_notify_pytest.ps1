@@ -1,14 +1,20 @@
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
 
-python scripts/run_pytest_with_report.py $args
-$pytestExitCode = $LASTEXITCODE
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Push-Location $repoRoot
+try {
+    python scripts/run_pytest_with_report.py @args
+    $pytestExitCode = $LASTEXITCODE
 
-python scripts/notify_lark_from_pytest.py
-$notifyExitCode = $LASTEXITCODE
+    python scripts/notify_lark_from_pytest.py
+    $notifyExitCode = $LASTEXITCODE
+    if ($notifyExitCode -ne 0) {
+        Write-Host "[run-and-notify] notify script returned non-zero: $notifyExitCode (ignored)"
+    }
 
-if ($notifyExitCode -ne 0) {
-    Write-Warning "notify_lark_from_pytest.py exited with code $notifyExitCode (non-blocking)."
+    exit $pytestExitCode
 }
-
-exit $pytestExitCode
+finally {
+    Pop-Location
+}
 

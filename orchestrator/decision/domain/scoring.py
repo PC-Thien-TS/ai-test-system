@@ -1,64 +1,72 @@
 from __future__ import annotations
 
-from orchestrator.decision.domain.models import DecisionPolicyInput, DecisionPolicyProfile
+from typing import Dict, Tuple
+
+from .models import DecisionPolicyInput, DecisionPolicyProfile, MemoryResolutionType, clamp01
 
 
-def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
-    return max(low, min(high, value))
+def _memory_certainty(input_data: DecisionPolicyInput) -> float:
+    resolution = input_data.resolution_type()
+    base = {
+        MemoryResolutionType.EXACT_MATCH: 0.90,
+        MemoryResolutionType.SIMILAR_MATCH: 0.65,
+        MemoryResolutionType.AMBIGUOUS_MATCH: 0.30,
+        MemoryResolutionType.NEW_MEMORY: 0.20,
+    }[resolution]
+    return clamp01((0.60 * base) + (0.40 * clamp01(input_data.memory_confidence)))
 
 
-def _severity_score(severity: str, profile: DecisionPolicyProfile) -> float:
-    return float(profile.severity_weights.get((severity or "low").strip().lower(), 0.1))
-
-
-def _memory_certainty_score(memory_resolution: str, profile: DecisionPolicyProfile) -> float:
-    return float(profile.memory_resolution_weights.get(memory_resolution, 0.0))
-
-
-def _recurrence_score(value: DecisionPolicyInput) -> float:
-    if value.recurrence_score > 0:
-        return _clamp(value.recurrence_score)
-    if value.occurrence_count <= 1:
-        return 0.0
-    return _clamp((value.occurrence_count - 1) / 5.0)
+def _recurrence_signal(input_data: DecisionPolicyInput, profile: DecisionPolicyProfile) -> float:
+    if input_data.recurrence_score is not None:
+        return clamp01(input_data.recurrence_score)
+    return clamp01(input_data.occurrence_count / float(max(1, profile.critical_recurrence_block_count)))
 
 
 def compute_decision_score(
-    value: DecisionPolicyInput,
+    input_data: DecisionPolicyInput,
     profile: DecisionPolicyProfile,
-) -> tuple[float, dict[str, float]]:
-    severity = _severity_score(value.severity, profile)
-    memory = _memory_certainty_score(value.memory_resolution_value, profile)
-    recurrence = _recurrence_score(value)
-    release_criticality = 1.0 if value.release_critical else 0.0
-    protected_path = 1.0 if value.protected_path else 0.0
-    action_effective = _clamp(value.best_action_effectiveness)
-    ambiguity_penalty = profile.ambiguity_penalty if value.memory_resolution_value == "AMBIGUOUS_MATCH" else 0.0
-    flaky_bonus = profile.flaky_bonus if value.flaky else 0.0
-    new_memory_penalty = profile.new_memory_uncertainty_penalty if value.memory_resolution_value == "NEW_MEMORY" else 0.0
+) -> Tuple[float, Dict[str, float]]:
+    severity_signal = clamp01(profile.severity_weights.get(input_data.severity_level().value, 0.45))
+    recurrence_signal = _recurrence_signal(input_data, profile)
+    memory_signal = _memory_certainty(input_data)
 
-    score = (
-        severity * 0.35
-        + memory * 0.2
-        + recurrence * profile.recurrence_weight
-        + release_criticality * profile.release_critical_weight
-        + protected_path * profile.protected_path_weight
-        + action_effective * profile.action_effectiveness_weight
-        + flaky_bonus
-        + (profile.release_critical_boost if value.release_critical and severity >= 0.55 else 0.0)
-        - ambiguity_penalty
-        - new_memory_penalty
+    release_signal = 0.0
+    if input_data.release_critical:
+        release_signal += profile.release_critical_boost
+    if input_data.protected_path:
+        release_signal += 0.10
+    release_signal = clamp01(release_signal)
+
+    action_effectiveness_signal = clamp01(input_data.best_action_effectiveness or 0.0)
+
+    weighted = (
+        profile.component_weights["severity"] * severity_signal
+        + profile.component_weights["recurrence"] * recurrence_signal
+        + profile.component_weights["memory_certainty"] * memory_signal
+        + profile.component_weights["release_criticality"] * release_signal
+        + profile.component_weights["action_effectiveness"] * action_effectiveness_signal
     )
-    score = _clamp(score, 0.0, 1.5)
-    components = {
-        "severity_score": severity,
-        "memory_certainty_score": memory,
-        "recurrence_score": recurrence,
-        "release_criticality_score": release_criticality,
-        "protected_path_score": protected_path,
-        "action_effectiveness_score": action_effective,
-        "flaky_bonus": flaky_bonus,
-        "ambiguity_penalty": ambiguity_penalty,
-        "new_memory_penalty": new_memory_penalty,
+
+    penalties = 0.0
+    resolution = input_data.resolution_type()
+    if resolution == MemoryResolutionType.AMBIGUOUS_MATCH:
+        penalties += profile.ambiguity_penalty
+    if resolution == MemoryResolutionType.NEW_MEMORY:
+        penalties += profile.new_memory_uncertainty_penalty
+
+    if input_data.flaky and input_data.severity_level().value in {"low", "medium"}:
+        weighted -= profile.flaky_suppression_bonus
+
+    score = clamp01(weighted - penalties)
+
+    return score, {
+        "severity_signal": round(severity_signal, 4),
+        "recurrence_signal": round(recurrence_signal, 4),
+        "memory_signal": round(memory_signal, 4),
+        "release_signal": round(release_signal, 4),
+        "action_effectiveness_signal": round(action_effectiveness_signal, 4),
+        "penalties": round(penalties, 4),
+        "weighted_sum": round(weighted, 4),
+        "score": round(score, 4),
     }
-    return score, components
+

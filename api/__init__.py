@@ -1,1 +1,2 @@
-"""API package for Universal Testing Platform v2.1+."""
+"""FastAPI application modules."""
+

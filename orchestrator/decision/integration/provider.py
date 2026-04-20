@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from orchestrator.adapters import get_active_adapter
-from orchestrator.decision.application.engine import DecisionPolicyEngine
+from ..application.engine import DecisionPolicyEngine
 
 
 def build_decision_policy_engine(
     *,
-    profile_name: Optional[str] = None,
-    adapter_profile_overrides: Optional[dict[str, str]] = None,
+    default_profile_name: str = "balanced",
+    adapter_profile_overrides: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> DecisionPolicyEngine:
-    adapter = get_active_adapter()
     return DecisionPolicyEngine(
-        profile_name=profile_name,
-        adapter_id=adapter.get_adapter_id(),
-        adapter_profile_overrides=adapter_profile_overrides,
+        default_profile_name=default_profile_name,
+        adapter_profile_overrides=adapter_profile_overrides or {},
     )
+

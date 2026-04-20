@@ -3,9 +3,21 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
-from orchestrator.memory.domain.models import MemoryResolutionType
+
+class SeverityLevel(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class MemoryResolutionType(str, Enum):
+    EXACT_MATCH = "EXACT_MATCH"
+    SIMILAR_MATCH = "SIMILAR_MATCH"
+    AMBIGUOUS_MATCH = "AMBIGUOUS_MATCH"
+    NEW_MEMORY = "NEW_MEMORY"
 
 
 class DecisionPolicyType(str, Enum):
@@ -33,7 +45,7 @@ class DecisionStrategy(str, Enum):
     INVESTIGATE_DATA = "investigate_data"
 
 
-@dataclass(slots=True)
+@dataclass
 class GovernanceFlags:
     allow_auto_rerun: bool = True
     allow_auto_suppress: bool = False
@@ -43,69 +55,90 @@ class GovernanceFlags:
     allow_incident_candidate: bool = True
 
 
-@dataclass(slots=True)
+@dataclass
 class DecisionPolicyProfile:
     profile_name: str
-    block_threshold: float
-    escalate_threshold: float
-    rerun_threshold: float
-    ambiguity_penalty: float
-    critical_recurrence_block_count: int
-    release_critical_boost: float
-    min_action_effectiveness_for_rerun: float
-    ambiguous_manual_review_confidence: float
-    flaky_suppress_recurrence: int
-    bug_candidate_recurrence: int
-    incident_candidate_recurrence: int
-    severity_weights: dict[str, float] = field(default_factory=dict)
-    memory_resolution_weights: dict[str, float] = field(default_factory=dict)
-    recurrence_weight: float = 0.25
-    action_effectiveness_weight: float = 0.2
-    release_critical_weight: float = 0.2
-    protected_path_weight: float = 0.1
-    flaky_bonus: float = 0.12
-    new_memory_uncertainty_penalty: float = 0.1
+    block_threshold: float = 0.80
+    escalate_threshold: float = 0.60
+    rerun_threshold: float = 0.45
+    ambiguity_penalty: float = 0.20
+    critical_recurrence_block_count: int = 3
+    release_critical_boost: float = 0.20
+    min_action_effectiveness_for_rerun: float = 0.55
+    bug_candidate_min_occurrences: int = 2
+    incident_candidate_min_occurrences: int = 3
+    severity_weights: Dict[str, float] = field(
+        default_factory=lambda: {
+            SeverityLevel.LOW.value: 0.20,
+            SeverityLevel.MEDIUM.value: 0.45,
+            SeverityLevel.HIGH.value: 0.72,
+            SeverityLevel.CRITICAL.value: 0.92,
+        }
+    )
+    component_weights: Dict[str, float] = field(
+        default_factory=lambda: {
+            "severity": 0.35,
+            "recurrence": 0.20,
+            "memory_certainty": 0.20,
+            "release_criticality": 0.15,
+            "action_effectiveness": 0.10,
+        }
+    )
+    flaky_suppression_bonus: float = 0.08
+    new_memory_uncertainty_penalty: float = 0.06
+    governance_defaults: GovernanceFlags = field(default_factory=GovernanceFlags)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(slots=True)
+@dataclass
 class DecisionPolicyInput:
     adapter_id: str
-    project_id: Optional[str]
+    project_id: str
     run_id: str
-    plugin: Optional[str]
-    execution_path: str
-    severity: str
-    confidence: float
-    memory_resolution_type: MemoryResolutionType | str
-    memory_confidence: float
-    occurrence_count: int
-    recurrence_score: float = 0.0
+    plugin: Optional[str] = None
+    execution_path: Optional[str] = None
+    failure_summary: Optional[str] = None
+    triage_root_cause: Optional[str] = None
+    severity: str = SeverityLevel.MEDIUM.value
+    confidence: float = 0.50
+    memory_resolution_type: str = MemoryResolutionType.NEW_MEMORY.value
+    memory_confidence: float = 0.0
+    occurrence_count: int = 1
+    recurrence_score: Optional[float] = None
     flaky: bool = False
-    best_action: Optional[dict[str, Any]] = None
-    best_action_effectiveness: float = 0.0
+    best_action: Optional[str] = None
+    best_action_effectiveness: Optional[float] = None
     release_critical: bool = False
     protected_path: bool = False
-    ci_mode: str = "default"
-    governance_flags: GovernanceFlags = field(default_factory=GovernanceFlags)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    ci_mode: Optional[str] = None
+    governance_flags: Optional[GovernanceFlags] = None
+    release_context: Dict[str, Any] = field(default_factory=dict)
+    ci_context: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
-    @property
-    def memory_resolution_value(self) -> str:
-        raw = self.memory_resolution_type
-        if isinstance(raw, MemoryResolutionType):
-            return raw.value
-        return str(raw).strip().upper()
+    def severity_level(self) -> SeverityLevel:
+        try:
+            return SeverityLevel(str(self.severity).lower())
+        except ValueError:
+            return SeverityLevel.MEDIUM
+
+    def resolution_type(self) -> MemoryResolutionType:
+        try:
+            return MemoryResolutionType(str(self.memory_resolution_type))
+        except ValueError:
+            return MemoryResolutionType.NEW_MEMORY
 
 
-@dataclass(slots=True)
+@dataclass
 class DecisionPolicyResult:
     primary_decision: DecisionPolicyType
     strategy: Optional[DecisionStrategy]
-    rationale: str
+    rationale: List[str]
     confidence: float
     decision_score: float
     governance_flags: GovernanceFlags
-    secondary_signals: dict[str, Any]
+    secondary_signals: Dict[str, Any]
+    secondary_decisions: List[DecisionPolicyType]
     should_block_release: bool
     should_trigger_rerun: bool
     should_escalate: bool
@@ -113,52 +146,53 @@ class DecisionPolicyResult:
     should_open_incident_candidate: bool
     should_request_manual_review: bool
     recommended_owner: Optional[str]
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "primary_decision": self.primary_decision.value,
-            "strategy": self.strategy.value if self.strategy else None,
-            "rationale": self.rationale,
-            "confidence": self.confidence,
-            "decision_score": self.decision_score,
-            "governance_flags": {
-                "allow_auto_rerun": self.governance_flags.allow_auto_rerun,
-                "allow_auto_suppress": self.governance_flags.allow_auto_suppress,
-                "allow_auto_block_release": self.governance_flags.allow_auto_block_release,
-                "require_manual_review_on_critical": self.governance_flags.require_manual_review_on_critical,
-                "allow_bug_candidate": self.governance_flags.allow_bug_candidate,
-                "allow_incident_candidate": self.governance_flags.allow_incident_candidate,
-            },
-            "secondary_signals": self.secondary_signals,
-            "should_block_release": self.should_block_release,
-            "should_trigger_rerun": self.should_trigger_rerun,
-            "should_escalate": self.should_escalate,
-            "should_open_bug_candidate": self.should_open_bug_candidate,
-            "should_open_incident_candidate": self.should_open_incident_candidate,
-            "should_request_manual_review": self.should_request_manual_review,
-            "recommended_owner": self.recommended_owner,
-            "metadata": self.metadata,
-        }
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-def parse_env_governance(default: Optional[GovernanceFlags] = None) -> GovernanceFlags:
-    base = default or GovernanceFlags()
+def clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
 
-    def _bool(name: str, fallback: bool) -> bool:
-        raw = os.getenv(name, "").strip().lower()
-        if not raw:
-            return fallback
-        return raw in {"1", "true", "yes", "y", "on"}
 
+def combine_confidence(signal_confidence: float, memory_confidence: float, resolution: MemoryResolutionType) -> float:
+    base = (0.55 * clamp01(signal_confidence)) + (0.45 * clamp01(memory_confidence))
+    if resolution == MemoryResolutionType.EXACT_MATCH:
+        base += 0.10
+    elif resolution == MemoryResolutionType.AMBIGUOUS_MATCH:
+        base -= 0.10
+    elif resolution == MemoryResolutionType.NEW_MEMORY:
+        base -= 0.05
+    return clamp01(base)
+
+
+def merge_governance(profile_flags: GovernanceFlags, input_flags: Optional[GovernanceFlags]) -> GovernanceFlags:
+    if input_flags is None:
+        return profile_flags
     return GovernanceFlags(
-        allow_auto_rerun=_bool("DECISION_ALLOW_AUTO_RERUN", base.allow_auto_rerun),
-        allow_auto_suppress=_bool("DECISION_ALLOW_AUTO_SUPPRESS", base.allow_auto_suppress),
-        allow_auto_block_release=_bool("DECISION_ALLOW_AUTO_BLOCK_RELEASE", base.allow_auto_block_release),
-        require_manual_review_on_critical=_bool(
-            "DECISION_REQUIRE_MANUAL_REVIEW_ON_CRITICAL",
-            base.require_manual_review_on_critical,
+        allow_auto_rerun=input_flags.allow_auto_rerun,
+        allow_auto_suppress=input_flags.allow_auto_suppress,
+        allow_auto_block_release=input_flags.allow_auto_block_release,
+        require_manual_review_on_critical=input_flags.require_manual_review_on_critical,
+        allow_bug_candidate=input_flags.allow_bug_candidate,
+        allow_incident_candidate=input_flags.allow_incident_candidate,
+    )
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def parse_env_governance(base: Optional[GovernanceFlags] = None) -> GovernanceFlags:
+    flags = base or GovernanceFlags()
+    return GovernanceFlags(
+        allow_auto_rerun=_env_bool("DECISION_ALLOW_AUTO_RERUN", flags.allow_auto_rerun),
+        allow_auto_suppress=_env_bool("DECISION_ALLOW_AUTO_SUPPRESS", flags.allow_auto_suppress),
+        allow_auto_block_release=_env_bool("DECISION_ALLOW_AUTO_BLOCK_RELEASE", flags.allow_auto_block_release),
+        require_manual_review_on_critical=_env_bool(
+            "DECISION_REQUIRE_MANUAL_REVIEW_ON_CRITICAL", flags.require_manual_review_on_critical
         ),
-        allow_bug_candidate=_bool("DECISION_ALLOW_BUG_CANDIDATE", base.allow_bug_candidate),
-        allow_incident_candidate=_bool("DECISION_ALLOW_INCIDENT_CANDIDATE", base.allow_incident_candidate),
+        allow_bug_candidate=_env_bool("DECISION_ALLOW_BUG_CANDIDATE", flags.allow_bug_candidate),
+        allow_incident_candidate=_env_bool("DECISION_ALLOW_INCIDENT_CANDIDATE", flags.allow_incident_candidate),
     )

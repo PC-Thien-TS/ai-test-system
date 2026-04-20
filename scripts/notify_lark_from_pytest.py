@@ -4,97 +4,85 @@ import json
 import logging
 import os
 import sys
-from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-REPORT_PATH = ROOT / "artifacts" / "pytest" / "pytest_report.json"
-
-from orchestrator.connectors.lark import (  # noqa: E402
-    LarkNotificationEvent,
-    LarkNotificationEventType,
-    LarkNotificationService,
-)
-from orchestrator.failure_analysis.integration.pytest_bridge import (  # noqa: E402
+from orchestrator.connectors.lark.application.lark_service import LarkNotificationService
+from orchestrator.failure_analysis.integration.pytest_bridge import (
     analyze_pytest_report_file,
     build_notification_group_lines,
+    load_failure_analysis_report,
 )
 
 
-ANALYSIS_PATH = ROOT / "artifacts" / "failure_analysis" / "failure_analysis_report.json"
+LOGGER = logging.getLogger("pytest-lark-notify")
+PYTEST_REPORT_PATH = Path("artifacts/pytest/pytest_report.json")
+FAILURE_ANALYSIS_PATH = Path("artifacts/failure_analysis/failure_analysis_report.json")
+FAILURE_ANALYSIS_HISTORY_PATH = Path("artifacts/failure_analysis/history.json")
 
 
-def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-    )
-
-
-def load_report(path: Path) -> Dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(f"pytest report not found: {path}")
+def _load_json(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def parse_summary(report: Dict[str, Any]) -> Dict[str, int]:
-    summary = report.get("summary", {}) or {}
-    total = int(summary.get("total", 0))
-    passed = int(summary.get("passed", 0))
-    failed = int(summary.get("failed", 0))
-    skipped = int(summary.get("skipped", 0))
-    errors = int(summary.get("error", 0))
-    failed_total = failed + errors
+def _stats(report_payload: Dict[str, Any]) -> Dict[str, int]:
+    summary = report_payload.get("summary", {}) if isinstance(report_payload, dict) else {}
     return {
-        "total": total,
-        "passed": passed,
-        "failed": failed_total,
-        "skipped": skipped,
+        "total": int(summary.get("total", 0)),
+        "passed": int(summary.get("passed", 0)),
+        "failed": int(summary.get("failed", 0)),
+        "skipped": int(summary.get("skipped", 0)),
     }
 
 
-def extract_failure_summaries(report: Dict[str, Any], limit: int = 5) -> List[str]:
-    tests = report.get("tests", []) or []
-    collected: List[str] = []
-    for test in tests:
-        outcome = str(test.get("outcome", "")).lower()
-        if outcome not in {"failed", "error"}:
+def _failed_tests(report_payload: Dict[str, Any], *, limit: int = 5) -> List[str]:
+    tests = report_payload.get("tests", []) if isinstance(report_payload, dict) else []
+    rows: list[str] = []
+    for item in tests:
+        if not isinstance(item, dict):
             continue
-        nodeid = str(test.get("nodeid", "unknown_test"))
-        crash_msg = ""
-        for phase in ("call", "setup", "teardown"):
-            phase_data = test.get(phase, {}) or {}
-            crash = phase_data.get("crash", {}) or {}
-            if crash.get("message"):
-                crash_msg = str(crash.get("message"))
-                break
-            longrepr = phase_data.get("longrepr")
-            if isinstance(longrepr, str) and longrepr.strip():
-                crash_msg = longrepr.strip().splitlines()[-1]
-                break
-        if not crash_msg:
-            crash_msg = "failure details unavailable"
-        crash_msg = " ".join(crash_msg.split())
-        collected.append(f"{nodeid}: {crash_msg}")
-        if len(collected) >= limit:
+        outcome = str(item.get("outcome", "")).lower()
+        failed = outcome in {"failed", "error"}
+        if not failed:
+            for stage in ("call", "setup", "teardown"):
+                stage_payload = item.get(stage)
+                if isinstance(stage_payload, dict) and str(stage_payload.get("outcome", "")).lower() in {"failed", "error"}:
+                    failed = True
+                    break
+        if not failed:
+            continue
+        nodeid = str(item.get("nodeid", "unknown_test"))
+        message = _extract_message(item)
+        rows.append(f"- {nodeid}: {message}")
+        if len(rows) >= limit:
             break
-    return collected
+    return rows
 
 
-def infer_severity(failed_count: int) -> str:
-    if failed_count >= 10:
-        return "critical"
-    if failed_count >= 1:
-        return "high"
-    return "low"
+def _extract_message(test_item: Dict[str, Any]) -> str:
+    for stage in ("call", "setup", "teardown"):
+        payload = test_item.get(stage)
+        if not isinstance(payload, dict):
+            continue
+        crash = payload.get("crash")
+        if isinstance(crash, dict):
+            message = str(crash.get("message", "")).strip()
+            if message:
+                return message
+        longrepr = payload.get("longrepr")
+        if isinstance(longrepr, str) and longrepr.strip():
+            return longrepr.strip().splitlines()[0][:220]
+    longrepr = test_item.get("longrepr")
+    if isinstance(longrepr, str) and longrepr.strip():
+        return longrepr.strip().splitlines()[0][:220]
+    return "failure details unavailable"
 
 
-def build_github_run_link() -> str:
+def _github_actions_run_url() -> str:
     server = os.getenv("GITHUB_SERVER_URL", "").strip()
     repo = os.getenv("GITHUB_REPOSITORY", "").strip()
     run_id = os.getenv("GITHUB_RUN_ID", "").strip()
@@ -103,120 +91,150 @@ def build_github_run_link() -> str:
     return ""
 
 
-def to_log_dict(obj: Any) -> Dict[str, Any]:
-    if is_dataclass(obj):
-        return asdict(obj)
-    if isinstance(obj, dict):
-        return obj
-    return {"value": str(obj)}
+def _severity_from_failed_count(failed: int) -> str:
+    if failed >= 10:
+        return "critical"
+    if failed >= 5:
+        return "high"
+    return "medium"
+
+
+def _build_analysis_or_none(pytest_report_path: Path) -> Dict[str, Any] | None:
+    analysis = analyze_pytest_report_file(
+        pytest_report_path=pytest_report_path,
+        output_path=FAILURE_ANALYSIS_PATH,
+        history_path=FAILURE_ANALYSIS_HISTORY_PATH,
+        write_history=True,
+    )
+    if analysis is not None:
+        return analysis.to_dict()
+    return load_failure_analysis_report(FAILURE_ANALYSIS_PATH)
+
+
+def _build_root_cause_from_analysis(analysis_payload: Dict[str, Any]) -> str:
+    summary = analysis_payload.get("summary", {}) if isinstance(analysis_payload, dict) else {}
+    lines = [
+        (
+            "Failure analysis: "
+            f"groups={summary.get('total_groups', 0)} | "
+            f"critical_groups={summary.get('critical_group_count', 0)} | "
+            f"most_affected_area={summary.get('most_affected_area', 'unknown')}"
+        )
+    ]
+    lines.append("Top failure groups:")
+    lines.extend(build_notification_group_lines(analysis_payload, max_groups=3))
+    top_categories = summary.get("top_categories", {})
+    if isinstance(top_categories, dict) and top_categories:
+        category_blob = ", ".join(f"{k}={v}" for k, v in top_categories.items())
+        lines.append(f"Root cause categories: {category_blob}")
+    return "\n".join(lines)
+
+
+def _build_event(
+    *,
+    stats: Dict[str, int],
+    analysis_payload: Dict[str, Any] | None,
+    fallback_failures: List[str],
+) -> Dict[str, Any]:
+    project_name = os.getenv("PROJECT_NAME", "rankmate").strip() or "rankmate"
+    adapter_id = os.getenv("AI_TESTING_ADAPTER", project_name).strip() or project_name
+    dashboard_url = os.getenv("DASHBOARD_URL", "").strip()
+    ci_run_url = _github_actions_run_url()
+
+    if analysis_payload:
+        summary = analysis_payload.get("summary", {}) if isinstance(analysis_payload, dict) else {}
+        severity = str(summary.get("highest_severity", "")).lower() or _severity_from_failed_count(stats["failed"])
+        root_cause = _build_root_cause_from_analysis(analysis_payload)
+        top_groups = analysis_payload.get("groups", []) if isinstance(analysis_payload, dict) else []
+        recommended_action = ""
+        if isinstance(top_groups, list) and top_groups:
+            recommended_action = str(top_groups[0].get("recommended_action", "")).strip()
+        if not recommended_action:
+            recommended_action = "Investigate top failure groups and prioritize critical categories."
+    else:
+        severity = _severity_from_failed_count(stats["failed"])
+        root_cause = "Top failures:\n" + ("\n".join(fallback_failures) if fallback_failures else "- No failure details available")
+        recommended_action = "Review failing tests and classify root causes."
+
+    if ci_run_url:
+        root_cause = f"{root_cause}\nGitHub Actions: {ci_run_url}"
+
+    return {
+        "event_type": "decision_result",
+        "title": f"Pytest failures detected ({stats['failed']})",
+        "project": project_name,
+        "adapter": adapter_id,
+        "severity": severity,
+        "occurrence_count": stats["failed"],
+        "confidence": 0.9 if severity == "critical" else 0.75 if severity == "high" else 0.6,
+        "primary_decision": "BLOCK_RELEASE" if severity == "critical" else "RELEASE_WITH_CAUTION",
+        "self_healing_status": "NOT_EXECUTED",
+        "root_cause": root_cause,
+        "action_required": recommended_action,
+        "dashboard_url": dashboard_url or None,
+        "metadata": {
+            "pytest_report_path": str(PYTEST_REPORT_PATH),
+            "failure_analysis_path": str(FAILURE_ANALYSIS_PATH),
+            "stats": stats,
+            "ci_run_url": ci_run_url,
+        },
+    }
 
 
 def main() -> int:
-    configure_logging()
-    logging.info("lark_pytest_notify_start | report=%s", REPORT_PATH)
+    logging.basicConfig(level=logging.INFO, format="[notify-lark] %(message)s")
 
-    try:
-        report = load_report(REPORT_PATH)
-    except Exception as exc:
-        logging.error("lark_pytest_notify_no_report | error=%s", exc)
+    if not PYTEST_REPORT_PATH.exists():
+        LOGGER.warning("pytest report not found: %s", PYTEST_REPORT_PATH)
         return 0
 
-    summary = parse_summary(report)
-    if summary["failed"] <= 0:
-        logging.info("lark_pytest_notify_skip | reason=no_failures | summary=%s", summary)
+    try:
+        report_payload = _load_json(PYTEST_REPORT_PATH)
+    except Exception as exc:
+        LOGGER.warning("failed to parse pytest report: %s", exc)
         return 0
 
-    failure_summaries = extract_failure_summaries(report, limit=5)
-    severity = infer_severity(summary["failed"])
-    project_name = os.getenv("PROJECT_NAME", "ai_test_system").strip() or "ai_test_system"
-    dashboard_url = os.getenv("DASHBOARD_URL", "").strip() or None
-    github_run_url = build_github_run_link()
-
-    analysis_report: Dict[str, Any] | None = None
-    try:
-        analysis_report = analyze_pytest_report_file(
-            pytest_report_path=REPORT_PATH,
-            output_path=ANALYSIS_PATH,
-            write_history=True,
-        )
-        logging.info("lark_pytest_notify_analysis_ready | path=%s", ANALYSIS_PATH)
-    except Exception as exc:
-        logging.warning("lark_pytest_notify_analysis_fallback | error=%s", exc)
-
-    root_cause_lines = [
-        f"pytest failures detected in project {project_name}",
-        f"stats: total={summary['total']} passed={summary['passed']} failed={summary['failed']} skipped={summary['skipped']}",
-    ]
-    action_lines = ["Review failing tests and logs in artifacts/pytest."]
-
-    if analysis_report:
-        analysis_summary = analysis_report.get("summary", {}) or {}
-        top_groups = build_notification_group_lines(analysis_report, top_n=3)
-        highest = str(analysis_summary.get("highest_severity", severity)).strip().lower()
-        if highest:
-            severity = highest
-        root_cause_lines.extend(
-            [
-                f"grouped_failures: groups={analysis_summary.get('total_groups', 0)} "
-                f"critical_groups={analysis_summary.get('critical_group_count', 0)}",
-                f"most_affected_area: {analysis_summary.get('most_affected_area', 'unknown_area')}",
-                "",
-                "top_groups:",
-                *(top_groups or ["- unavailable"]),
-            ]
-        )
-        groups = list(analysis_report.get("groups", []) or [])
-        categories = [str(g.get("category", "unknown")) for g in groups[:3]]
-        if categories:
-            root_cause_lines.append("")
-            root_cause_lines.append("root_cause_categories:")
-            root_cause_lines.extend([f"- {cat}" for cat in categories])
-        if groups:
-            top_action = str(groups[0].get("recommended_action", "")).strip()
-            if top_action:
-                action_lines.append(top_action)
-    else:
-        root_cause_lines.extend(
-            [
-                "",
-                "top_failures:",
-                *[f"- {line}" for line in failure_summaries],
-            ]
-        )
-    if github_run_url:
-        action_lines.append(f"GitHub Actions run: {github_run_url}")
-
-    event = LarkNotificationEvent(
-        event_type=LarkNotificationEventType.DECISION_RESULT,
-        title=f"Pytest failures detected ({summary['failed']})",
-        project=project_name,
-        adapter=project_name,
-        severity=severity,
-        occurrence_count=summary["failed"],
-        confidence=None,
-        primary_decision="BLOCK_RELEASE",
-        self_healing_status="FAILED",
-        root_cause="\n".join(root_cause_lines),
-        action_required="\n".join(action_lines),
-        dashboard_url=dashboard_url,
-        metadata={
-            "summary": summary,
-            "top_failures": failure_summaries,
-            "github_run_url": github_run_url,
-            "report_path": str(REPORT_PATH),
-            "failure_analysis_path": str(ANALYSIS_PATH),
-            "failure_analysis_summary": (analysis_report or {}).get("summary", {}),
-        },
+    stats = _stats(report_payload)
+    LOGGER.info(
+        "pytest summary total=%s passed=%s failed=%s skipped=%s",
+        stats["total"],
+        stats["passed"],
+        stats["failed"],
+        stats["skipped"],
     )
+
+    if stats["failed"] <= 0:
+        LOGGER.info("no pytest failures; notification skipped")
+        return 0
+
+    analysis_payload: Dict[str, Any] | None = None
+    try:
+        analysis_payload = _build_analysis_or_none(PYTEST_REPORT_PATH)
+        if analysis_payload:
+            LOGGER.info(
+                "failure analysis ready groups=%s highest=%s",
+                analysis_payload.get("summary", {}).get("total_groups", 0),
+                analysis_payload.get("summary", {}).get("highest_severity", "unknown"),
+            )
+    except Exception as exc:
+        LOGGER.warning("failure analysis unavailable, fallback to basic summary: %s", exc)
+        analysis_payload = None
+
+    fallback_failures = _failed_tests(report_payload, limit=5)
+    event = _build_event(stats=stats, analysis_payload=analysis_payload, fallback_failures=fallback_failures)
 
     service = LarkNotificationService()
     try:
         result = service.send(event)
+        LOGGER.info(
+            "lark notify attempted=%s sent=%s reason=%s dry_run=%s",
+            result.attempted,
+            result.sent,
+            result.reason,
+            result.dry_run,
+        )
     except Exception as exc:
-        logging.exception("lark_pytest_notify_send_exception | error=%s", exc)
-        return 0
-
-    logging.info("lark_pytest_notify_done | result=%s", to_log_dict(result))
+        LOGGER.warning("lark notify failed but remains non-blocking: %s", exc)
     return 0
 
 

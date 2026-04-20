@@ -1,3 +1,5 @@
+"""Failure analysis domain models and deterministic rules."""
+
 from .models import (
     FailureAnalysisReport,
     FailureAnalysisSummary,
@@ -5,6 +7,7 @@ from .models import (
     FailureGroup,
     FailureInference,
 )
+from .rules import infer_failure
 
 __all__ = [
     "FailureCase",
@@ -12,5 +15,6 @@ __all__ = [
     "FailureGroup",
     "FailureAnalysisSummary",
     "FailureAnalysisReport",
+    "infer_failure",
 ]
 

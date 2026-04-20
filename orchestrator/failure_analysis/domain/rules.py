@@ -1,39 +1,41 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from typing import Iterable, List
 
+from .grouping import normalize_message_pattern
 from .models import FailureInference
 
 
-@dataclass(frozen=True)
-class PatternRule:
-    patterns: Tuple[str, ...]
+@dataclass(frozen=True, slots=True)
+class FailurePatternRule:
+    name: str
+    patterns: tuple[str, ...]
     category: str
     owner: str
     severity: str
     recommended_action: str
-    area: str
 
 
-RULES: Sequence[PatternRule] = (
-    PatternRule(
+RULES: tuple[FailurePatternRule, ...] = (
+    FailurePatternRule(
+        name="missing_integer_status",
         patterns=("missing integer status",),
         category="api_contract_mismatch",
         owner="backend_api_owner",
         severity="high",
-        recommended_action="Fix payload contract to include integer status field and update response validation.",
-        area="api_contract",
+        recommended_action="Fix API response contract to return integer status consistently.",
     ),
-    PatternRule(
+    FailurePatternRule(
+        name="unexpected_status_500",
         patterns=("unexpected status 500",),
         category="server_error",
         owner="backend_service_owner",
         severity="critical",
-        recommended_action="Investigate unhandled exception path and add controlled error handling for API endpoint.",
-        area="backend_service",
+        recommended_action="Investigate server-side exception path causing 500 responses.",
     ),
-    PatternRule(
+    FailurePatternRule(
+        name="cross_surface_consistency",
         patterns=(
             "status phase mismatch",
             "not terminal for terminal seed order",
@@ -43,61 +45,57 @@ RULES: Sequence[PatternRule] = (
         owner="order_state_owner",
         severity="critical",
         recommended_action="Investigate order state synchronization across user/admin/merchant surfaces.",
-        area="order_state",
     ),
-    PatternRule(
+    FailurePatternRule(
+        name="state_transition_guard_missing",
         patterns=("unexpected status 200, expected [400]",),
         category="state_transition_guard_missing",
         owner="merchant_flow_owner",
         severity="high",
-        recommended_action="Add missing transition guard to reject invalid state mutation with controlled 4xx response.",
-        area="merchant_flow",
+        recommended_action="Add terminal-state guard to reject invalid merchant transition with 4xx.",
     ),
 )
 
+DEFAULT_CATEGORY = "unknown_failure_pattern"
+DEFAULT_OWNER = "qa_lead"
+DEFAULT_SEVERITY = "medium"
+DEFAULT_RECOMMENDED_ACTION = "Manual triage required to classify this new failure pattern."
 
-SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+def _matches(patterns: Iterable[str], normalized_message: str, raw_message: str) -> bool:
+    for pattern in patterns:
+        if pattern in normalized_message or pattern in raw_message:
+            return True
+    return False
 
 
-def infer_failure(nodeid: str, message: str) -> FailureInference:
-    searchable = f"{nodeid} {message}".lower()
+def infer_failure(message: str) -> FailureInference:
+    raw = (message or "").strip().lower()
+    normalized = normalize_message_pattern(message)
     for rule in RULES:
-        if any(pattern in searchable for pattern in rule.patterns):
+        if _matches(rule.patterns, normalized, raw):
             return FailureInference(
                 category=rule.category,
                 owner=rule.owner,
                 severity=rule.severity,
                 recommended_action=rule.recommended_action,
-                area=rule.area,
+                message_pattern=normalized,
+                matched_rule=rule.name,
             )
     return FailureInference(
-        category="unknown_failure_pattern",
-        owner="qa_lead",
-        severity="medium",
-        recommended_action="Perform manual triage and add deterministic failure rule after root cause is confirmed.",
-        area=infer_area_from_nodeid(nodeid),
+        category=DEFAULT_CATEGORY,
+        owner=DEFAULT_OWNER,
+        severity=DEFAULT_SEVERITY,
+        recommended_action=DEFAULT_RECOMMENDED_ACTION,
+        message_pattern=normalized,
+        matched_rule="default_unknown_pattern",
     )
 
 
-def highest_severity(values: List[str]) -> str:
-    if not values:
-        return "low"
-    return max(values, key=lambda s: SEVERITY_ORDER.get(str(s).lower(), 0))
-
-
-def infer_area_from_nodeid(nodeid: str) -> str:
-    lowered = nodeid.lower()
-    if "admin_consistency" in lowered:
-        return "admin_consistency"
-    if "merchant" in lowered:
-        return "merchant_flow"
-    if "search_store" in lowered or "store" in lowered:
-        return "search_store"
-    if "payment" in lowered:
-        return "payment_flow"
-    if "order_lifecycle" in lowered or "order" in lowered:
-        return "order_flow"
-    if "::" in nodeid:
-        return nodeid.split("::", 1)[0].replace("\\", "/")
-    return "unknown_area"
-
+def collect_root_cause_categories(groups: List[dict] | List[FailureInference]) -> List[str]:
+    categories: list[str] = []
+    for entry in groups:
+        category = entry["category"] if isinstance(entry, dict) else entry.category
+        if category not in categories:
+            categories.append(category)
+    return categories
