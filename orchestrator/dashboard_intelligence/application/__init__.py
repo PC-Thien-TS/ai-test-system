@@ -1,0 +1,2 @@
+"""Dashboard intelligence application service."""
+
