@@ -77,9 +77,12 @@ export const api = {
   listProjects: (workspaceId?: string, activeOnly = true) => {
     const params = new URLSearchParams();
     if (workspaceId) {
-      // Ensure workspaceId is a string, not an object
-      const wsId = typeof workspaceId === "object" ? String(workspaceId) : workspaceId;
-      params.append("workspace_id", wsId);
+      const wsId =
+        typeof workspaceId === "object"
+          ? String((workspaceId as { id?: string }).id ?? "")
+          : String(workspaceId);
+
+      if (wsId) params.append("workspace_id", wsId);
     }
     if (activeOnly) params.append("active_only", "true");
     const query = params.toString();
