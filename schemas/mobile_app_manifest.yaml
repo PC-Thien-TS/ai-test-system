@@ -86,6 +86,162 @@ screens:
       accessibility: true
       security: true
 
+  - screen_id: "product_list_screen"
+    name: "ListScreen"
+    type: CONTENT_LIST
+
+    route: "/products"
+    deep_link: "rankmate://products"
+    parent_screen: null
+
+    elements:
+      - element_id: "search_bar"
+        type: text_field
+        role: INPUT_SEARCH
+        locator: "test-id:search-bar"
+        locator_type: id
+        required: false
+        editable: true
+
+      - element_id: "filter_button"
+        type: button
+        role: ACTION_FILTER
+        locator: "test-id:filter-button"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "product_list"
+        type: list
+        role: LIST_CONTENT
+        locator: "test-id:product-list"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "refresh_indicator"
+        type: icon
+        role: SIGNAL_REFRESH
+        locator: "test-id:refresh"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "empty_state"
+        type: label
+        role: SIGNAL_EMPTY
+        locator: "test-id:empty-state"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "loading_indicator"
+        type: icon
+        role: SIGNAL_LOADING
+        locator: "test-id:loading"
+        locator_type: id
+        required: false
+        editable: false
+
+    requires_auth: true
+    requires_network: true
+    orientation: portrait
+    scrollable: true
+
+    test_obligations:
+      validation: false
+      network: true
+      lifecycle: true
+      performance: true
+      accessibility: true
+      security: false
+
+  - screen_id: "product_detail_screen"
+    name: "DetailScreen"
+    type: CONTENT_DETAIL
+
+    route: "/products/:id"
+    deep_link: "rankmate://products/:id"
+    parent_screen: product_list_screen
+
+    elements:
+      - element_id: "product_image"
+        type: image
+        role: CONTENT_IMAGE
+        locator: "test-id:product-image"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "product_title"
+        type: label
+        role: CONTENT_TITLE
+        locator: "test-id:product-title"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "product_price"
+        type: label
+        role: CONTENT_PRICE
+        locator: "test-id:product-price"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "product_description"
+        type: label
+        role: CONTENT_DESCRIPTION
+        locator: "test-id:product-description"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "add_to_cart_button"
+        type: button
+        role: ACTION_ADD_TO_CART
+        locator: "test-id:add-to-cart"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "back_button"
+        type: button
+        role: NAVIGATION_BACK
+        locator: "test-id:back-button"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "share_button"
+        type: button
+        role: ACTION_SHARE
+        locator: "test-id:share-button"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "loading_indicator"
+        type: icon
+        role: SIGNAL_LOADING
+        locator: "test-id:loading"
+        locator_type: id
+        required: false
+        editable: false
+
+    requires_auth: true
+    requires_network: true
+    orientation: portrait
+    scrollable: true
+
+    test_obligations:
+      validation: false
+      network: true
+      lifecycle: true
+      performance: true
+      accessibility: true
+      security: false
+
 features:
   - feature_id: "auth_login"
     name: "Login"

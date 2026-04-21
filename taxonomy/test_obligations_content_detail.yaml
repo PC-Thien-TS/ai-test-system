@@ -1,0 +1,237 @@
+# Test Obligations for CONTENT_DETAIL
+# Minimum required test cases for content detail screen
+
+screen_type: CONTENT_DETAIL
+screen_id: product_detail_screen
+
+test_cases:
+  - test_id: TC-DTL-001
+    name: happy_path_load
+    description: Detail loads successfully with data
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+      - user_authenticated: true
+      - item_id: valid
+
+    inputs:
+      item_id: "product_123"
+
+    actions:
+      - action: navigate_to_screen
+        target: product_detail_screen
+        params:
+          id: product_123
+
+    expected_signals:
+      - SIGNAL_LOADING
+
+    expected_api:
+      endpoint: /api/products/product_123
+      method: GET
+      status_code: 200
+      response_contains: item_details
+
+    expected_ui:
+      content_image: present
+      content_title: present
+      content_price: present
+      content_description: present
+      loading_indicator: absent
+
+    oracle_refs:
+      - ORC-NET-008
+
+  - test_id: TC-DTL-002
+    name: add_to_cart_success
+    description: Add to cart succeeds
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - content_loaded: true
+      - network_available: true
+
+    inputs: {}
+
+    actions:
+      - element: ACTION_ADD_TO_CART
+        action: tap
+
+    expected_signals:
+      - SIGNAL_LOADING
+
+    expected_api:
+      endpoint: /api/cart/items
+      method: POST
+      status_code: 200
+      response_contains: cart_updated
+
+    expected_ui:
+      add_to_cart_button: enabled
+      loading_indicator: absent
+      cart_badge: updated
+
+    oracle_refs:
+      - ORC-NET-009
+
+  - test_id: TC-DTL-003
+    name: back_navigation
+    description: Back button returns to list screen
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - content_loaded: true
+
+    inputs: {}
+
+    actions:
+      - element: NAVIGATION_BACK
+        action: tap
+
+    expected_ui:
+      navigation: to_list_screen
+      scroll_position: preserved
+
+    oracle_refs:
+      - ORC-LIF-003
+
+  - test_id: TC-DTL-004
+    name: item_not_found
+    description: 404 error when item does not exist
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      item_id: "nonexistent_123"
+
+    actions:
+      - action: navigate_to_screen
+        target: product_detail_screen
+        params:
+          id: nonexistent_123
+
+    expected_api:
+      endpoint: /api/products/nonexistent_123
+      method: GET
+      status_code: 404
+
+    expected_ui:
+      error_message: item_not_found
+      loading_indicator: absent
+      back_button: enabled
+
+    oracle_refs:
+      - ORC-DTL-002
+
+  - test_id: TC-DTL-005
+    name: network_offline
+    description: Detail handles network offline
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      network_available: false
+
+    inputs: {}
+
+    actions:
+      - action: refresh_screen
+
+    expected_signals:
+      - SIGNAL_ERROR
+
+    expected_ui:
+      error_message: network_unavailable
+      loading_indicator: absent
+      cached_data: may_display
+
+    oracle_refs:
+      - ORC-NET-005
+      - ORC-NET-003
+
+  - test_id: TC-DTL-006
+    name: add_to_cart_failure
+    description: Add to cart fails on API error
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - content_loaded: true
+      - network_available: true
+
+    inputs: {}
+
+    actions:
+      - element: ACTION_ADD_TO_CART
+        action: tap
+
+    expected_api:
+      endpoint: /api/cart/items
+      method: POST
+      status_code: 4xx OR 5xx
+
+    expected_ui:
+      error_message: present
+      add_to_cart_button: enabled
+
+    oracle_refs:
+      - ORC-NET-010
+
+  - test_id: TC-DTL-007
+    name: share_action
+    description: Share action opens share sheet
+    priority: medium
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - content_loaded: true
+
+    inputs: {}
+
+    actions:
+      - element: ACTION_SHARE
+        action: tap
+
+    expected_ui:
+      share_sheet: presented
+
+    oracle_refs:
+      - ORC-DTL-001
+
+obligation_coverage:
+  validation: 0
+  network: 100
+  lifecycle: 50
+  performance: 0
+  accessibility: 0
+  security: 0
+
+required_obligations:
+  - happy_path_load
+  - add_to_cart_success
+  - back_navigation
+  - item_not_found
+  - network_offline
+  - add_to_cart_failure
+
+optional_obligations:
+  - share_action
+  - image_zoom
+  - related_items
+  - reviews_display
+  - quantity_adjustment
+  - wishlist_action
