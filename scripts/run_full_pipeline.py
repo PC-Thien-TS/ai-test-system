@@ -188,22 +188,27 @@ def memory_context_from_groups(failure_analysis: Dict[str, Any]) -> Dict[str, An
     if not matched:
         return {}
 
+    seen_counts = [max(1, parse_int(record.get("seen_count"), 1)) for record in matched]
     flaky_score = max(parse_float(record.get("flaky_score"), 0.0) for record in matched)
     recurring_count = sum(1 for record in matched if parse_int(record.get("seen_count"), 0) > 1)
     rerun_success_count = sum(parse_int(record.get("rerun_success_count"), 0) for record in matched)
     rerun_failure_count = sum(parse_int(record.get("rerun_failure_count"), 0) for record in matched)
     total_reruns = rerun_success_count + rerun_failure_count
+    rerun_success_rate = (rerun_success_count / total_reruns) if total_reruns > 0 else 0.0
 
     return {
         "available": True,
         "source": str(FAILURE_MEMORY_DB_PATH),
         "source_status": source_status,
         "matched_group_keys": matched_keys,
+        "seen_count": min(seen_counts),
+        "max_seen_count": max(seen_counts),
         "recurrence_rate": recurring_count / max(len(groups), 1),
         "flaky_signal": flaky_score >= 0.40 or (total_reruns > 0 and rerun_success_count > rerun_failure_count),
         "flaky_score": flaky_score,
         "rerun_success_count": rerun_success_count,
         "rerun_failure_count": rerun_failure_count,
+        "rerun_success_rate": round(rerun_success_rate, 4),
     }
 
 
@@ -517,10 +522,19 @@ def build_decision_payload(
             release_critical_hits.add(keyword)
 
     recurrence_rate_default = (repeated_failures / total_failed) if total_failed > 0 else 0.0
+    seen_count = max(0, parse_int(memory_context.get("seen_count"), 0))
     recurrence_rate = parse_float(memory_context.get("recurrence_rate"), recurrence_rate_default)
     flaky_score_default = severity_distribution["low"] / max(total_failed, 1)
     flaky_score = parse_float(memory_context.get("flaky_score"), flaky_score_default)
     flaky_signal = bool(memory_context.get("flaky_signal", False))
+    rerun_success_count = max(0, parse_int(memory_context.get("rerun_success_count"), 0))
+    rerun_failure_count = max(0, parse_int(memory_context.get("rerun_failure_count"), 0))
+    rerun_total = rerun_success_count + rerun_failure_count
+    rerun_success_rate = (
+        parse_float(memory_context.get("rerun_success_rate"), rerun_success_count / rerun_total)
+        if rerun_total > 0
+        else 0.0
+    )
     only_non_critical = high_or_critical_groups == 0
     if only_non_critical and severity_distribution["medium"] + severity_distribution["low"] > 0 and flaky_score >= 0.40:
         flaky_signal = True
@@ -554,18 +568,37 @@ def build_decision_payload(
         fallback_used = False
         rationale.append(f"Detected >= {high_threshold} high-severity failure groups.")
     elif only_non_critical and flaky_signal:
-        if flaky_score >= suppress_min_flaky:
-            decision = "SUPPRESS"
-            release_action = "SUPPRESS_AND_MONITOR"
-            matched_rule = "only_flaky_non_critical_suppress"
-            fallback_used = False
-            rationale.append("Only flaky non-critical failures detected; suppression eligible.")
-        elif flaky_score >= rerun_min_flaky or recurrence_rate >= parse_float(policy_config.get("recurrence_rate_high_threshold"), 0.40):
+        if seen_count <= 1:
             decision = "RERUN_RECOMMENDED"
             release_action = "RETRY_BEFORE_RELEASE"
             matched_rule = "only_flaky_non_critical_rerun"
             fallback_used = False
-            rationale.append("Flaky non-critical failures detected; rerun recommended before release.")
+            rationale.append("First observed flaky non-critical failure should not be suppressed; rerun recommended.")
+        elif rerun_total > 0 and rerun_success_rate >= 0.80:
+            decision = "SUPPRESS"
+            release_action = "SUPPRESS_AND_MONITOR"
+            matched_rule = "only_flaky_non_critical_suppress"
+            fallback_used = False
+            if seen_count >= 3:
+                rationale.append("Strong flaky signal confirmed by repeated failures and very high rerun success rate.")
+            else:
+                rationale.append("Repeated flaky non-critical failure has high rerun success history; suppression eligible.")
+        elif rerun_total > 0 and rerun_success_rate < 0.50:
+            decision = "ESCALATE"
+            release_action = "HOLD_AND_REVIEW"
+            matched_rule = "medium_low_non_critical_escalate"
+            fallback_used = False
+            rationale.append("Repeated flaky non-critical failure has poor rerun success history; escalation preferred.")
+        elif (
+            (rerun_total > 0 and rerun_success_rate < 0.80)
+            or flaky_score >= rerun_min_flaky
+            or recurrence_rate >= parse_float(policy_config.get("recurrence_rate_high_threshold"), 0.40)
+        ):
+            decision = "RERUN_RECOMMENDED"
+            release_action = "RETRY_BEFORE_RELEASE"
+            matched_rule = "only_flaky_non_critical_rerun"
+            fallback_used = False
+            rationale.append("Repeated flaky non-critical failure has mixed rerun history; rerun recommended before release.")
     elif only_non_critical:
         decision = "ESCALATE"
         release_action = "HOLD_AND_REVIEW"
@@ -581,8 +614,12 @@ def build_decision_payload(
             f"total_failed={total_failed}",
             f"total_groups={total_groups}",
             f"most_affected_area={most_affected_area}",
+            f"seen_count={seen_count}",
             f"recurrence_rate={recurrence_rate:.2f}",
             f"flaky_score={flaky_score:.2f}",
+            f"rerun_success_count={rerun_success_count}",
+            f"rerun_failure_count={rerun_failure_count}",
+            f"rerun_success_rate={rerun_success_rate:.2f}",
             f"pass_ratio={pass_ratio:.2f}",
             f"fail_ratio={fail_ratio:.2f}",
         ]
@@ -645,9 +682,13 @@ def build_decision_payload(
             "fail_ratio": round(fail_ratio, 4),
             "severity_distribution": severity_distribution,
             "most_affected_area": most_affected_area,
+            "seen_count": seen_count,
             "recurrence_rate": round(recurrence_rate, 4),
             "flaky_signal": flaky_signal,
             "flaky_score": round(flaky_score, 4),
+            "rerun_success_count": rerun_success_count,
+            "rerun_failure_count": rerun_failure_count,
+            "rerun_success_rate": round(rerun_success_rate, 4),
             "release_critical_hits": sorted(release_critical_hits),
         },
         "policy_evaluation": {
@@ -673,9 +714,13 @@ def build_decision_payload(
         "memory_context": {
             "available": bool(memory_context),
             "source": memory_context_source,
+            "seen_count": seen_count,
             "recurrence_rate": round(recurrence_rate, 4),
             "flaky_signal": flaky_signal,
             "flaky_score": round(flaky_score, 4),
+            "rerun_success_count": rerun_success_count,
+            "rerun_failure_count": rerun_failure_count,
+            "rerun_success_rate": round(rerun_success_rate, 4),
             "raw": memory_context,
         },
         "gating_signals": {

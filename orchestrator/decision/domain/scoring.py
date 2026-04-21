@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
-from .models import DecisionPolicyInput, DecisionPolicyProfile, MemoryResolutionType, clamp01
+from .models import DecisionPolicyInput, DecisionPolicyProfile, MemoryResolutionType, clamp01, historical_action_effectiveness
 
 
 def _memory_certainty(input_data: DecisionPolicyInput) -> float:
@@ -37,7 +37,7 @@ def compute_decision_score(
         release_signal += 0.10
     release_signal = clamp01(release_signal)
 
-    action_effectiveness_signal = clamp01(input_data.best_action_effectiveness or 0.0)
+    action_effectiveness_signal = historical_action_effectiveness(input_data)
 
     weighted = (
         profile.component_weights["severity"] * severity_signal
@@ -69,4 +69,3 @@ def compute_decision_score(
         "weighted_sum": round(weighted, 4),
         "score": round(score, 4),
     }
-

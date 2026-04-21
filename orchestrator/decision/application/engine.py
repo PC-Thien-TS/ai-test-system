@@ -23,6 +23,7 @@ from ..domain.rules import (
     derive_recommended_owner,
     derive_strategy,
     evaluate_hard_rule,
+    evaluate_memory_policy,
     secondary_decisions_from_candidates,
 )
 from ..domain.scoring import compute_decision_score
@@ -63,6 +64,10 @@ class DecisionPolicyEngine:
         hard_outcome = evaluate_hard_rule(input_data, governance, profile, combined_confidence=combined_confidence)
         if hard_outcome is not None:
             return hard_outcome.decision, hard_outcome.rationale
+
+        memory_outcome = evaluate_memory_policy(input_data, governance, profile)
+        if memory_outcome is not None:
+            return memory_outcome.decision, memory_outcome.rationale
 
         decision = derive_primary_decision_from_score(
             input_data,
@@ -148,6 +153,7 @@ class DecisionPolicyEngine:
             decision_score,
             combined_confidence,
             strategy,
+            primary_decision,
         )
         secondary_signals["profile"] = profile.profile_name
         secondary_signals["score_components"] = score_components
@@ -251,4 +257,3 @@ class DecisionPolicyEngine:
             "owner_hint": result.recommended_owner,
             "notes": result.rationale,
         }
-

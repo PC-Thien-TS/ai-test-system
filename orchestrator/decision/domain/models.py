@@ -153,6 +153,41 @@ def clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def seen_count(input_data: DecisionPolicyInput) -> int:
+    raw = input_data.metadata.get("seen_count")
+    if raw is None:
+        raw = input_data.occurrence_count
+    return max(1, _safe_int(raw, default=max(1, input_data.occurrence_count)))
+
+
+def rerun_history_counts(input_data: DecisionPolicyInput) -> tuple[int, int]:
+    success_count = max(0, _safe_int(input_data.metadata.get("rerun_success_count"), 0))
+    failure_count = max(0, _safe_int(input_data.metadata.get("rerun_failure_count"), 0))
+    return success_count, failure_count
+
+
+def rerun_success_rate(input_data: DecisionPolicyInput) -> Optional[float]:
+    success_count, failure_count = rerun_history_counts(input_data)
+    total = success_count + failure_count
+    if total <= 0:
+        return None
+    return clamp01(success_count / float(total))
+
+
+def historical_action_effectiveness(input_data: DecisionPolicyInput) -> float:
+    rate = rerun_success_rate(input_data)
+    if rate is not None:
+        return rate
+    return clamp01(input_data.best_action_effectiveness or 0.0)
+
+
 def combine_confidence(signal_confidence: float, memory_confidence: float, resolution: MemoryResolutionType) -> float:
     base = (0.55 * clamp01(signal_confidence)) + (0.45 * clamp01(memory_confidence))
     if resolution == MemoryResolutionType.EXACT_MATCH:
