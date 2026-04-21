@@ -22,7 +22,7 @@ def _oracle_result(login_screen, condition: str) -> bool:
 
 def test_login_success_navigates_to_home(login_screen, mobile_settings):
     plan = plan_screen(
-        "AUTH_LOGIN",
+        "LoginScreen",
         username=mobile_settings.valid_username,
         password=mobile_settings.valid_password,
     )
@@ -34,7 +34,7 @@ def test_login_success_navigates_to_home(login_screen, mobile_settings):
 
 def test_login_failure_shows_error(login_screen, mobile_settings):
     plan = plan_screen(
-        "AUTH_LOGIN",
+        "LoginScreen",
         username=mobile_settings.invalid_username,
         password=mobile_settings.invalid_password,
     )
