@@ -96,8 +96,14 @@ class FakeAndroidDriver:
             settings.password_id: "",
         }
         self.current_activity = settings.login_activity
+        self.current_screen_name = "LoginScreen"
         self.error_message = ""
         self.logged_in = False
+        self.list_loaded = False
+        self.list_items_visible = False
+        self.detail_loaded = False
+        self.detail_content_visible = False
+        self.selected_item_id = ""
 
     def find_element(self, by: str, value: str) -> FakeMobileElement:
         if by != AppiumBy.ID:
@@ -122,10 +128,48 @@ class FakeAndroidDriver:
             self.logged_in = True
             self.error_message = ""
             self.current_activity = self.settings.home_activity
+            self.current_screen_name = "ListScreen"
+            self.list_loaded = True
+            self.list_items_visible = True
+            self.detail_loaded = False
+            self.detail_content_visible = False
+            self.selected_item_id = ""
             return
         self.logged_in = False
         self.current_activity = self.settings.login_activity
+        self.current_screen_name = "LoginScreen"
         self.error_message = "Invalid username or password"
+        self.list_loaded = False
+        self.list_items_visible = False
+        self.detail_loaded = False
+        self.detail_content_visible = False
+        self.selected_item_id = ""
+
+    def open_detail(self, item_id: str = "item_0") -> None:
+        if not self.list_loaded:
+            raise RuntimeError("Cannot open detail before list screen is loaded.")
+        self.current_screen_name = "DetailScreen"
+        self.detail_loaded = True
+        self.detail_content_visible = True
+        self.selected_item_id = item_id
+
+    def back_to_list(self) -> None:
+        if self.current_screen_name != "DetailScreen":
+            raise RuntimeError("Cannot navigate back to list when detail screen is not active.")
+        self.current_screen_name = "ListScreen"
+        self.list_loaded = True
+        self.list_items_visible = True
+        self.detail_loaded = False
+        self.detail_content_visible = False
+
+    def is_screen_loaded(self, screen_name: str) -> bool:
+        return self.current_screen_name == screen_name
+
+    def has_list_items(self) -> bool:
+        return self.current_screen_name == "ListScreen" and self.list_items_visible
+
+    def has_detail_content(self) -> bool:
+        return self.current_screen_name == "DetailScreen" and self.detail_content_visible
 
     def quit(self) -> None:
         return None
