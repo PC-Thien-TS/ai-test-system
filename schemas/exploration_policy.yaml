@@ -1,0 +1,284 @@
+# Exploration Policy for Autonomous Mobile Testing
+# Defines priority, coverage, stop conditions, and action ranking for screen types
+
+version: 1.0
+
+exploration_config:
+  max_total_steps: 100
+  max_steps_per_screen: 20
+  max_cycles: 3
+  default_timeout_seconds: 30
+
+screen_priorities:
+  - screen_type: AUTH_LOGIN
+    priority: 1
+    criticality: critical
+    max_steps: 10
+    preferred_actions:
+      - INPUT_USERNAME
+      - INPUT_PASSWORD
+      - ACTION_SUBMIT
+    risky_actions:
+      - NAVIGATION_FORGOT_PASSWORD
+    retry_policy:
+      max_retries: 3
+      retry_delay_seconds: 2
+      retry_on_failure: true
+    entry_point: true
+    exit_point: false
+
+  - screen_type: CONTENT_LIST
+    priority: 2
+    criticality: high
+    max_steps: 15
+    preferred_actions:
+      - LIST_CONTENT
+      - INPUT_SEARCH
+      - ACTION_FILTER
+    risky_actions:
+      - NAVIGATION_DETAIL
+    retry_policy:
+      max_retries: 2
+      retry_delay_seconds: 2
+      retry_on_failure: true
+    entry_point: false
+    exit_point: false
+
+  - screen_type: CONTENT_DETAIL
+    priority: 3
+    criticality: high
+    max_steps: 10
+    preferred_actions:
+      - CONTENT_IMAGE
+      - CONTENT_TITLE
+      - CONTENT_PRICE
+      - ACTION_ADD_TO_CART
+      - NAVIGATION_BACK
+    risky_actions:
+      - ACTION_SHARE
+    retry_policy:
+      max_retries: 2
+      retry_delay_seconds: 2
+      retry_on_failure: true
+    entry_point: false
+    exit_point: false
+
+stop_conditions:
+  global:
+    - condition: max_steps_reached
+      threshold: max_total_steps
+      action: stop_exploration
+
+    - condition: max_cycles_detected
+      threshold: max_cycles
+      action: stop_exploration
+
+    - condition: coverage_threshold_reached
+      threshold: 90
+      action: stop_exploration
+
+    - condition: repeated_failure_count
+      threshold: 5
+      action: stop_exploration
+
+    - condition: no_valid_action_available
+      threshold: 0
+      action: stop_exploration
+
+  per_screen:
+    - condition: max_steps_per_screen_reached
+      threshold: max_steps_per_screen
+      action: move_to_next_screen
+
+    - condition: screen_coverage_complete
+      threshold: 100
+      action: move_to_next_screen
+
+    - condition: screen_failure_count
+      threshold: 3
+      action: mark_screen_failed
+
+coverage_strategy:
+  AUTH_LOGIN:
+    required_minimum_coverage: 100
+    optional_coverage: 0
+    coverage_score_weight: 0.4
+    coverage_elements:
+      - INPUT_USERNAME
+      - INPUT_PASSWORD
+      - ACTION_SUBMIT
+      - SIGNAL_ERROR
+      - SIGNAL_LOADING
+
+  CONTENT_LIST:
+    required_minimum_coverage: 80
+    optional_coverage: 20
+    coverage_score_weight: 0.3
+    coverage_elements:
+      - LIST_CONTENT
+      - INPUT_SEARCH
+      - ACTION_FILTER
+      - SIGNAL_EMPTY
+      - SIGNAL_LOADING
+
+  CONTENT_DETAIL:
+    required_minimum_coverage: 80
+    optional_coverage: 20
+    coverage_score_weight: 0.3
+    coverage_elements:
+      - CONTENT_IMAGE
+      - CONTENT_TITLE
+      - CONTENT_PRICE
+      - ACTION_ADD_TO_CART
+      - NAVIGATION_BACK
+
+action_ranking:
+  AUTH_LOGIN:
+    primary:
+      - action: INPUT_USERNAME
+        rank: 1
+        reason: Required for login flow
+
+      - action: INPUT_PASSWORD
+        rank: 2
+        reason: Required for login flow
+
+      - action: ACTION_SUBMIT
+        rank: 3
+        reason: Completes login flow
+
+    secondary:
+      - action: NAVIGATION_FORGOT_PASSWORD
+        rank: 4
+        reason: Optional navigation
+
+    recovery:
+      - action: clear_error
+        rank: 1
+        reason: Clear error state
+
+      - action: retry_submit
+        rank: 2
+        reason: Retry failed action
+
+  CONTENT_LIST:
+    primary:
+      - action: LIST_CONTENT
+        rank: 1
+        reason: Core content element
+
+      - action: open_first_item
+        rank: 2
+        reason: Navigate to detail
+
+    secondary:
+      - action: INPUT_SEARCH
+        rank: 3
+        reason: Filter content
+
+      - action: ACTION_FILTER
+        rank: 4
+        reason: Filter options
+
+    recovery:
+      - action: pull_to_refresh
+        rank: 1
+        reason: Reload content
+
+      - action: clear_search
+        rank: 2
+        reason: Reset filters
+
+  CONTENT_DETAIL:
+    primary:
+      - action: ACTION_ADD_TO_CART
+        rank: 1
+        reason: Core transaction action
+
+      - action: NAVIGATION_BACK
+        rank: 2
+        reason: Return to list
+
+    secondary:
+      - action: CONTENT_IMAGE
+        rank: 3
+        reason: View content
+
+      - action: ACTION_SHARE
+        rank: 4
+        reason: Optional action
+
+    recovery:
+      - action: NAVIGATION_BACK
+        rank: 1
+        reason: Exit on failure
+
+      - action: retry_add_to_cart
+        rank: 2
+        reason: Retry failed action
+
+exploration_order:
+  - AUTH_LOGIN
+  - CONTENT_LIST
+  - CONTENT_DETAIL
+
+fallback_behavior:
+  on_action_failure:
+    - action: retry
+      max_attempts: 2
+
+    - action: use_recovery_action
+      priority: true
+
+  on_screen_failure:
+    - action: mark_screen_failed
+      continue: true
+
+    - action: move_to_next_screen
+      priority: true
+
+  on_exhausted_actions:
+    - action: move_to_next_screen
+      priority: true
+
+    - action: stop_exploration
+      priority: false
+
+coverage_calculation:
+  method: weighted_average
+  formula: "(screen_coverage * weight) / total_weight"
+  thresholds:
+    minimum: 60
+    satisfactory: 80
+    excellent: 95
+
+risk_assessment:
+  high_risk_actions:
+    - NAVIGATION_FORGOT_PASSWORD
+    - NAVIGATION_DETAIL
+    - ACTION_SHARE
+
+  medium_risk_actions:
+    - ACTION_FILTER
+    - INPUT_SEARCH
+
+  low_risk_actions:
+    - INPUT_USERNAME
+    - INPUT_PASSWORD
+    - ACTION_SUBMIT
+    - LIST_CONTENT
+    - ACTION_ADD_TO_CART
+    - NAVIGATION_BACK
+
+  risk_mitigation:
+    high_risk:
+      - execute_last
+      - limit_executions: 1
+
+    medium_risk:
+      - execute_after_primary
+      - limit_executions: 2
+
+    low_risk:
+      - execute_first
+      - no_limit
