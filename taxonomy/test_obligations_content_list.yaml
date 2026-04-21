@@ -1,0 +1,246 @@
+# Test Obligations for CONTENT_LIST
+# Minimum required test cases for content list screen
+
+screen_type: CONTENT_LIST
+screen_id: product_list_screen
+
+test_cases:
+  - test_id: TC-LIST-001
+    name: happy_path_load
+    description: List loads successfully with data
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+      - user_authenticated: true
+
+    inputs: {}
+
+    actions:
+      - action: navigate_to_screen
+        target: product_list_screen
+
+    expected_signals:
+      - SIGNAL_LOADING
+
+    expected_api:
+      endpoint: /api/products
+      method: GET
+      status_code: 200
+      response_contains: items
+
+    expected_ui:
+      list_content: present
+      loading_indicator: absent
+      item_count: greater_than_0
+
+    oracle_refs:
+      - ORC-NET-006
+
+  - test_id: TC-LIST-002
+    name: pull_to_refresh
+    description: Pull-to-refresh reloads list data
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - list_content: present
+      - network_available: true
+
+    inputs: {}
+
+    actions:
+      - element: LIST_CONTENT
+        action: pull_to_refresh
+
+    expected_signals:
+      - SIGNAL_REFRESH
+      - SIGNAL_LOADING
+
+    expected_api:
+      endpoint: /api/products
+      method: GET
+      status_code: 200
+
+    expected_ui:
+      list_content: refreshed
+      loading_indicator: absent
+
+    oracle_refs:
+      - ORC-NET-006
+
+  - test_id: TC-LIST-003
+    name: search_functionality
+    description: Search filters list items
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - list_content: present
+      - network_available: true
+
+    inputs:
+      search_query: "product name"
+
+    actions:
+      - element: INPUT_SEARCH
+        action: enter_text
+        value: "product name"
+
+    expected_signals:
+      - SIGNAL_LOADING
+
+    expected_api:
+      endpoint: /api/products
+      method: GET
+      query_param: q=product name
+      status_code: 200
+
+    expected_ui:
+      list_content: filtered
+      loading_indicator: absent
+      item_count: less_than_or_equal_total
+
+    oracle_refs:
+      - ORC-NET-007
+
+  - test_id: TC-LIST-004
+    name: empty_state
+    description: Empty state displayed when no items
+    priority: medium
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      search_query: "nonexistent item"
+
+    actions:
+      - element: INPUT_SEARCH
+        action: enter_text
+        value: "nonexistent item"
+
+    expected_signals:
+      - SIGNAL_EMPTY
+
+    expected_api:
+      endpoint: /api/products
+      method: GET
+      status_code: 200
+      response_contains: empty_items
+
+    expected_ui:
+      empty_state: present
+      list_content: absent
+
+    oracle_refs:
+      - ORC-LST-001
+
+  - test_id: TC-LIST-005
+    name: network_offline
+    description: List handles network offline
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: false
+
+    inputs: {}
+
+    actions:
+      - element: LIST_CONTENT
+        action: pull_to_refresh
+
+    expected_signals:
+      - SIGNAL_ERROR
+
+    expected_ui:
+      error_message: network_unavailable
+      loading_indicator: absent
+      cached_data: may_display
+
+    oracle_refs:
+      - ORC-NET-005
+      - ORC-NET-003
+
+  - test_id: TC-LIST-006
+    name: scroll_position_preservation
+    description: Scroll position preserved on navigation return
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - list_content: present
+      - scroll_position: middle
+
+    inputs: {}
+
+    actions:
+      - element: LIST_CONTENT
+        action: scroll_to_position
+        value: middle
+      - action: navigate_to_detail
+        target: item_1
+      - action: navigate_back
+
+    expected_ui:
+      scroll_position: preserved
+      list_content: visible
+
+    oracle_refs:
+      - ORC-LIF-003
+
+  - test_id: TC-LIST-007
+    name: tap_item_navigation
+    description: Tapping item navigates to detail screen
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - list_content: present
+
+    inputs: {}
+
+    actions:
+      - element: LIST_CONTENT
+        action: tap_item
+        value: item_0
+
+    expected_ui:
+      navigation: to_detail_screen
+      item_id: item_0
+
+    oracle_refs:
+      - ORC-NET-008
+
+obligation_coverage:
+  validation: 0
+  network: 100
+  lifecycle: 50
+  performance: 0
+  accessibility: 0
+  security: 0
+
+required_obligations:
+  - happy_path_load
+  - pull_to_refresh
+  - search_functionality
+  - network_offline
+  - tap_item_navigation
+
+optional_obligations:
+  - empty_state
+  - scroll_position_preservation
+  - filter_functionality
+  - sort_functionality
+  - infinite_scroll
+  - pagination

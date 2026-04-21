@@ -1,0 +1,143 @@
+# Oracle Mapping for CONTENT_DETAIL Screen Type
+# Defines success, failure, and fallback conditions for content detail screen
+
+screen_type: CONTENT_DETAIL
+
+success_conditions:
+  - condition_id: SC-DTL-001
+    name: Detail data loaded successfully
+    trigger: screen_load
+    expected_signals:
+      - SIGNAL_LOADING
+    expected_api_response:
+      status_code: 200
+      body_contains: item_details
+    expected_ui_state:
+      content_image: present
+      content_title: present
+      content_price: present
+      content_description: present
+      loading_indicator: absent
+    oracle_ref: ORC-NET-008
+    priority: critical
+
+  - condition_id: SC-DTL-002
+    name: Add to cart succeeds
+    trigger: add_to_cart_action
+    expected_signals:
+      - SIGNAL_LOADING
+    expected_api_response:
+      status_code: 200
+      body_contains: cart_updated
+    expected_ui_state:
+      add_to_cart_button: enabled
+      loading_indicator: absent
+    oracle_ref: ORC-NET-009
+    priority: critical
+
+  - condition_id: SC-DTL-003
+    name: Share action succeeds
+    trigger: share_action
+    expected_signals:
+      - none
+    expected_ui_state:
+      share_sheet: presented
+    oracle_ref: ORC-DTL-001
+    priority: medium
+
+  - condition_id: SC-DTL-004
+    name: Back navigation returns to list
+    trigger: back_action
+    expected_ui_state:
+      navigation: to_list_screen
+      scroll_position: preserved
+    oracle_ref: ORC-LIF-003
+    priority: high
+
+failure_conditions:
+  - condition_id: FC-DTL-001
+    name: Network timeout on load
+    trigger: api_timeout
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_error
+      loading_indicator: absent
+    oracle_ref: ORC-NET-003
+    priority: high
+
+  - condition_id: FC-DTL-002
+    name: Item not found
+    trigger: api_error
+    expected_api_response:
+      status_code: 404
+    expected_ui_state:
+      error_message: item_not_found
+      loading_indicator: absent
+      back_button: enabled
+    oracle_ref: ORC-DTL-002
+    priority: high
+
+  - condition_id: FC-DTL-003
+    name: Add to cart fails
+    trigger: add_to_cart_action
+    expected_api_response:
+      status_code: 4xx OR 5xx
+    expected_ui_state:
+      error_message: present
+      add_to_cart_button: enabled
+    oracle_ref: ORC-NET-010
+    priority: high
+
+  - condition_id: FC-DTL-004
+    name: Network unavailable
+    trigger: network_offline
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_unavailable
+      loading_indicator: absent
+    oracle_ref: ORC-NET-005
+    priority: high
+
+fallback_conditions:
+  - condition_id: FB-DTL-001
+    name: Retry on network failure
+    trigger: FC-DTL-001 OR FC-DTL-004
+    action: retry_detail_load
+    max_retries: 3
+    retry_delay_seconds: 2
+    fallback_to: manual_refresh
+
+  - condition_id: FB-DTL-002
+    name: Navigate back on 404
+    trigger: FC-DTL-002
+    action: navigate_back
+    fallback_to: list_screen
+
+  - condition_id: FB-DTL-003
+    name: Show cached detail on failure
+    trigger: FC-DTL-001 OR FC-DTL-004
+    action: display_cached_detail
+    fallback_to: error_message
+
+oracle_binding:
+  SC-DTL-001: ORC-NET-008
+  SC-DTL-002: ORC-NET-009
+  SC-DTL-003: ORC-DTL-001
+  SC-DTL-004: ORC-LIF-003
+  FC-DTL-001: ORC-NET-003
+  FC-DTL-002: ORC-DTL-002
+  FC-DTL-003: ORC-NET-010
+  FC-DTL-004: ORC-NET-005
+
+signal_mapping:
+  CONTENT_IMAGE: product_image
+  CONTENT_TITLE: product_title
+  CONTENT_PRICE: product_price
+  CONTENT_DESCRIPTION: product_description
+  ACTION_ADD_TO_CART: add_to_cart_button
+  NAVIGATION_BACK: back_button
+  ACTION_SHARE: share_button
+  SIGNAL_LOADING: loading_indicator
+  NAVIGATION_LIST: (external navigation target)

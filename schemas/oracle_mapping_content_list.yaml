@@ -1,0 +1,125 @@
+# Oracle Mapping for CONTENT_LIST Screen Type
+# Defines success, failure, and fallback conditions for content list screen
+
+screen_type: CONTENT_LIST
+
+success_conditions:
+  - condition_id: SC-LIST-001
+    name: List data loaded successfully
+    trigger: screen_load OR pull_to_refresh
+    expected_signals:
+      - SIGNAL_LOADING
+    expected_api_response:
+      status_code: 200
+      body_contains: items
+    expected_ui_state:
+      list_content: present
+      loading_indicator: absent
+    oracle_ref: ORC-NET-006
+    priority: critical
+
+  - condition_id: SC-LIST-002
+    name: Search filters list
+    trigger: search_input
+    expected_signals:
+      - SIGNAL_LOADING
+    expected_api_response:
+      status_code: 200
+      body_contains: filtered_items
+    expected_ui_state:
+      list_content: filtered
+      loading_indicator: absent
+    oracle_ref: ORC-NET-007
+    priority: high
+
+  - condition_id: SC-LIST-003
+    name: Empty state displayed when no items
+    trigger: empty_result_set
+    expected_signals:
+      - SIGNAL_EMPTY
+    expected_ui_state:
+      empty_state: present
+      list_content: absent
+    oracle_ref: ORC-LST-001
+    priority: medium
+
+  - condition_id: SC-LIST-004
+    name: Scroll position preserved
+    trigger: navigation_return
+    expected_ui_state:
+      scroll_position: preserved
+    oracle_ref: ORC-LIF-003
+    priority: high
+
+failure_conditions:
+  - condition_id: FC-LIST-001
+    name: Network timeout on load
+    trigger: api_timeout
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_error
+      loading_indicator: absent
+    oracle_ref: ORC-NET-003
+    priority: high
+
+  - condition_id: FC-LIST-002
+    name: Network unavailable
+    trigger: network_offline
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_unavailable
+      loading_indicator: absent
+    oracle_ref: ORC-NET-005
+    priority: high
+
+  - condition_id: FC-LIST-003
+    name: API returns error
+    trigger: api_error
+    expected_api_response:
+      status_code: 4xx OR 5xx
+    expected_ui_state:
+      error_message: present
+      loading_indicator: absent
+    oracle_ref: ORC-NET-008
+    priority: high
+
+fallback_conditions:
+  - condition_id: FB-LIST-001
+    name: Retry on network failure
+    trigger: FC-LIST-001 OR FC-LIST-002 OR FC-LIST-003
+    action: retry_list_load
+    max_retries: 3
+    retry_delay_seconds: 2
+    fallback_to: manual_refresh
+
+  - condition_id: FB-LIST-002
+    name: Show cached data on failure
+    trigger: FC-LIST-001 OR FC-LIST-002
+    action: display_cached_items
+    fallback_to: error_message
+
+  - condition_id: FB-LIST-003
+    name: Enable pull-to-refresh
+    trigger: list_loaded
+    action: enable_pull_to_refresh
+    fallback_to: none
+
+oracle_binding:
+  SC-LIST-001: ORC-NET-006
+  SC-LIST-002: ORC-NET-007
+  SC-LIST-003: ORC-LST-001
+  SC-LIST-004: ORC-LIF-003
+  FC-LIST-001: ORC-NET-003
+  FC-LIST-002: ORC-NET-005
+  FC-LIST-003: ORC-NET-008
+
+signal_mapping:
+  INPUT_SEARCH: search_bar
+  ACTION_FILTER: filter_button
+  LIST_CONTENT: product_list
+  SIGNAL_REFRESH: refresh_indicator
+  SIGNAL_EMPTY: empty_state
+  SIGNAL_LOADING: loading_indicator
+  NAVIGATION_DETAIL: (external navigation target)

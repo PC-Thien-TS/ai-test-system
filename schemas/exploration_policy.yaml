@@ -1,0 +1,47 @@
+version: 1
+strategy_name: bounded_priority_v1
+
+screen_priorities:
+  AUTH_LOGIN: 5
+  CONTENT_LIST: 3
+  CONTENT_DETAIL: 2
+
+action_ranking:
+  AUTH_LOGIN:
+    - action: submit_login
+      rank: 100
+      risk: normal
+
+  CONTENT_LIST:
+    - action: open_first_item
+      rank: 100
+      risk: normal
+
+  CONTENT_DETAIL:
+    - action: go_back
+      rank: 90
+      risk: low
+
+coverage_strategy:
+  target_screen_types:
+    - AUTH_LOGIN
+    - CONTENT_LIST
+    - CONTENT_DETAIL
+  target_actions:
+    - submit_login
+    - open_first_item
+    - go_back
+  coverage_threshold: 1.0
+  weight_by_screen_priority: true
+
+stop_conditions:
+  max_steps: 8
+  cycle_detection: true
+  stop_on_no_valid_action: true
+  stop_on_coverage_threshold: false
+  repeated_failure_threshold: 1
+
+fallback_behavior:
+  malformed_policy: deterministic
+  no_valid_action: stop
+  risky_action: skip
