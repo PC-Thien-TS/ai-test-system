@@ -142,7 +142,7 @@ test_cases:
 
     preconditions:
       - screen_loaded: true
-      network_available: false
+      - network_available: false
 
     inputs: {}
 
