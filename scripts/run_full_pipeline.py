@@ -21,6 +21,9 @@ PYTEST_REPORT_PATH = ARTIFACTS_DIR / "pytest" / "pytest_report.json"
 FAILURE_ANALYSIS_REPORT_PATH = ARTIFACTS_DIR / "failure_analysis" / "failure_analysis_report.json"
 DECISION_RESULT_PATH = ARTIFACTS_DIR / "decision" / "decision_result.json"
 SELF_HEALING_RESULT_PATH = ARTIFACTS_DIR / "self_healing" / "self_healing_result.json"
+SELF_HEALING_RERUN_REPORT_PATH = ARTIFACTS_DIR / "self_healing" / "rerun_pytest_report.json"
+SELF_HEALING_RERUN_STDOUT_PATH = ARTIFACTS_DIR / "self_healing" / "rerun_pytest_stdout.txt"
+FAILURE_MEMORY_DB_PATH = ARTIFACTS_DIR / "failure_memory" / "failure_memory_db.json"
 DASHBOARD_SNAPSHOT_PATH = ARTIFACTS_DIR / "dashboard" / "dashboard_snapshot.json"
 PIPELINE_SUMMARY_PATH = ARTIFACTS_DIR / "pipeline" / "pipeline_run_summary.json"
 DEFAULT_POLICY_PATHS = [
@@ -31,6 +34,7 @@ DEFAULT_MEMORY_CONTEXT_PATHS = [
     ARTIFACTS_DIR / "memory" / "failure_memory_context.json",
     ARTIFACTS_DIR / "failure_memory" / "failure_memory_context.json",
 ]
+DEFAULT_SUBPROCESS_TIMEOUT_SECONDS = 600
 
 
 class StepStatus(str, Enum):
@@ -107,6 +111,186 @@ def artifact_fresh(path: Path, before_mtime_ns: Optional[int]) -> bool:
     return current != before_mtime_ns
 
 
+def pytest_summary_from_report(path: Path) -> Dict[str, int]:
+    if not path.exists():
+        return {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+    payload = read_json(path)
+    summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+    return {
+        "total": parse_int(summary.get("total"), 0),
+        "passed": parse_int(summary.get("passed"), 0),
+        "failed": parse_int(summary.get("failed"), 0),
+        "skipped": parse_int(summary.get("skipped"), 0),
+    }
+
+
+def ensure_last_failed_arg(pytest_args: List[str]) -> List[str]:
+    if any(arg in {"--lf", "--last-failed"} for arg in pytest_args):
+        return list(pytest_args)
+    return ["--lf", *pytest_args]
+
+
+def empty_failure_memory_db() -> Dict[str, Any]:
+    return {
+        "version": 1,
+        "updated_at": "",
+        "records": {},
+    }
+
+
+def load_failure_memory_db(path: Path = FAILURE_MEMORY_DB_PATH) -> tuple[Dict[str, Any], str]:
+    if not path.exists():
+        return empty_failure_memory_db(), "missing"
+    try:
+        payload = read_json(path)
+    except Exception:
+        return empty_failure_memory_db(), "corrupted"
+    if not isinstance(payload, dict) or not isinstance(payload.get("records"), dict):
+        return empty_failure_memory_db(), "invalid"
+    payload.setdefault("version", 1)
+    payload.setdefault("updated_at", "")
+    return payload, "loaded"
+
+
+def failure_group_key(group: Dict[str, Any]) -> str:
+    for field_name in ("signature", "group_id"):
+        value = str(group.get(field_name, "")).strip()
+        if value:
+            return value
+    fallback = "|".join(
+        [
+            str(group.get("category", "")),
+            str(group.get("module_family", "")),
+            str(group.get("message_pattern", "")),
+        ]
+    )
+    return fallback or "unknown_failure_signature"
+
+
+def memory_context_from_groups(failure_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    groups = failure_analysis.get("groups", []) if isinstance(failure_analysis, dict) else []
+    if not groups:
+        return {}
+
+    db, source_status = load_failure_memory_db()
+    records = db.get("records", {}) if isinstance(db, dict) else {}
+    matched: list[Dict[str, Any]] = []
+    matched_keys: list[str] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        key = failure_group_key(group)
+        record = records.get(key)
+        if isinstance(record, dict):
+            matched.append(record)
+            matched_keys.append(key)
+
+    if not matched:
+        return {}
+
+    seen_counts = [max(1, parse_int(record.get("seen_count"), 1)) for record in matched]
+    flaky_score = max(parse_float(record.get("flaky_score"), 0.0) for record in matched)
+    recurring_count = sum(1 for record in matched if parse_int(record.get("seen_count"), 0) > 1)
+    rerun_success_count = sum(parse_int(record.get("rerun_success_count"), 0) for record in matched)
+    rerun_failure_count = sum(parse_int(record.get("rerun_failure_count"), 0) for record in matched)
+    total_reruns = rerun_success_count + rerun_failure_count
+    rerun_success_rate = (rerun_success_count / total_reruns) if total_reruns > 0 else 0.0
+
+    return {
+        "available": True,
+        "source": str(FAILURE_MEMORY_DB_PATH),
+        "source_status": source_status,
+        "matched_group_keys": matched_keys,
+        "seen_count": min(seen_counts),
+        "max_seen_count": max(seen_counts),
+        "recurrence_rate": recurring_count / max(len(groups), 1),
+        "flaky_signal": flaky_score >= 0.40 or (total_reruns > 0 and rerun_success_count > rerun_failure_count),
+        "flaky_score": flaky_score,
+        "rerun_success_count": rerun_success_count,
+        "rerun_failure_count": rerun_failure_count,
+        "rerun_success_rate": round(rerun_success_rate, 4),
+    }
+
+
+def merge_memory_context(primary: Dict[str, Any], fallback: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(fallback or {})
+    merged.update(primary or {})
+    return merged
+
+
+def update_failure_memory_db(
+    *,
+    failure_analysis: Dict[str, Any],
+    decision: Dict[str, Any],
+    self_healing: Dict[str, Any],
+    path: Path = FAILURE_MEMORY_DB_PATH,
+) -> tuple[Dict[str, Any], str]:
+    db, load_status = load_failure_memory_db(path)
+    records = db.setdefault("records", {})
+    groups = failure_analysis.get("groups", []) if isinstance(failure_analysis, dict) else []
+    now = utc_now_iso()
+    rerun_payload = self_healing.get("rerun", {}) if isinstance(self_healing, dict) else {}
+    rerun_executed = bool(self_healing.get("executed")) and self_healing.get("action") == "RERUN_LAST_FAILED"
+    rerun_summary = rerun_payload.get("summary", {}) if isinstance(rerun_payload, dict) else {}
+    rerun_succeeded = (
+        rerun_executed
+        and parse_int(rerun_payload.get("return_code"), -1) == 0
+        and bool(rerun_payload.get("report_fresh"))
+        and parse_int(rerun_summary.get("total"), 0) > 0
+        and parse_int(rerun_summary.get("failed"), 0) == 0
+    )
+
+    updated_keys: list[str] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        key = failure_group_key(group)
+        record = records.get(key)
+        if not isinstance(record, dict):
+            record = {
+                "signature": key,
+                "first_seen": now,
+                "last_seen": now,
+                "seen_count": 0,
+                "flaky_score": 0.0,
+                "rerun_success_count": 0,
+                "rerun_failure_count": 0,
+                "last_decision": "UNKNOWN",
+                "last_release_action": "UNKNOWN",
+            }
+
+        record["signature"] = key
+        record.setdefault("first_seen", now)
+        record["last_seen"] = now
+        record["seen_count"] = parse_int(record.get("seen_count"), 0) + 1
+        record["last_decision"] = str(decision.get("decision", "UNKNOWN"))
+        record["last_release_action"] = str(decision.get("release_action", "UNKNOWN"))
+
+        if rerun_executed:
+            if rerun_succeeded:
+                record["rerun_success_count"] = parse_int(record.get("rerun_success_count"), 0) + 1
+            else:
+                record["rerun_failure_count"] = parse_int(record.get("rerun_failure_count"), 0) + 1
+
+        rerun_successes = parse_int(record.get("rerun_success_count"), 0)
+        rerun_failures = parse_int(record.get("rerun_failure_count"), 0)
+        total_reruns = rerun_successes + rerun_failures
+        record["flaky_score"] = round(rerun_successes / total_reruns, 4) if total_reruns else parse_float(record.get("flaky_score"), 0.0)
+
+        records[key] = record
+        updated_keys.append(key)
+
+    db["updated_at"] = now
+    db["load_status"] = load_status
+    write_json(path, db)
+    return {
+        "db_path": str(path),
+        "load_status": load_status,
+        "updated_keys": updated_keys,
+        "record_count": len(records),
+    }, "updated"
+
+
 def run_subprocess_step(
     *,
     step_name: str,
@@ -130,6 +314,7 @@ def run_subprocess_step(
             encoding="utf-8",
             errors="replace",
             env=env,
+            timeout=subprocess_timeout_seconds(),
         )
     except Exception as exc:
         return StepResult(
@@ -195,6 +380,10 @@ def parse_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def subprocess_timeout_seconds() -> int:
+    return max(1, parse_int(os.getenv("PIPELINE_STEP_TIMEOUT_SECONDS"), DEFAULT_SUBPROCESS_TIMEOUT_SECONDS))
 
 
 def clamp(value: float, low: float, high: float) -> float:
@@ -333,10 +522,19 @@ def build_decision_payload(
             release_critical_hits.add(keyword)
 
     recurrence_rate_default = (repeated_failures / total_failed) if total_failed > 0 else 0.0
+    seen_count = max(0, parse_int(memory_context.get("seen_count"), 0))
     recurrence_rate = parse_float(memory_context.get("recurrence_rate"), recurrence_rate_default)
     flaky_score_default = severity_distribution["low"] / max(total_failed, 1)
     flaky_score = parse_float(memory_context.get("flaky_score"), flaky_score_default)
     flaky_signal = bool(memory_context.get("flaky_signal", False))
+    rerun_success_count = max(0, parse_int(memory_context.get("rerun_success_count"), 0))
+    rerun_failure_count = max(0, parse_int(memory_context.get("rerun_failure_count"), 0))
+    rerun_total = rerun_success_count + rerun_failure_count
+    rerun_success_rate = (
+        parse_float(memory_context.get("rerun_success_rate"), rerun_success_count / rerun_total)
+        if rerun_total > 0
+        else 0.0
+    )
     only_non_critical = high_or_critical_groups == 0
     if only_non_critical and severity_distribution["medium"] + severity_distribution["low"] > 0 and flaky_score >= 0.40:
         flaky_signal = True
@@ -370,18 +568,37 @@ def build_decision_payload(
         fallback_used = False
         rationale.append(f"Detected >= {high_threshold} high-severity failure groups.")
     elif only_non_critical and flaky_signal:
-        if flaky_score >= suppress_min_flaky:
-            decision = "SUPPRESS"
-            release_action = "SUPPRESS_AND_MONITOR"
-            matched_rule = "only_flaky_non_critical_suppress"
-            fallback_used = False
-            rationale.append("Only flaky non-critical failures detected; suppression eligible.")
-        elif flaky_score >= rerun_min_flaky or recurrence_rate >= parse_float(policy_config.get("recurrence_rate_high_threshold"), 0.40):
+        if seen_count <= 1:
             decision = "RERUN_RECOMMENDED"
             release_action = "RETRY_BEFORE_RELEASE"
             matched_rule = "only_flaky_non_critical_rerun"
             fallback_used = False
-            rationale.append("Flaky non-critical failures detected; rerun recommended before release.")
+            rationale.append("First observed flaky non-critical failure should not be suppressed; rerun recommended.")
+        elif rerun_total > 0 and rerun_success_rate >= 0.80:
+            decision = "SUPPRESS"
+            release_action = "SUPPRESS_AND_MONITOR"
+            matched_rule = "only_flaky_non_critical_suppress"
+            fallback_used = False
+            if seen_count >= 3:
+                rationale.append("Strong flaky signal confirmed by repeated failures and very high rerun success rate.")
+            else:
+                rationale.append("Repeated flaky non-critical failure has high rerun success history; suppression eligible.")
+        elif rerun_total > 0 and rerun_success_rate < 0.50:
+            decision = "ESCALATE"
+            release_action = "HOLD_AND_REVIEW"
+            matched_rule = "medium_low_non_critical_escalate"
+            fallback_used = False
+            rationale.append("Repeated flaky non-critical failure has poor rerun success history; escalation preferred.")
+        elif (
+            (rerun_total > 0 and rerun_success_rate < 0.80)
+            or flaky_score >= rerun_min_flaky
+            or recurrence_rate >= parse_float(policy_config.get("recurrence_rate_high_threshold"), 0.40)
+        ):
+            decision = "RERUN_RECOMMENDED"
+            release_action = "RETRY_BEFORE_RELEASE"
+            matched_rule = "only_flaky_non_critical_rerun"
+            fallback_used = False
+            rationale.append("Repeated flaky non-critical failure has mixed rerun history; rerun recommended before release.")
     elif only_non_critical:
         decision = "ESCALATE"
         release_action = "HOLD_AND_REVIEW"
@@ -397,8 +614,12 @@ def build_decision_payload(
             f"total_failed={total_failed}",
             f"total_groups={total_groups}",
             f"most_affected_area={most_affected_area}",
+            f"seen_count={seen_count}",
             f"recurrence_rate={recurrence_rate:.2f}",
             f"flaky_score={flaky_score:.2f}",
+            f"rerun_success_count={rerun_success_count}",
+            f"rerun_failure_count={rerun_failure_count}",
+            f"rerun_success_rate={rerun_success_rate:.2f}",
             f"pass_ratio={pass_ratio:.2f}",
             f"fail_ratio={fail_ratio:.2f}",
         ]
@@ -461,9 +682,13 @@ def build_decision_payload(
             "fail_ratio": round(fail_ratio, 4),
             "severity_distribution": severity_distribution,
             "most_affected_area": most_affected_area,
+            "seen_count": seen_count,
             "recurrence_rate": round(recurrence_rate, 4),
             "flaky_signal": flaky_signal,
             "flaky_score": round(flaky_score, 4),
+            "rerun_success_count": rerun_success_count,
+            "rerun_failure_count": rerun_failure_count,
+            "rerun_success_rate": round(rerun_success_rate, 4),
             "release_critical_hits": sorted(release_critical_hits),
         },
         "policy_evaluation": {
@@ -489,9 +714,13 @@ def build_decision_payload(
         "memory_context": {
             "available": bool(memory_context),
             "source": memory_context_source,
+            "seen_count": seen_count,
             "recurrence_rate": round(recurrence_rate, 4),
             "flaky_signal": flaky_signal,
             "flaky_score": round(flaky_score, 4),
+            "rerun_success_count": rerun_success_count,
+            "rerun_failure_count": rerun_failure_count,
+            "rerun_success_rate": round(rerun_success_rate, 4),
             "raw": memory_context,
         },
         "gating_signals": {
@@ -527,14 +756,17 @@ def step_decision_engine(*, project: str) -> StepResult:
         memory_context, memory_source = load_optional_json(
             resolve_optional_paths("FAILURE_MEMORY_CONTEXT_PATH", DEFAULT_MEMORY_CONTEXT_PATHS)
         )
+        db_memory_context = memory_context_from_groups(analysis)
+        combined_memory_context = merge_memory_context(memory_context, db_memory_context)
+        combined_memory_source = memory_source or str(db_memory_context.get("source", ""))
         policy = merge_policy(default_decision_policy(), policy_override)
         decision_payload = build_decision_payload(
             project=project,
             failure_analysis=analysis,
             pytest_report=pytest_report,
-            memory_context=memory_context,
+            memory_context=combined_memory_context,
             policy_config=policy,
-            memory_context_source=memory_source,
+            memory_context_source=combined_memory_source,
             policy_source=policy_source,
         )
         write_json(DECISION_RESULT_PATH, decision_payload)
@@ -566,60 +798,177 @@ def step_decision_engine(*, project: str) -> StepResult:
         )
 
 
-def step_self_healing(*, project: str, enabled: bool) -> StepResult:
+def step_self_healing(*, project: str, pytest_args: List[str], enabled: bool) -> StepResult:
     started = utc_now_iso()
     try:
         decision = read_json(DECISION_RESULT_PATH) if DECISION_RESULT_PATH.exists() else {}
-        if not enabled:
+        original_decision = str(decision.get("decision", "UNKNOWN"))
+        original_release_action = str(decision.get("release_action", "UNKNOWN"))
+
+        if original_decision != "RERUN_RECOMMENDED":
             payload = {
                 "generated_at": utc_now_iso(),
                 "project": project,
-                "status": "SKIPPED",
-                "enabled": False,
+                "status": "NO_RERUN_NEEDED",
+                "mode": "decision_driven_v1",
+                "enabled": True,
                 "executed": False,
-                "reason": "Self-healing hook disabled.",
+                "decision_updated": False,
+                "reason": "Decision did not request a last-failed rerun.",
+                "legacy_enable_self_healing_flag": enabled,
                 "decision_context": {
-                    "decision": decision.get("decision", "UNKNOWN"),
-                    "release_action": decision.get("release_action", "UNKNOWN"),
+                    "decision": original_decision,
+                    "release_action": original_release_action,
                 },
-                "next_integration_hook": "Enable --enable-self-healing to activate placeholder execution flow.",
             }
             write_json(SELF_HEALING_RESULT_PATH, payload)
             return StepResult(
                 step_name="self_healing",
-                status=StepStatus.SKIPPED,
+                status=StepStatus.SUCCESS,
                 started_at_utc=started,
                 finished_at_utc=utc_now_iso(),
                 return_code=0,
                 artifact_path=str(SELF_HEALING_RESULT_PATH),
-                message="self-healing disabled; skipped with artifact",
+                message="self-healing skipped; decision did not request rerun",
             )
+
+        rerun_args = ensure_last_failed_arg(list(pytest_args or []))
+        command = [
+            sys.executable,
+            str(SCRIPTS_DIR / "run_pytest_with_report.py"),
+            "--report-path",
+            str(SELF_HEALING_RERUN_REPORT_PATH),
+            "--stdout-path",
+            str(SELF_HEALING_RERUN_STDOUT_PATH),
+            "--",
+            *rerun_args,
+        ]
+        before_mtime = mtime_ns(SELF_HEALING_RERUN_REPORT_PATH)
+        proc = subprocess.run(
+            command,
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=subprocess_timeout_seconds(),
+        )
+
+        report_exists = SELF_HEALING_RERUN_REPORT_PATH.exists()
+        report_is_fresh = artifact_fresh(SELF_HEALING_RERUN_REPORT_PATH, before_mtime)
+        rerun_summary = pytest_summary_from_report(SELF_HEALING_RERUN_REPORT_PATH) if report_is_fresh else {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+        }
+        rerun_passed = (
+            proc.returncode == 0
+            and report_is_fresh
+            and rerun_summary["total"] > 0
+            and rerun_summary["failed"] == 0
+        )
+        stdout_tail = (proc.stdout or "").splitlines()[-8:]
+        stderr_tail = (proc.stderr or "").splitlines()[-8:]
 
         payload = {
             "generated_at": utc_now_iso(),
             "project": project,
-            "status": "PLACEHOLDER_EXECUTED",
+            "status": "PASSED_AND_UPDATED_DECISION" if rerun_passed else "RERUN_DID_NOT_PASS",
+            "mode": "decision_driven_v1",
             "enabled": True,
-            "executed": False,
-            "action": "NO_ACTION",
-            "reason": "Self-healing placeholder executed; engine hook pending integration.",
+            "executed": True,
+            "decision_updated": rerun_passed,
+            "action": "RERUN_LAST_FAILED",
+            "reason": (
+                "Last-failed rerun passed; decision updated to PASS."
+                if rerun_passed
+                else "Last-failed rerun did not pass; original decision preserved."
+            ),
+            "legacy_enable_self_healing_flag": enabled,
             "decision_context": {
-                "decision": decision.get("decision", "UNKNOWN"),
-                "release_action": decision.get("release_action", "UNKNOWN"),
+                "decision": original_decision,
+                "release_action": original_release_action,
             },
-            "next_integration_hook": "Replace placeholder with orchestrator.self_healing engine execution.",
+            "rerun": {
+                "command": command,
+                "return_code": proc.returncode,
+                "report_path": str(SELF_HEALING_RERUN_REPORT_PATH),
+                "stdout_path": str(SELF_HEALING_RERUN_STDOUT_PATH),
+                "report_exists": report_exists,
+                "report_fresh": report_is_fresh,
+                "summary": rerun_summary,
+                "stdout_tail": stdout_tail,
+                "stderr_tail": stderr_tail,
+            },
         }
+
+        if rerun_passed:
+            updated_decision = dict(decision)
+            updated_decision["decision"] = "PASS"
+            updated_decision["release_action"] = "ALLOW_RELEASE"
+            updated_decision["confidence"] = max(parse_float(updated_decision.get("confidence"), 0.0), 0.86)
+            updated_decision["updated_at"] = utc_now_iso()
+            updated_decision["updated_by"] = "self_healing_v1_last_failed_rerun"
+            updated_decision["rationale"] = [
+                *list(updated_decision.get("rationale", [])),
+                "Self-healing last-failed rerun passed; decision updated to PASS.",
+            ]
+            gating_signals = dict(updated_decision.get("gating_signals", {}))
+            gating_signals.update(
+                {
+                    "has_failures": False,
+                    "should_block_release": False,
+                    "should_retry_before_release": False,
+                }
+            )
+            updated_decision["gating_signals"] = gating_signals
+            updated_decision["self_healing"] = {
+                "status": payload["status"],
+                "action": payload["action"],
+                "rerun_report_path": str(SELF_HEALING_RERUN_REPORT_PATH),
+                "rerun_summary": rerun_summary,
+            }
+            write_json(DECISION_RESULT_PATH, updated_decision)
+            payload["updated_decision"] = {
+                "decision": updated_decision["decision"],
+                "release_action": updated_decision["release_action"],
+                "confidence": updated_decision["confidence"],
+            }
+
         write_json(SELF_HEALING_RESULT_PATH, payload)
         return StepResult(
             step_name="self_healing",
-            status=StepStatus.SUCCESS,
+            status=StepStatus.SUCCESS if rerun_passed else StepStatus.PARTIAL,
             started_at_utc=started,
             finished_at_utc=utc_now_iso(),
-            return_code=0,
+            return_code=proc.returncode,
             artifact_path=str(SELF_HEALING_RESULT_PATH),
-            message="self-healing placeholder completed",
+            message=payload["reason"],
+            details={
+                "decision_updated": rerun_passed,
+                "rerun_summary": rerun_summary,
+                "rerun_return_code": proc.returncode,
+            },
         )
     except Exception as exc:
+        try:
+            write_json(
+                SELF_HEALING_RESULT_PATH,
+                {
+                    "generated_at": utc_now_iso(),
+                    "project": project,
+                    "status": "FAILED",
+                    "mode": "decision_driven_v1",
+                    "enabled": True,
+                    "executed": False,
+                    "decision_updated": False,
+                    "reason": "Self-healing failed before a safe decision update; original decision preserved.",
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+            )
+        except Exception:
+            pass
         return StepResult(
             step_name="self_healing",
             status=StepStatus.FAILED,
@@ -627,6 +976,39 @@ def step_self_healing(*, project: str, enabled: bool) -> StepResult:
             finished_at_utc=utc_now_iso(),
             artifact_path=str(SELF_HEALING_RESULT_PATH),
             message="self-healing hook error",
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
+
+def step_failure_memory() -> StepResult:
+    started = utc_now_iso()
+    try:
+        failure_analysis = read_json(FAILURE_ANALYSIS_REPORT_PATH) if FAILURE_ANALYSIS_REPORT_PATH.exists() else {}
+        decision = read_json(DECISION_RESULT_PATH) if DECISION_RESULT_PATH.exists() else {}
+        self_healing = read_json(SELF_HEALING_RESULT_PATH) if SELF_HEALING_RESULT_PATH.exists() else {}
+        result, message = update_failure_memory_db(
+            failure_analysis=failure_analysis,
+            decision=decision,
+            self_healing=self_healing,
+        )
+        return StepResult(
+            step_name="failure_memory",
+            status=StepStatus.SUCCESS,
+            started_at_utc=started,
+            finished_at_utc=utc_now_iso(),
+            return_code=0,
+            artifact_path=str(FAILURE_MEMORY_DB_PATH),
+            message=message,
+            details=result,
+        )
+    except Exception as exc:
+        return StepResult(
+            step_name="failure_memory",
+            status=StepStatus.PARTIAL,
+            started_at_utc=started,
+            finished_at_utc=utc_now_iso(),
+            artifact_path=str(FAILURE_MEMORY_DB_PATH),
+            message="failure memory update skipped after error",
             error=f"{type(exc).__name__}: {exc}",
         )
 
@@ -711,7 +1093,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--enable-self-healing",
         action="store_true",
-        help="Enable self-healing hook placeholder execution.",
+        help="Retained for compatibility; v1 self-healing runs when the decision recommends a rerun.",
     )
     parser.add_argument(
         "--strict",
@@ -765,7 +1147,14 @@ def main() -> int:
         )
 
         step_results.append(step_decision_engine(project=args.project))
-        step_results.append(step_self_healing(project=args.project, enabled=args.enable_self_healing))
+        step_results.append(
+            step_self_healing(
+                project=args.project,
+                pytest_args=forwarded_args,
+                enabled=args.enable_self_healing,
+            )
+        )
+        step_results.append(step_failure_memory())
 
         notify_env = {
             "PROJECT_NAME": args.project,
@@ -812,6 +1201,9 @@ def main() -> int:
                 "failure_analysis_report": str(FAILURE_ANALYSIS_REPORT_PATH),
                 "decision_result": str(DECISION_RESULT_PATH),
                 "self_healing_result": str(SELF_HEALING_RESULT_PATH),
+                "self_healing_rerun_report": str(SELF_HEALING_RERUN_REPORT_PATH),
+                "self_healing_rerun_stdout": str(SELF_HEALING_RERUN_STDOUT_PATH),
+                "failure_memory_db": str(FAILURE_MEMORY_DB_PATH),
                 "dashboard_snapshot": str(DASHBOARD_SNAPSHOT_PATH),
                 "pipeline_summary": str(PIPELINE_SUMMARY_PATH),
             },

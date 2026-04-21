@@ -32,6 +32,9 @@ class LocalDashboardArtifactReader:
         self.artifact_root = artifact_root
         self.candidate_root = self.artifact_root / "candidate_artifacts"
 
+    def _shared_artifact(self, filename: str) -> Any:
+        return _read_json(self.artifact_root / filename)
+
     def read_failure_memory_records(self) -> List[Dict[str, Any]]:
         return _read_json_files_in_dir(self.artifact_root / "failure_memory")
 
@@ -57,15 +60,14 @@ class LocalDashboardArtifactReader:
 
     def read_release_records(self) -> List[Dict[str, Any]]:
         records = _read_json_files_in_dir(self.artifact_root / "release")
-        shared = _read_json(Path("release_decision.json"))
+        shared = self._shared_artifact("release_decision.json")
         if isinstance(shared, dict):
             records.append(shared)
         return records
 
     def read_ci_gate_records(self) -> List[Dict[str, Any]]:
         records = _read_json_files_in_dir(self.artifact_root / "ci_gate")
-        shared = _read_json(Path("ci_regression_gate_result.json"))
+        shared = self._shared_artifact("ci_regression_gate_result.json")
         if isinstance(shared, dict):
             records.append(shared)
         return records
-

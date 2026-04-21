@@ -6,13 +6,28 @@ from typing import Any, Dict, Optional
 from urllib import error, request
 
 
-@dataclass
+@dataclass(init=False)
 class LarkClientResponse:
     success: bool
     status_code: int
     data: Dict[str, Any] = field(default_factory=dict)
     raw_body: str = ""
     error: Optional[str] = None
+
+    def __init__(
+        self,
+        success: bool,
+        status_code: int,
+        data: Optional[Dict[str, Any]] = None,
+        raw_body: str = "",
+        error: Optional[str] = None,
+        response_json: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        self.success = success
+        self.status_code = status_code
+        self.data = data if data is not None else dict(response_json or {})
+        self.raw_body = raw_body
+        self.error = error
 
 
 class LarkWebhookClient:
@@ -60,4 +75,3 @@ class LarkWebhookClient:
                 status_code=0,
                 error=f"{type(exc).__name__}: {exc}",
             )
-

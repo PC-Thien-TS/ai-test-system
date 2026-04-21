@@ -3,7 +3,17 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from uuid import uuid4
 from pathlib import Path
+
+
+DEFAULT_BASETEMP_ROOT = Path(".pytest_tmp")
+FALLBACK_BASETEMP_ROOT = Path("artifacts") / "pytest" / "tmp"
+DEFAULT_IGNORES = (
+    DEFAULT_BASETEMP_ROOT,
+    FALLBACK_BASETEMP_ROOT,
+    Path("tests") / "tmp_pytest_lark",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,12 +28,28 @@ def parse_args() -> argparse.Namespace:
         default="artifacts/pytest/pytest_stdout.txt",
         help="Output path for combined stdout/stderr.",
     )
-    parser.add_argument(
-        "pytest_args",
-        nargs="*",
-        help="Additional pytest arguments. Defaults to running full pytest discovery.",
-    )
-    return parser.parse_args()
+    args, pytest_args = parser.parse_known_args()
+    args.pytest_args = pytest_args
+    if args.pytest_args and args.pytest_args[0] == "--":
+        args.pytest_args = args.pytest_args[1:]
+    return args
+
+
+def _has_option(pytest_args: list[str], option_name: str) -> bool:
+    return any(arg == option_name or arg.startswith(f"{option_name}=") for arg in pytest_args)
+
+
+def _safe_basetemp() -> Path:
+    run_dir_name = f"run_pytest_with_report_{uuid4().hex}"
+    try:
+        DEFAULT_BASETEMP_ROOT.mkdir(parents=True, exist_ok=True)
+        probe = DEFAULT_BASETEMP_ROOT / ".write_probe"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return DEFAULT_BASETEMP_ROOT / run_dir_name
+    except OSError:
+        FALLBACK_BASETEMP_ROOT.mkdir(parents=True, exist_ok=True)
+        return FALLBACK_BASETEMP_ROOT / run_dir_name
 
 
 def main() -> int:
@@ -41,6 +67,18 @@ def main() -> int:
         "--json-report-file",
         str(report_path),
     ]
+
+    if not _has_option(args.pytest_args, "--basetemp"):
+        cmd.extend(["--basetemp", str(_safe_basetemp())])
+
+    existing_ignores = {
+        arg.split("=", 1)[1] for arg in args.pytest_args if arg.startswith("--ignore=")
+    }
+    for ignore_path in DEFAULT_IGNORES:
+        ignore_value = str(ignore_path)
+        if ignore_value not in existing_ignores:
+            cmd.extend(["--ignore", ignore_value])
+
     cmd.extend(args.pytest_args)
 
     proc = subprocess.run(
@@ -70,4 +108,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

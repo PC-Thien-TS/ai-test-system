@@ -28,24 +28,19 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements/dev.txt ]; then pip install -r requirements/dev.txt; fi
 
-      - name: Run pytest and build report
-        id: pytest_run
+      - name: Run full QA pipeline
+        id: full_pipeline
         continue-on-error: true
-        run: |
-          python scripts/run_pytest_with_report.py
-
-      - name: Analyze + notify Lark
-        if: always()
         env:
           LARK_ENABLED: ${{ vars.LARK_ENABLED || 'false' }}
           LARK_DRY_RUN: ${{ vars.LARK_DRY_RUN || 'true' }}
           LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
-          PROJECT_NAME: ${{ vars.PROJECT_NAME || github.repository }}
+          PROJECT_NAME: rankmate
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
         run: |
-          python scripts/notify_lark_from_pytest.py
+          python scripts/run_full_pipeline.py --project rankmate
 
-      - name: Upload pytest artifacts
+      - name: Upload QA artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -53,12 +48,42 @@ jobs:
           path: |
             artifacts/pytest/
             artifacts/failure_analysis/
+            artifacts/failure_memory/
+            artifacts/decision/
+            artifacts/self_healing/
+            artifacts/dashboard/
+            artifacts/pipeline/
           if-no-files-found: warn
 
-      - name: Enforce pytest result
+      - name: Gate on QA decision
         if: always()
         run: |
-          if [ "${{ steps.pytest_run.outcome }}" = "failure" ]; then
-            exit 1
-          fi
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
 
+          path = Path("artifacts/decision/decision_result.json")
+          if not path.exists():
+              print("QA decision artifact missing: artifacts/decision/decision_result.json")
+              sys.exit(1)
+
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          decision = payload.get("decision", "UNKNOWN")
+          release_action = payload.get("release_action", "UNKNOWN")
+          confidence = payload.get("confidence", "UNKNOWN")
+
+          print(f"QA decision: {decision}")
+          print(f"Release action: {release_action}")
+          print(f"Confidence: {confidence}")
+
+          if decision == "BLOCK_RELEASE":
+              print("Decision gate failed: BLOCK_RELEASE")
+              sys.exit(1)
+
+          print("Decision gate passed.")
+          PY
+
+          if [ "${{ steps.full_pipeline.outcome }}" = "failure" ]; then
+            echo "Full pipeline exited non-zero, but decision gate did not block release."
+          fi

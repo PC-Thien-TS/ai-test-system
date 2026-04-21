@@ -253,3 +253,113 @@ def test_self_healing_instruction_generation():
         assert instruction["instruction_type"] == "rerun"
     else:
         assert instruction["should_execute"] is False
+
+
+def test_first_occurrence_never_suppresses_even_with_flaky_signal():
+    engine = DecisionPolicyEngine()
+    flags = GovernanceFlags(allow_auto_suppress=True)
+    result = engine.evaluate(
+        _input(
+            severity=SeverityLevel.LOW.value,
+            confidence=0.55,
+            memory_resolution_type=MemoryResolutionType.EXACT_MATCH.value,
+            memory_confidence=0.70,
+            occurrence_count=1,
+            flaky=True,
+            governance_flags=flags,
+            metadata={"seen_count": 1},
+        ),
+        profile_name="flaky_tolerant",
+    )
+    assert result.primary_decision != DecisionPolicyType.SUPPRESS_KNOWN_FLAKY
+    assert result.primary_decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY, DecisionPolicyType.ESCALATE}
+
+
+def test_repeated_failure_with_high_rerun_success_rate_suppresses_and_monitors():
+    engine = DecisionPolicyEngine()
+    flags = GovernanceFlags(allow_auto_suppress=True)
+    result = engine.evaluate(
+        _input(
+            severity=SeverityLevel.LOW.value,
+            confidence=0.60,
+            memory_resolution_type=MemoryResolutionType.EXACT_MATCH.value,
+            memory_confidence=0.80,
+            occurrence_count=2,
+            flaky=True,
+            governance_flags=flags,
+            metadata={
+                "seen_count": 2,
+                "rerun_success_count": 4,
+                "rerun_failure_count": 1,
+            },
+        ),
+        profile_name="flaky_tolerant",
+    )
+    assert result.primary_decision == DecisionPolicyType.SUPPRESS_KNOWN_FLAKY
+    assert result.secondary_signals["release_action"] == "SUPPRESS_AND_MONITOR"
+    assert result.secondary_signals["rerun_success_rate"] == 0.8
+
+
+def test_repeated_failure_with_low_rerun_success_rate_escalates():
+    engine = DecisionPolicyEngine()
+    result = engine.evaluate(
+        _input(
+            severity=SeverityLevel.HIGH.value,
+            confidence=0.75,
+            memory_resolution_type=MemoryResolutionType.EXACT_MATCH.value,
+            memory_confidence=0.85,
+            occurrence_count=3,
+            release_critical=True,
+            metadata={
+                "seen_count": 3,
+                "rerun_success_count": 1,
+                "rerun_failure_count": 3,
+            },
+        )
+    )
+    assert result.primary_decision in {DecisionPolicyType.ESCALATE, DecisionPolicyType.BLOCK_RELEASE}
+
+
+def test_repeated_flaky_failure_with_poor_rerun_history_does_not_suppress():
+    engine = DecisionPolicyEngine()
+    flags = GovernanceFlags(allow_auto_suppress=True)
+    result = engine.evaluate(
+        _input(
+            severity=SeverityLevel.LOW.value,
+            confidence=0.70,
+            memory_resolution_type=MemoryResolutionType.EXACT_MATCH.value,
+            memory_confidence=0.80,
+            occurrence_count=4,
+            flaky=True,
+            governance_flags=flags,
+            metadata={
+                "seen_count": 4,
+                "rerun_success_count": 1,
+                "rerun_failure_count": 3,
+            },
+        ),
+        profile_name="flaky_tolerant",
+    )
+    assert result.primary_decision == DecisionPolicyType.ESCALATE
+    assert result.primary_decision != DecisionPolicyType.SUPPRESS_KNOWN_FLAKY
+
+
+def test_repeated_failure_with_mixed_rerun_success_rate_prefers_rerun():
+    engine = DecisionPolicyEngine()
+    result = engine.evaluate(
+        _input(
+            severity=SeverityLevel.MEDIUM.value,
+            confidence=0.70,
+            memory_resolution_type=MemoryResolutionType.EXACT_MATCH.value,
+            memory_confidence=0.80,
+            occurrence_count=2,
+            best_action="retry_with_backoff",
+            metadata={
+                "seen_count": 2,
+                "rerun_success_count": 1,
+                "rerun_failure_count": 1,
+            },
+        )
+    )
+    assert result.primary_decision in {DecisionPolicyType.RERUN, DecisionPolicyType.RERUN_WITH_STRATEGY}
+    assert result.secondary_signals["release_action"] == "RERUN_RECOMMENDED"
