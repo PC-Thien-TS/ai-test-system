@@ -1,0 +1,307 @@
+# Test Obligations for AUTH_LOGIN
+# Minimum required test cases for login screen
+
+screen_type: AUTH_LOGIN
+screen_id: login_screen
+
+test_cases:
+  - test_id: TC-LOGIN-001
+    name: happy_path
+    description: Successful login with valid credentials
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      username: "test@example.com"
+      password: "ValidPass123!"
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "ValidPass123!"
+      - element: ACTION_SUBMIT
+        action: tap
+
+    expected_signals:
+      - SIGNAL_LOADING
+      - NAVIGATION_HOME
+
+    expected_api:
+      endpoint: /api/auth/login
+      method: POST
+      status_code: 200
+      response_contains: token
+
+    oracle_refs:
+      - ORC-NET-001
+      - ORC-VAL-003
+      - ORC-SEC-001
+
+    cleanup:
+      - action: logout
+      - action: clear_session
+
+  - test_id: TC-LOGIN-002
+    name: invalid_password
+    description: Login fails with invalid password
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      username: "test@example.com"
+      password: "WrongPassword123!"
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "WrongPassword123!"
+      - element: ACTION_SUBMIT
+        action: tap
+
+    expected_signals:
+      - SIGNAL_LOADING
+      - SIGNAL_ERROR
+
+    expected_api:
+      endpoint: /api/auth/login
+      method: POST
+      status_code: 401
+
+    expected_ui:
+      error_message: present
+      login_button: enabled
+
+    oracle_refs:
+      - ORC-FAIL-001
+      - ORC-VAL-003
+
+  - test_id: TC-LOGIN-003
+    name: empty_username
+    description: Login fails with empty username
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+
+    inputs:
+      username: ""
+      password: "ValidPass123!"
+
+    actions:
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "ValidPass123!"
+      - element: ACTION_SUBMIT
+        action: tap
+
+    expected_signals:
+      - SIGNAL_ERROR
+
+    expected_ui:
+      error_message: present
+      login_button: disabled
+      username_field: error_state
+
+    oracle_refs:
+      - ORC-VAL-003
+
+  - test_id: TC-LOGIN-004
+    name: empty_password
+    description: Login fails with empty password
+    priority: critical
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+
+    inputs:
+      username: "test@example.com"
+      password: ""
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: ACTION_SUBMIT
+        action: tap
+
+    expected_signals:
+      - SIGNAL_ERROR
+
+    expected_ui:
+      error_message: present
+      login_button: disabled
+      password_field: error_state
+
+    oracle_refs:
+      - ORC-VAL-003
+
+  - test_id: TC-LOGIN-005
+    name: network_offline
+    description: Login fails when network is offline
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      network_available: false
+
+    inputs:
+      username: "test@example.com"
+      password: "ValidPass123!"
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "ValidPass123!"
+      - element: ACTION_SUBMIT
+        action: tap
+
+    expected_signals:
+      - SIGNAL_ERROR
+
+    expected_ui:
+      error_message: network_unavailable
+      login_button: enabled
+
+    oracle_refs:
+      - ORC-NET-005
+      - ORC-NET-003
+
+  - test_id: TC-LOGIN-006
+    name: double_submit
+    description: Prevents duplicate login submissions
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      username: "test@example.com"
+      password: "ValidPass123!"
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "ValidPass123!"
+      - element: ACTION_SUBMIT
+        action: tap
+      - element: ACTION_SUBMIT
+        action: tap
+        delay_ms: 100
+
+    expected_signals:
+      - SIGNAL_LOADING
+      - NAVIGATION_HOME
+
+    expected_api:
+      endpoint: /api/auth/login
+      method: POST
+      status_code: 200
+      call_count: 1
+
+    expected_ui:
+      login_button: disabled_during_request
+
+    oracle_refs:
+      - ORC-NET-001
+
+    cleanup:
+      - action: logout
+      - action: clear_session
+
+  - test_id: TC-LOGIN-007
+    name: background_during_submit
+    description: Login request handles app backgrounding
+    priority: high
+    automated: true
+
+    preconditions:
+      - screen_loaded: true
+      - network_available: true
+
+    inputs:
+      username: "test@example.com"
+      password: "ValidPass123!"
+
+    actions:
+      - element: INPUT_USERNAME
+        action: enter_text
+        value: "test@example.com"
+      - element: INPUT_PASSWORD
+        action: enter_text
+        value: "ValidPass123!"
+      - element: ACTION_SUBMIT
+        action: tap
+      - action: background_app
+        delay_ms: 500
+      - action: foreground_app
+
+    expected_signals:
+      - SIGNAL_LOADING
+      - NAVIGATION_HOME
+
+    expected_api:
+      endpoint: /api/auth/login
+      method: POST
+      status_code: 200
+
+    expected_ui:
+      form_data: preserved
+      login_button: enabled_on_response
+
+    oracle_refs:
+      - ORC-NET-001
+      - ORC-LIF-002
+
+    cleanup:
+      - action: logout
+      - action: clear_session
+
+obligation_coverage:
+  validation: 100
+  network: 100
+  lifecycle: 50
+  performance: 0
+  accessibility: 0
+  security: 100
+
+required_obligations:
+  - happy_path
+  - invalid_password
+  - empty_username
+  - empty_password
+  - network_offline
+  - double_submit
+  - background_during_submit
+
+optional_obligations:
+  - password_complexity_validation
+  - account_lockout
+  - biometric_login
+  - social_login
+  - remember_me
+  - screen_rotation

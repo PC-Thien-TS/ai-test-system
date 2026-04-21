@@ -1,0 +1,157 @@
+# Oracle Mapping for AUTH_LOGIN Screen Type
+# Defines success, failure, and fallback conditions for login screen
+
+screen_type: AUTH_LOGIN
+
+success_conditions:
+  - condition_id: SC-LOGIN-001
+    name: Valid credentials authenticate
+    trigger: valid_username AND valid_password
+    expected_signals:
+      - SIGNAL_LOADING
+      - NAVIGATION_HOME
+    expected_api_response:
+      status_code: 200
+      body_contains: token
+    oracle_ref: ORC-NET-001
+    priority: critical
+
+  - condition_id: SC-LOGIN-002
+    name: Required fields validation passes
+    trigger: non_empty_username AND non_empty_password
+    expected_signals:
+      - none
+    expected_ui_state:
+      error_message: absent
+      login_button: enabled
+    oracle_ref: ORC-VAL-003
+    priority: critical
+
+  - condition_id: SC-LOGIN-003
+    name: Form state preserved on rotation
+    trigger: screen_rotation_event
+    expected_signals:
+      - none
+    expected_ui_state:
+      username_field: unchanged
+      password_field: unchanged
+    oracle_ref: ORC-LIF-001
+    priority: high
+
+  - condition_id: SC-LOGIN-004
+    name: Password masking active
+    trigger: password_field_focus
+    expected_signals:
+      - none
+    expected_ui_state:
+      password_field_display: masked
+    oracle_ref: ORC-SEC-001
+    priority: critical
+
+failure_conditions:
+  - condition_id: FC-LOGIN-001
+    name: Invalid credentials rejected
+    trigger: invalid_username OR invalid_password
+    expected_signals:
+      - SIGNAL_LOADING
+      - SIGNAL_ERROR
+    expected_api_response:
+      status_code: 401
+    expected_ui_state:
+      error_message: present
+      login_button: enabled
+    oracle_ref: ORC-FAIL-001
+    priority: critical
+
+  - condition_id: FC-LOGIN-002
+    name: Empty username rejected
+    trigger: empty_username AND submit_attempt
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: present
+      login_button: disabled
+    oracle_ref: ORC-VAL-003
+    priority: critical
+
+  - condition_id: FC-LOGIN-003
+    name: Empty password rejected
+    trigger: empty_password AND submit_attempt
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: present
+      login_button: disabled
+    oracle_ref: ORC-VAL-003
+    priority: critical
+
+  - condition_id: FC-LOGIN-004
+    name: Network timeout
+    trigger: api_timeout
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_error
+      login_button: enabled
+    oracle_ref: ORC-NET-003
+    priority: high
+
+  - condition_id: FC-LOGIN-005
+    name: Network unavailable
+    trigger: network_offline
+    expected_signals:
+      - SIGNAL_ERROR
+    expected_ui_state:
+      error_message: network_unavailable
+      login_button: enabled
+    oracle_ref: ORC-NET-005
+    priority: high
+
+fallback_conditions:
+  - condition_id: FB-LOGIN-001
+    name: Retry on network failure
+    trigger: FC-LOGIN-004 OR FC-LOGIN-005
+    action: retry_login
+    max_retries: 3
+    retry_delay_seconds: 2
+    fallback_to: manual_prompt
+
+  - condition_id: FB-LOGIN-002
+    name: Clear error on input
+    trigger: username_change OR password_change
+    action: clear_error_message
+    fallback_to: normal_state
+
+  - condition_id: FB-LOGIN-003
+    name: Disable submit during request
+    trigger: submit_attempt
+    action: disable_login_button
+    fallback_to: enable_on_response
+
+  - condition_id: FB-LOGIN-004
+    name: Show forgot password on invalid credentials
+    trigger: FC-LOGIN-001
+    action: show_forgot_password_link
+    fallback_to: none
+
+oracle_binding:
+  # Maps condition IDs to oracle IDs from the manifest
+  SC-LOGIN-001: ORC-NET-001
+  SC-LOGIN-002: ORC-VAL-003
+  SC-LOGIN-003: ORC-LIF-001
+  SC-LOGIN-004: ORC-SEC-001
+  FC-LOGIN-001: ORC-FAIL-001
+  FC-LOGIN-002: ORC-VAL-003
+  FC-LOGIN-003: ORC-VAL-003
+  FC-LOGIN-004: ORC-NET-003
+  FC-LOGIN-005: ORC-NET-005
+
+signal_mapping:
+  # Maps signal roles to element IDs from manifest
+  INPUT_USERNAME: username_field
+  INPUT_PASSWORD: password_field
+  ACTION_SUBMIT: login_button
+  NAVIGATION_FORGOT_PASSWORD: forgot_password_link
+  SIGNAL_ERROR: error_message
+  SIGNAL_LOADING: loading_indicator
+  NAVIGATION_HOME: (external navigation target)
