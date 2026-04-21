@@ -120,12 +120,17 @@ class LarkNotificationService:
     def should_notify(self, event: LarkNotificationEvent) -> tuple[bool, str]:
         severity = str(event.severity or "").strip().lower()
         if event.event_type == LarkNotificationEventType.INCIDENT_CANDIDATE:
+            if self.config.notify_critical_only and severity and severity != "critical":
+                return False, "critical_only_non_critical_incident"
             return True, "incident_candidate_always_notified"
         if event.event_type == LarkNotificationEventType.BUG_CANDIDATE:
             if severity not in {"critical", "high"}:
                 return False, "bug_severity_not_eligible"
             if int(event.occurrence_count) < int(self.config.bug_occurrence_threshold):
                 return False, "bug_occurrence_below_threshold"
+            # Safest minimal interpretation: only severity=critical bug alerts survive the critical-only mode.
+            if self.config.notify_critical_only and severity != "critical":
+                return False, "critical_only_non_critical_bug"
             return True, "critical_bug_threshold_match"
         if event.event_type == LarkNotificationEventType.DECISION_RESULT:
             if str(event.primary_decision or "").upper() != "BLOCK_RELEASE":

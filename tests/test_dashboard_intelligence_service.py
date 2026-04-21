@@ -262,6 +262,7 @@ def test_release_readiness_summary_calculation(seeded_artifacts: Path):
     assert summary.active_incident_candidates == 1
     assert summary.escalation_count == 2
     assert summary.unresolved_actions == 2
+    assert summary.release_penalty_total == 11
     assert summary.risk_level == "high"
 
 
@@ -358,6 +359,23 @@ def test_graceful_behavior_with_missing_partial_local_artifacts(tmp_path: Path):
     assert snap.release_readiness.active_blockers == 0
 
 
+def test_release_readiness_uses_shared_release_decision_from_artifact_root(tmp_path: Path):
+    root = tmp_path / "artifacts"
+    _write_json(
+        root / "release_decision.json",
+        {
+            "adapter_id": "rankmate",
+            "project_id": "rankmate",
+            "release_penalty_recommendation": 18,
+            "release_signal": "block",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    svc = _service(root)
+    summary = svc.get_release_readiness_summary(DashboardQueryFilter(adapter_id="rankmate", project_id="rankmate"))
+    assert summary.release_penalty_total == 18
+
+
 def test_api_endpoint_executive_summary(seeded_artifacts: Path, monkeypatch):
     fastapi = pytest.importorskip("fastapi")
     testclient_mod = pytest.importorskip("fastapi.testclient")
@@ -374,4 +392,3 @@ def test_api_endpoint_executive_summary(seeded_artifacts: Path, monkeypatch):
     payload = response.json()
     assert "headline_status" in payload
     assert "release_readiness" in payload
-

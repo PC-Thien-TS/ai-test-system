@@ -41,6 +41,14 @@ def build_release_policy_signal(
 
     return {
         "policy_result": result,
+        "adapter_id": input_data.adapter_id,
+        "project_id": input_data.project_id,
+        "run_id": input_data.run_id,
         "release_penalty_recommendation": release_penalty,
         "release_signal": "block" if result.should_block_release else "warn" if result.should_escalate else "normal",
+        "metadata": {
+            "adapter_id": input_data.adapter_id,
+            "project_id": input_data.project_id,
+            "run_id": input_data.run_id,
+        },
     }

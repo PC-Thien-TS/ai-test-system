@@ -155,3 +155,35 @@ def test_message_format_contains_required_sections():
     assert "→ Immediate investigation required" in joined
     assert message.payload["msg_type"] == "post"
 
+
+def test_critical_only_blocks_high_bug_notification():
+    service = _service(critical_only=True, dry_run=True, bug_threshold=2)
+    event = LarkNotificationEvent(
+        event_type=LarkNotificationEventType.BUG_CANDIDATE,
+        title="High severity bug",
+        project="rankmate",
+        adapter="rankmate",
+        severity="high",
+        occurrence_count=3,
+    )
+    should_notify, reason = service.should_notify(event)
+    result = service.send(event)
+    assert should_notify is False
+    assert reason == "critical_only_non_critical_bug"
+    assert result.attempted is False
+    assert result.reason == "critical_only_non_critical_bug"
+
+
+def test_critical_only_still_allows_block_release_decision():
+    service = _service(critical_only=True, dry_run=True)
+    event = LarkNotificationEvent(
+        event_type=LarkNotificationEventType.DECISION_RESULT,
+        title="Release gate decision",
+        project="rankmate",
+        adapter="rankmate",
+        severity="high",
+        primary_decision="BLOCK_RELEASE",
+    )
+    should_notify, reason = service.should_notify(event)
+    assert should_notify is True
+    assert reason == "block_release_decision"
