@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from mobile_appium.classifier import classify_screen
 from mobile_appium.driver import MobileTestSettings, get_mobile_settings
+from mobile_appium.navigation import NavigationAction, select_next_action
 from mobile_appium.planner import MobileFlowPlan, plan_screen
 from mobile_appium.screens.login_screen import LoginScreen
 
@@ -114,19 +115,51 @@ class MobileJourneyRunner:
             raise AssertionError("Driver does not support returning to list screen.")
         self.driver.back_to_list()
 
-    def run_login_list_detail_back(self, *, username: str, password: str) -> JourneyResult:
-        results = [
-            self._evaluate_screen("LoginScreen", username=username, password=password),
-            self._evaluate_screen("ListScreen"),
-        ]
+    def _execute_navigation_action(self, action: NavigationAction) -> str:
+        if action.action == "submit_login":
+            return action.target_screen
+        if action.action == "open_first_item":
+            self._open_detail()
+            return action.target_screen
+        if action.action == "go_back":
+            self._back_to_list()
+            return action.target_screen
+        raise AssertionError(f"Unsupported navigation action: {action.action}")
 
-        self._open_detail()
-        results.append(self._evaluate_screen("DetailScreen"))
+    def _run_guided_journey(self, *, username: str, password: str) -> JourneyResult:
+        results: list[JourneyScreenResult] = []
 
-        self._back_to_list()
-        results.append(self._evaluate_screen("ListScreen"))
+        current = self._evaluate_screen("LoginScreen", username=username, password=password)
+        results.append(current)
+
+        action = select_next_action(current.screen_type)
+        if action is None:
+            return JourneyResult(steps=results, passed=all(result.passed for result in results))
+
+        next_screen = self._execute_navigation_action(action)
+        current = self._evaluate_screen(next_screen)
+        results.append(current)
+
+        action = select_next_action(current.screen_type)
+        if action is None:
+            return JourneyResult(steps=results, passed=all(result.passed for result in results))
+
+        next_screen = self._execute_navigation_action(action)
+        current = self._evaluate_screen(next_screen)
+        results.append(current)
+
+        action = select_next_action(current.screen_type)
+        if action is None:
+            return JourneyResult(steps=results, passed=all(result.passed for result in results))
+
+        next_screen = self._execute_navigation_action(action)
+        current = self._evaluate_screen(next_screen)
+        results.append(current)
 
         return JourneyResult(
             steps=results,
             passed=all(result.passed for result in results),
         )
+
+    def run_login_list_detail_back(self, *, username: str, password: str) -> JourneyResult:
+        return self._run_guided_journey(username=username, password=password)
