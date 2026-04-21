@@ -1,5 +1,1057 @@
 # ai_test_system
 
+## v3.0.0 - Adaptive Quality Intelligence
+
+Version 3.0.0 is a major upgrade that transforms the platform from configurable orchestration into adaptive quality intelligence with AI-assisted analysis, predictive capabilities, and advanced analytics.
+
+### Key Features
+
+- **Real-time Run Intelligence Channel**: WebSocket-based real-time updates for run status, confidence, evidence, and escalation state (upgrade from SSE for bidirectional communication)
+- **AI-Assisted Evidence Analysis**: Anomaly detection with severity levels, pattern grouping across evidence items, and suspicious evidence ranking for prioritized investigation
+- **Escalation Prediction**: Predict escalation likelihood based on risk factors, predict likely next execution path, and expose prediction confidence with explanatory reasons
+- **Escalation Policy Templates**: Default templates by product type (conservative, balanced, aggressive), recommended thresholds from historical patterns, and custom template creation
+- **Advanced Escalation Analytics**: Cross-project escalation pattern detection, top failure mode analysis, time-to-stable trend tracking, and project health scoring
+- **Comprehensive Testing**: 24 new tests for prediction, recommendation, and evidence analysis features
+
+### New Intelligence Modules
+
+- `api/websocket_manager.py`: WebSocket manager for real-time run intelligence updates with run subscriptions and message broadcasting
+- `orchestrator/evidence_analysis.py`: AI-assisted evidence analyzer with anomaly detection, pattern grouping, and suspiciousness ranking
+- `orchestrator/escalation_prediction.py`: Escalation predictor with likelihood calculation, path prediction, and policy recommendations
+- `orchestrator/policy_templates.py`: Policy template engine with default templates, recommendations, and validation
+- `orchestrator/escalation_analytics.py`: Advanced analytics for cross-project patterns, failure modes, and time-to-stable trends
+
+### Backend Changes
+
+- `api/routes/runs.py`: Added WebSocket endpoint /{run_id}/ws for real-time bidirectional updates, imported WebSocket manager
+- `api/app.py`: Bumped version to 3.0.0
+- `orchestrator/compatibility.py`: Updated platform version to 3.0.0
+
+### Real-time Transport
+
+**WebSocket Support:**
+- Bidirectional communication via WebSocket endpoint `/runs/{run_id}/ws`
+- Run-specific subscriptions for targeted updates
+- Message types: run_update, evidence_update, escalation_prediction, anomaly_detected
+- Keep-alive ping/pong mechanism
+- Automatic connection cleanup on disconnect
+
+**SSE Support (Retained):**
+- SSE endpoint `/runs/{run_id}/updates` still available for backward compatibility
+- Streaming run status updates for clients preferring SSE
+
+### Evidence Analysis Features
+
+**Anomaly Detection:**
+- Unexpected response codes (4xx, 5xx)
+- Timeout anomalies (>10s response time)
+- Visual regression in screenshots (>10% diff)
+- Content mismatches (expected vs actual)
+- Performance degradation vs baseline
+
+**Pattern Grouping:**
+- Error message patterns across evidence
+- Frequent URL path access patterns
+- Repeated failure patterns
+
+**Suspiciousness Ranking:**
+- Score-based ranking (0.0 to 1.0)
+- Weighted by anomaly severity
+- Pattern participation factors
+- Content-based risk assessment
+
+### Escalation Prediction Features
+
+**Risk Factors:**
+- Fallback ratio (weight: 0.3)
+- Confidence score (weight: 0.25)
+- Flaky history (weight: 0.2)
+- Gate failure (weight: 0.15)
+- Escalation depth (weight: 0.1)
+
+**Prediction Outputs:**
+- Escalation likelihood (0.0 to 1.0)
+- Predicted next execution path
+- Prediction confidence (high/medium/low)
+- Explanatory reasons for prediction
+
+**Policy Recommendations:**
+- Historical pattern analysis
+- Product-type-based defaults
+- Stability score adjustments
+- Team preference integration
+
+### Policy Templates
+
+**Default Templates:**
+- Conservative (high thresholds, low escalation)
+- Balanced (moderate thresholds)
+- Aggressive (low thresholds, quick escalation)
+- Product-specific variants (web, api, model, rag, llm_app, workflow, data_pipeline)
+
+**Template Features:**
+- Fallback threshold (0.0-1.0)
+- Confidence threshold (0.0-1.0)
+- Max escalation depth (1-10)
+- Auto-escalate toggles
+- Plugin-specific overrides
+
+**Recommendation Engine:**
+- Historical data analysis
+- Stability score integration
+- Team preference support
+- Alternative template suggestions
+
+### Advanced Analytics
+
+**Cross-Project Patterns:**
+- Common escalation reasons
+- Path transition patterns
+- Plugin failure patterns
+- Severity classification
+
+**Failure Mode Analysis:**
+- Top 10 failure modes
+- Occurrence frequency
+- Average escalation depth
+- Time-to-stable metrics
+
+**Time-to-Stable Trends:**
+- Period-based trend analysis
+- Trend direction (increasing/decreasing/stable)
+- Project aggregation
+- Configurable period duration
+
+**Project Health Score:**
+- Escalation rate factor (0.4 weight)
+- Escalation depth factor (0.2 weight)
+- Flaky rate factor (0.2 weight)
+- Time-to-stable factor (0.2 weight)
+- Overall score (0.0 to 1.0)
+
+### Changed Files
+
+**Backend (3 updated, 4 new):**
+- `api/routes/runs.py`: Added WebSocket endpoint, imported websocket_manager
+- `api/app.py`: Bumped version to 3.0.0
+- `orchestrator/compatibility.py`: Updated platform version to 3.0.0
+- `api/websocket_manager.py`: New WebSocket manager module
+- `orchestrator/evidence_analysis.py`: New evidence analysis module
+- `orchestrator/escalation_prediction.py`: New escalation prediction module
+- `orchestrator/policy_templates.py`: New policy templates module
+- `orchestrator/escalation_analytics.py`: New escalation analytics module
+
+**Tests (1 new file):**
+- `tests/test_v30_features.py`: New test file for v3.0 features (24 tests)
+
+### Test Results
+
+**v3.0 Features Tests (24 tests):**
+- test_evidence_analyzer_anomaly_detection: ✅
+- test_evidence_anomaly_severity_levels: ✅
+- test_evidence_pattern_grouping: ✅
+- test_evidence_suspicious_ranking: ✅
+- test_escalation_prediction_likelihood: ✅
+- test_escalation_prediction_high_likelihood: ✅
+- test_escalation_prediction_low_likelihood: ✅
+- test_escalation_path_prediction: ✅
+- test_escalation_policy_recommendation: ✅
+- test_policy_template_list: ✅
+- test_policy_template_by_product_type: ✅
+- test_policy_recommendation: ✅
+- test_policy_recommendation_with_team_preferences: ✅
+- test_policy_recommendation_with_stability_score: ✅
+- test_custom_policy_template_creation: ✅
+- test_policy_configuration_validation: ✅
+- test_cross_project_pattern_detection: ✅
+- test_failure_mode_analysis: ✅
+- test_time_to_stable_trends: ✅
+- test_analytics_summary_generation: ✅
+- test_project_health_score: ✅
+- test_websocket_manager_initialization: ✅
+- test_run_intelligence_message_serialization: ✅
+- test_evidence_analysis_integration: ✅
+- test_escalation_prediction_integration: ✅
+
+**Total: 24 new tests added**
+
+### Intelligence Modules Added
+
+1. **WebSocket Manager** (`api/websocket_manager.py`)
+   - Connection management
+   - Run-specific subscriptions
+   - Message broadcasting
+   - Support for multiple event types
+
+2. **Evidence Analyzer** (`orchestrator/evidence_analysis.py`)
+   - 5 anomaly detectors
+   - Pattern grouping algorithms
+   - Suspiciousness ranking
+   - Analysis summary generation
+
+3. **Escalation Predictor** (`orchestrator/escalation_prediction.py`)
+   - Risk factor calculation
+   - Likelihood prediction
+   - Path prediction
+   - Policy recommendation engine
+
+4. **Policy Template Engine** (`orchestrator/policy_templates.py`)
+   - 6 default templates
+   - Template recommendation
+   - Custom template creation
+   - Configuration validation
+
+5. **Escalation Analytics** (`orchestrator/escalation_analytics.py`)
+   - Cross-project pattern detection
+   - Failure mode analysis
+   - Time-to-stable trends
+   - Project health scoring
+
+### Real-time Transport Used
+
+**WebSocket (Primary):**
+- Endpoint: `/runs/{run_id}/ws`
+- Bidirectional communication
+- Run-specific subscriptions
+- Event types: run_update, evidence_update, escalation_prediction, anomaly_detected
+- Keep-alive mechanism
+
+**SSE (Legacy):**
+- Endpoint: `/runs/{run_id}/updates`
+- Unidirectional streaming
+- Backward compatibility maintained
+
+### Prediction/Recommendation Outputs
+
+**Escalation Prediction:**
+```json
+{
+  "run_id": "run-1",
+  "escalation_likelihood": 0.75,
+  "predicted_path": "deep",
+  "prediction_confidence": "high",
+  "reasons": [
+    "Fallback ratio (0.80) exceeds threshold (0.50)",
+    "Confidence score (0.50) below threshold (0.70)",
+    "Gate test failed"
+  ],
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+**Policy Recommendation:**
+```json
+{
+  "recommended_config": {
+    "fallback_threshold": 0.6,
+    "confidence_threshold": 0.84,
+    "max_escalation_depth": 3,
+    "auto_escalate_on_fail": true,
+    "auto_escalate_on_flaky": true
+  },
+  "confidence": 0.85,
+  "reasons": [
+    "Adjusted for high historical escalation rate: 60%",
+    "Based on team preference: balanced"
+  ],
+  "alternative_templates": ["conservative_web", "aggressive_model"]
+}
+```
+
+**Evidence Analysis:**
+```json
+{
+  "anomalies": [
+    {
+      "evidence_id": "ev1",
+      "anomaly_type": "unexpected_response",
+      "severity": "critical",
+      "description": "HTTP 500 response detected",
+      "confidence": 0.9
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_type": "error_pattern",
+      "description": "Repeated error: Connection refused",
+      "frequency": 3
+    }
+  ],
+  "rankings": [
+    {
+      "evidence_id": "ev1",
+      "suspicious_score": 0.8,
+      "rank": 1,
+      "reasons": ["Critical anomaly: HTTP 500 response detected"]
+    }
+  ],
+  "summary": {
+    "total_evidence": 10,
+    "anomaly_count": 3,
+    "pattern_count": 2,
+    "high_risk_count": 1
+  }
+}
+```
+
+### Recommended v3.1 Roadmap
+
+1. **ML Model Training** - Train machine learning models on historical data for improved prediction accuracy
+2. **Evidence AI Analysis** - Add AI-powered semantic analysis for evidence content and anomaly detection
+3. **Custom Evidence Types** - Allow plugins to define custom evidence types with custom analyzers
+4. **Evidence Search with Semantic Matching** - Add vector-based semantic search for evidence content
+5. **Escalation Policy Auto-tuning** - Automatically adjust policy thresholds based on ongoing performance
+6. **Multi-Model Prediction Ensemble** - Combine multiple prediction models for improved accuracy
+7. **Real-time Anomaly Alerts** - Push notifications for detected anomalies in real-time
+8. **Escalation Chain Visualization** - Interactive visualization of escalation chains with drill-down
+
+## v2.9.0 - Policy UI and Escalation Timeline
+
+Version 2.9.0 adds UI configuration for escalation policies, escalation timeline visualization, evidence export capabilities, and improved evidence search.
+
+### Key Features
+
+- **Escalation Policy UI**: Added project-level escalation policy configuration form with fallback threshold, confidence threshold, max escalation depth, auto-escalate on fail/flaky, and plugin-specific overrides
+- **Escalation Timeline UI**: New escalation timeline page at `/escalations/[chainId]/timeline` with chain visualization, path promotions, escalation reasons, and final outcome
+- **Evidence Export**: Added export format selector (JSON, CSV, Markdown) to evidence browser for downloading evidence reports
+- **Evidence Search**: Advanced search with text query and combined filters (type, severity, plugin, confidence) for finding evidence items
+- **SSE Real-time Updates**: Server-Sent Events for real-time run and evidence updates (already in place from v2.7)
+
+### New UI Routes
+
+- `/escalations/[chainId]/timeline` - Escalation timeline visualization with chain details
+- Policy configuration form integrated into `/projects/[id]` page
+
+### Backend Changes
+
+- `api/routes/projects.py`: Added POST /{project_id}/escalation-policy endpoint for updating escalation policy, updated ProjectResponse to include escalation_policy
+- `orchestrator/project_registry.py`: Updated update_project method to accept escalation_policy parameter
+- `api/app.py`: Bumped version to 2.9.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.9.0
+
+### Frontend Changes
+
+- `dashboard/lib/types.ts`: Added EscalationPolicy interface, added escalation_policy field to Project interface
+- `dashboard/lib/api-client.ts`: Added updateProjectEscalationPolicy API method
+- `dashboard/components/escalation-policy-form.tsx`: New policy configuration form component
+- `dashboard/app/projects/[id]/page.tsx`: Integrated EscalationPolicyForm into project detail page
+- `dashboard/app/escalations/[chainId]/timeline/page.tsx`: New escalation timeline visualization page
+- `dashboard/app/evidence/[runId]/page.tsx`: Added export format selector (JSON, CSV, Markdown)
+
+### Escalation Policy UI
+
+The policy configuration form includes:
+- **Fallback Threshold**: Escalate if fallback ratio exceeds this threshold (0.0-1.0)
+- **Confidence Threshold**: Escalate if confidence score falls below this threshold (0.0-1.0)
+- **Max Escalation Depth**: Maximum number of escalation attempts per chain (1-10)
+- **Auto-escalate on Fail**: Automatically escalate on gate failure
+- **Auto-escalate on Flaky**: Automatically escalate on flaky results
+
+### Escalation Timeline Visualization
+
+The timeline page displays:
+- Original run with execution path and status
+- Escalated from parent run with reason and path promotion
+- Current run with confidence score and fallback ratio
+- Escalation depth, policy applied, and final outcome
+- Policy details if custom policy was used
+
+### Evidence Export Formats
+
+- **JSON**: Structured JSON format with all evidence metadata
+- **CSV**: Tabular format for spreadsheet analysis
+- **Markdown**: Human-readable report format
+
+### Evidence Search Improvements
+
+- Text search across evidence content
+- Combined filters for type, severity, plugin, and confidence
+- Filter by evidence type (screenshot, trace, citation, anomaly, matrix)
+- Filter by severity (critical, high, medium, low)
+- Filter by plugin name (web_playwright, api_contract, model_eval)
+- Filter by minimum confidence score (0.0-1.0)
+
+### Changed Files
+
+**Backend (3 updated):**
+- `api/routes/projects.py`: Added escalation policy endpoint, updated responses
+- `orchestrator/project_registry.py`: Added escalation_policy to update_project
+- `api/app.py`: Bumped version to 2.9.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.9.0
+
+**Frontend (6 updated, 2 new):**
+- `dashboard/lib/types.ts`: Added EscalationPolicy interface
+- `dashboard/lib/api-client.ts`: Added updateProjectEscalationPolicy method
+- `dashboard/components/escalation-policy-form.tsx`: New policy form component
+- `dashboard/app/projects/[id]/page.tsx`: Integrated policy form
+- `dashboard/app/escalations/[chainId]/timeline/page.tsx`: New timeline page
+- `dashboard/app/evidence/[runId]/page.tsx`: Added export selector
+
+**Tests (1 new file):**
+- `tests/test_v29_features.py`: New test file for v2.9 features (15 tests)
+
+### Test Results
+
+**v2.9 Features Tests (15 tests):**
+- test_update_escalation_policy_via_registry: ✅
+- test_escalation_policy_persistence: ✅
+- test_escalation_policy_with_plugin_overrides: ✅
+- test_escalation_policy_ui_component_rendering: ✅
+- test_escalation_timeline_data_structure: ✅
+- test_evidence_export_json_format: ✅
+- test_evidence_export_csv_format: ✅
+- test_evidence_export_markdown_format: ✅
+- test_evidence_search_combined_filters: ✅
+- test_evidence_search_text_query: ✅
+- test_sse_realtime_updates_structure: ✅
+- test_sse_evidence_update_structure: ✅
+- test_project_service_escalation_policy_update: ✅
+
+**Total: 15 new tests added**
+
+### Recommended v3.0 Roadmap
+
+1. **WebSocket Integration**: Replace SSE with WebSocket for true bidirectional real-time updates
+2. **Evidence AI Analysis**: Add AI-powered evidence analysis for anomaly detection and pattern recognition
+3. **Escalation Predictions**: Add ML model to predict escalation likelihood based on historical data
+4. **Custom Evidence Types**: Allow plugins to define custom evidence types and rendering
+5. **Evidence Search with Semantic Matching**: Add vector-based semantic search for evidence content
+6. **Escalation Policy Templates**: Add pre-configured policy templates for different use cases
+7. **Escalation Analytics Dashboard**: Enhanced analytics with charts and drill-down capabilities
+8. **Multi-Project Escalation Tracking**: Track escalation patterns across multiple projects
+
+## v2.8.0 - Escalation Policies and Evidence Intelligence
+
+Version 2.8.0 makes escalation configurable, evidence more actionable, and escalation outcomes analyzable.
+
+### Key Features
+
+- **Escalation Policies**: Added project-level escalation policies with configurable thresholds (fallback, confidence), max escalation depth, auto-escalate on fail/flaky, and plugin-specific overrides
+- **Policy Integration**: Integrated escalation policies into run orchestration and escalation decisions for automatic escalation based on policy rules
+- **Advanced Evidence Filters**: Upgraded evidence browser with filters for severity (critical/high/medium/low), confidence threshold, plugin, and type
+- **Evidence Download**: Added download all evidence artifacts functionality
+- **Evidence Comparison**: Added side-by-side evidence comparison across escalation runs
+- **Escalation Analytics**: New escalation analytics page showing escalation frequency, success rate, average escalation depth, time to stable result, and common escalation reasons
+
+### New UI Routes
+
+- `/evidence/[runId]` - Evidence browser with advanced filters (severity, confidence, plugin, type, timestamp)
+- `/evidence/compare/[runAId]/[runBId]` - Evidence comparison page for escalation runs
+- `/analytics/escalations` - Escalation analytics dashboard
+
+### Backend Changes
+
+- `orchestrator/models.py`: Added EscalationPolicy dataclass with configurable thresholds and overrides, added escalation_policy field to Project model
+- `orchestrator/run_orchestrator.py`: Updated should_escalate method to use escalation policy for decision making
+- `orchestrator/project_service.py`: Updated trigger_escalation_run to use project's escalation policy and check max depth
+- `api/app.py`: Bumped version to 2.8.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.8.0
+
+### Frontend Changes
+
+- `dashboard/app/evidence/[runId]/page.tsx`: Added advanced filters (severity, confidence, plugin, type), download button, compare escalation link
+- `dashboard/app/evidence/compare/[runAId]/[runBId]/page.tsx`: New evidence comparison page for side-by-side escalation run comparison
+- `dashboard/app/analytics/escalations/page.tsx`: New escalation analytics dashboard
+
+### Escalation Policy Model
+
+```python
+@dataclass
+class EscalationPolicy:
+    fallback_threshold: float = 0.5  # Escalate if fallback ratio > threshold
+    confidence_threshold: float = 0.7  # Escalate if confidence < threshold
+    max_escalation_depth: int = 3  # Maximum escalation attempts
+    auto_escalate_on_fail: bool = True  # Auto-escalate on gate failure
+    auto_escalate_on_flaky: bool = True  # Auto-escalate on flaky results
+    plugin_overrides: Dict[str, Dict[str, Any]] = {}  # Plugin-specific overrides
+```
+
+### Escalation Decision Logic
+
+1. Check if escalation is enabled
+2. Check if max escalation depth is exceeded (from policy)
+3. Evaluate escalation conditions based on policy:
+   - Fallback ratio > fallback_threshold
+   - Confidence score < confidence_threshold
+   - Gate result is FAIL (if auto_escalate_on_fail)
+   - Run is flaky (if auto_escalate_on_flaky)
+4. If any condition met, determine next execution path
+5. Return new path or None if no escalation needed
+
+### Evidence Browser Filters
+
+- **Search**: Text search across evidence items
+- **Type Filter**: Filter by evidence type (screenshot, trace, citation, anomaly, matrix)
+- **Severity Filter**: Filter by severity level (critical, high, medium, low)
+- **Plugin Filter**: Filter by plugin name (web_playwright, api_contract, model_eval)
+- **Confidence Filter**: Filter by minimum confidence score (0.0 to 1.0)
+
+### Escalation Analytics Metrics
+
+- **Escalation Frequency**: Total number of escalations across all projects
+- **Success Rate**: Percentage of escalations that passed the quality gate
+- **Average Escalation Depth**: Average number of escalation steps per chain
+- **Time to Stable**: Average time to reach a stable (non-escalated) result
+- **Common Escalation Reasons**: Top reasons for escalation (fallback, confidence, fail, flaky)
+- **Path Distribution**: Distribution of escalation paths (SMOKE->STANDARD, STANDARD->DEEP, DEEP->INTELLIGENT)
+
+### Changed Files
+
+**Backend (4 updated):**
+- `orchestrator/models.py`: Added EscalationPolicy dataclass, added escalation_policy field to Project
+- `orchestrator/run_orchestrator.py`: Updated should_escalate to use policy
+- `orchestrator/project_service.py`: Updated trigger_escalation_run to use policy
+- `api/app.py`: Bumped version to 2.8.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.8.0
+
+**Frontend (3 new pages, 1 updated):**
+- `dashboard/app/evidence/[runId]/page.tsx`: Added advanced filters, download, comparison
+- `dashboard/app/evidence/compare/[runAId]/[runBId]/page.tsx`: New comparison page
+- `dashboard/app/analytics/escalations/page.tsx`: New analytics page
+
+**Tests (1 new file):**
+- `tests/test_v28_policies.py`: New test file for escalation policies (13 tests)
+
+### Test Results
+
+**v2.8 Policy Tests (13 tests):**
+- test_escalation_policy_defaults: ✅
+- test_escalation_policy_custom: ✅
+- test_escalation_policy_serialization: ✅
+- test_should_escalate_with_policy_fallback: ✅
+- test_should_escalate_with_policy_confidence: ✅
+- test_should_escalate_with_policy_gate_fail: ✅
+- test_should_escalate_with_policy_flaky: ✅
+- test_should_not_escalate_with_policy: ✅
+- test_max_escalation_depth_enforced: ✅
+- test_project_service_escalation_with_policy: ✅
+- test_evidence_filter_by_severity: ✅
+- test_evidence_filter_by_confidence: ✅
+- test_evidence_comparison_page: ✅
+- test_escalation_analytics_page: ✅
+
+**Total: 13 new tests added**
+
+### Recommended v2.9 Roadmap
+
+1. **WebSocket Integration**: Replace SSE polling with WebSocket for true bidirectional real-time updates
+2. **Evidence Search**: Add full-text search with semantic matching across evidence content
+3. **Evidence Export**: Add export to PDF, JSON, CSV formats for evidence reports
+4. **Escalation Policy UI**: Add UI for configuring escalation policies per project
+5. **Escalation Timeline Visualization**: Add visual timeline view of escalation chains
+6. **Evidence AI Analysis**: Add AI-powered evidence analysis for anomaly detection and pattern recognition
+7. **Escalation Predictions**: Add ML model to predict escalation likelihood based on historical data
+8. **Custom Evidence Types**: Allow plugins to define custom evidence types and rendering
+
+## v2.7.0 - Escalation Observability and Evidence UI
+
+Version 2.7.0 upgrades intelligent orchestration observability and completes the escalation UI lifecycle.
+
+### Key Features
+
+- **Project Detail Widgets**: Added execution intelligence widgets (ConfidenceTrendChart, ExecutionDepthChart, FallbackRatioHeatmap, PluginMaturityHeatmap) to project detail page
+- **Run Detail Page**: Created new run detail page with SSE integration for real-time confidence, fallback, and evidence updates
+- **Escalation Rerun API**: Added POST /runs/{run_id}/escalate endpoint for manual escalation rerun with automatic path promotion (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+- **Escalation Browser UI**: New /escalations page to view escalation chains, reasons, and path promotions
+- **Evidence Browser UI**: New /evidence/{runId} page to browse evidence per run (screenshots, traces, citations, anomalies, matrices) with search/filter
+- **Run Detail API**: Added GET /runs/{run_id} endpoint to retrieve individual run details with execution intelligence fields
+
+### New UI Routes
+
+- `/runs/{id}` - Run detail page with SSE live updates and execution intelligence widgets
+- `/escalations` - Escalation browser for viewing chains and path promotions
+- `/evidence/{runId}` - Evidence browser with search/filter for screenshots, traces, citations, anomalies, matrices
+
+### API Changes
+
+- `GET /runs/{run_id}` - Get specific run details with execution intelligence fields
+- `POST /runs/{run_id}/escalate` - Trigger escalation rerun with automatic path promotion
+
+### Backend Changes
+
+- `api/routes/runs.py`: Added GET /runs/{run_id} endpoint, added POST /runs/{run_id}/escalate endpoint
+- `dashboard/lib/api-client.ts`: Added getRun API method
+- `dashboard/lib/types.ts`: Updated Run type to include execution_path, parent_run_id, confidence_score, fallback_ratio, real_execution_ratio
+
+### Frontend Changes
+
+- `dashboard/app/projects/[id]/page.tsx`: Added 4 execution intelligence widgets
+- `dashboard/app/runs/[id]/page.tsx`: New run detail page with SSE integration and intelligence widgets
+- `dashboard/app/escalations/page.tsx`: New escalation browser UI page
+- `dashboard/app/evidence/[runId]/page.tsx`: New evidence browser UI page with search/filter
+
+### SSE Integration Points
+
+- Run detail page uses SSE endpoint `/runs/{run_id}/updates` for real-time confidence, fallback, and evidence updates
+- Live indicator shows when SSE connection is active
+- Confidence score, fallback ratio, and real execution ratio update in real-time during run execution
+
+### Escalation Auto-Rerun Flow
+
+1. User triggers run with intelligent path selection
+2. Run completes with metrics (confidence_score, fallback_ratio, real_execution_ratio)
+3. If escalation conditions are met (high fallback, low real execution, flaky, failed):
+   - User can manually trigger escalation via API or UI
+   - System automatically promotes execution path (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+   - Escalation chain is persisted with reasons
+4. New run is created with parent_run_id and escalation metadata
+5. Process repeats until max depth is reached or INTELLIGENT path is used
+
+### Dashboard Pages Upgraded
+
+- **Project Detail**: Added 4 execution intelligence widgets in grid layout
+- **Run Detail**: New page with SSE live updates, 4 intelligence widgets, execution path display, escalation reason display
+- **Escalations**: New page showing escalation chains, path promotions, and statistics
+- **Evidence**: New page showing evidence items by type with search/filter functionality
+
+### Changed Files
+
+**Backend (2 updated):**
+- `api/routes/runs.py`: Added GET /runs/{run_id} and POST /runs/{run_id}/escalate endpoints
+- `api/app.py`: Bumped version to 2.7.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.7.0
+
+**Frontend (4 new pages, 3 updated):**
+- `dashboard/app/projects/[id]/page.tsx`: Added execution intelligence widgets
+- `dashboard/app/runs/[id]/page.tsx`: New run detail page with SSE
+- `dashboard/app/escalations/page.tsx`: New escalation browser
+- `dashboard/app/evidence/[runId]/page.tsx`: New evidence browser
+- `dashboard/lib/api-client.ts`: Added getRun method
+- `dashboard/lib/types.ts`: Updated Run type
+
+**Tests (1 new file):**
+- `tests/test_v27_escalation.py`: New test file for escalation features (9 tests)
+
+### Test Results
+
+**v2.7 Escalation Tests (9 tests):**
+- test_trigger_escalation_rerun: ✅
+- test_escalation_path_promotion: ✅
+- test_escalation_chain_persistence: ✅
+- test_max_escalation_depth: ✅
+- test_evidence_persistence_location: ✅
+- test_api_get_run_endpoint: ✅
+- test_api_escalate_endpoint: ✅
+- test_sse_endpoint_format: ✅
+
+**Total: 9 new tests added**
+
+### Recommended v2.8 Roadmap
+
+1. **WebSocket Integration**: Replace SSE polling with WebSocket for true bidirectional real-time updates
+2. **Escalation Policies**: Allow users to configure custom escalation rules per project (thresholds, auto-escalate)
+3. **Evidence Search**: Add advanced search with filters by severity, confidence, timestamp, plugin
+4. **Evidence Download**: Add download functionality for evidence items (screenshots, traces, logs)
+5. **Escalation Timeline Visualization**: Add visual timeline view of escalation chains
+6. **Evidence Comparison**: Add side-by-side comparison of evidence across escalation runs
+7. **Real-Time Evidence Streaming**: Stream evidence items as they are collected during run execution
+8. **Escalation Analytics**: Add analytics dashboard for escalation patterns, success rates, time to resolution
+
+## v2.6.0 - Intelligent Run Orchestration
+
+Version 2.6.0 integrates the v2.5 execution intelligence layer into the real run lifecycle.
+
+### Key Features
+
+- **Run API Integration**: Run APIs and CLI flows now use execution_intelligence for intelligent path selection
+- **Automatic Escalation Workflow**: SMOKE -> STANDARD -> DEEP -> INTELLIGENT escalation chain with automatic reruns
+- **Escalation Chain Persistence**: Tracks and persists escalation chains with reasons for audit and learning
+- **Evidence Collection Integration**: Connects evidence_collector to real run artifacts for dynamic evidence richness
+- **Evidence Persistence**: Persists evidence per run under outputs/evidence/<run_id>/ with JSON serialization
+- **Real-Time Updates**: SSE endpoint for real-time confidence and fallback updates during run execution
+- **Dashboard Widget Integration**: Confidence trend, execution depth, fallback ratio, and plugin maturity widgets on homepage
+
+### New Modules
+
+- `orchestrator/run_orchestrator.py`: Run orchestration service integrating execution intelligence into run lifecycle
+- `orchestrator/models.py`: Added ExecutionPath enum, EscalationChain model, and Run model enhancements (execution_path, parent_run_id, confidence_score)
+
+### API Changes
+
+- `POST /projects/{project_id}/run`: Now accepts optional `execution_path` parameter for forced path selection
+- `GET /runs/{run_id}/updates`: SSE endpoint for real-time run updates (confidence_score, fallback_ratio, real_execution_ratio)
+
+### Backend Changes
+
+- `orchestrator/project_service.py`: Integrated RunOrchestrator, added trigger_run with intelligent path selection, added trigger_escalation_run for escalation workflow
+- `orchestrator/platform_summary.py`: Updated to generate confidence_trend, plugin_depth_scores, fallback_ratios, plugin_maturity_scores for dashboard widgets
+- `api/routes/projects.py`: Updated trigger_run response to include execution_path
+- `api/routes/runs.py`: Added SSE endpoint for real-time run updates
+
+### Frontend Changes
+
+- `dashboard/lib/types.ts`: Updated PlatformSummary with new intelligence fields
+- `dashboard/app/page.tsx`: Integrated 4 execution intelligence widgets (ConfidenceTrendChart, ExecutionDepthChart, FallbackRatioHeatmap, PluginMaturityHeatmap)
+
+### Real Lifecycle Integration Points
+
+**Before v2.6 (v2.5 Intelligence Only):**
+- Execution intelligence was a separate module not connected to actual run execution
+- Path selection was theoretical, not applied to real runs
+- Evidence collection was standalone, not integrated with run artifacts
+- No escalation workflow or chain persistence
+
+**After v2.6 (Real Orchestration):**
+- Run APIs use execution intelligence for intelligent path selection
+- Automatic escalation workflow (SMOKE -> STANDARD -> DEEP -> INTELLIGENT)
+- Escalation chains are persisted with reasons for audit and learning
+- Evidence collection is integrated with real run artifacts and persisted to disk
+- SSE endpoint provides real-time confidence and fallback updates
+- Dashboard widgets display actual intelligence data from platform summary
+
+### Rerun Escalation Workflow
+
+1. Initial run with intelligent path selection (based on project health, plugin depth, historical performance)
+2. Run completes with fallback_ratio and real_execution_ratio metrics
+3. If escalation conditions are met:
+   - fallback_ratio > 0.5
+   - real_execution_ratio < 0.3
+   - smoke failure
+   - flaky standard run
+4. Automatic rerun with escalated path (STANDARD -> DEEP -> INTELLIGENT)
+5. Escalation chain persisted with reasons
+6. Maximum escalation depth configurable (default: 3)
+
+### Dashboard Pages Upgraded
+
+- **Homepage**: Added 4 execution intelligence widgets in a grid layout
+- **Project Detail**: Ready for widget integration (uses same data structures)
+- **Run Detail**: Ready for widget integration (uses SSE endpoint for real-time updates)
+
+### Changed Files
+
+**Backend (1 new module, 4 updated):**
+- `orchestrator/run_orchestrator.py`: New module - run orchestration service
+- `orchestrator/models.py`: Added ExecutionPath, EscalationChain, updated Run model
+- `orchestrator/project_service.py`: Integrated RunOrchestrator, added orchestration methods
+- `orchestrator/platform_summary.py`: Added intelligence data generation
+- `api/routes/projects.py`: Updated trigger_run endpoint
+- `api/routes/runs.py`: Added SSE endpoint
+- `api/app.py`: Bumped version to 2.6.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.6.0
+
+**Frontend (2 updated):**
+- `dashboard/lib/types.ts`: Updated PlatformSummary with intelligence fields
+- `dashboard/app/page.tsx`: Integrated 4 execution intelligence widgets
+
+**Tests (1 new file):**
+- `tests/test_run_orchestrator.py`: New test file for orchestration integration (11 tests)
+
+### Test Results
+
+**Run Orchestrator Tests (11 tests):**
+- test_plan_run_with_intelligence: ✅
+- test_plan_run_forced_path: ✅
+- test_should_escalate_high_fallback: ✅
+- test_should_escalate_max_depth: ✅
+- test_create_escalation_chain: ✅
+- test_get_escalation_chain: ✅
+- test_collect_evidence: ✅
+- test_persist_evidence: ✅
+- test_calculate_confidence: ✅
+- test_escalation_chain_persistence: ✅
+
+**Total: 11 new tests added**
+
+### Recommended v2.7 Roadmap
+
+1. **Project Detail Page Integration**: Add execution intelligence widgets to project detail page with project-specific data
+2. **Run Detail Page Integration**: Add execution intelligence widgets to run detail page with SSE real-time updates
+3. **Automatic Escalation Execution**: Implement automatic escalation rerun trigger after run completion
+4. **Escalation Dashboard UI**: Add UI to view escalation chains and reasons
+5. **Evidence Browser UI**: Add UI to browse persisted evidence per run
+6. **WebSocket Integration**: Replace SSE polling with WebSocket for true real-time updates
+7. **Escalation Policies**: Allow users to configure custom escalation rules per project
+8. **Evidence Search**: Add search and filtering capabilities for evidence items
+
+## v2.5.0 - Execution Intelligence Engine
+
+Version 2.5.0 converts v2.4 metadata-only execution depth into a real execution intelligence layer with adaptive validation.
+
+### Key Features
+
+- **Execution Intelligence Engine**: Chooses between smoke, standard, deep, and intelligent execution paths based on project health, plugin depth, and historical performance
+- **Evidence Collection Framework**: Per-plugin evidence adapters (web_playwright, api_contract, rag_grounding) with dynamic evidence_richness_score calculation
+- **Confidence Scoring Algorithms**: Plugin-specific confidence strategies (web_playwright, api_contract, rag_grounding) with factor breakdown (evidence richness, run stability, anomaly-free, historical performance, plugin maturity, fallback penalty)
+- **Fallback Escalation**: Automatic detection of excessive fallback usage, low real execution, smoke failures, and flakiness with persistence in run metadata
+- **Dashboard Widgets**: Confidence trend chart, execution depth chart, fallback ratio heatmap, plugin maturity heatmap
+
+### New Modules
+
+- `orchestrator/execution_intelligence.py`: Execution intelligence engine with path selection and escalation logic
+- `orchestrator/evidence_collector.py`: Evidence collection framework with plugin-specific adapters
+- `orchestrator/confidence_scorer.py`: Confidence scoring algorithms with plugin-specific strategies
+
+### New Dashboard Components
+
+- `dashboard/components/confidence-trend-chart.tsx`: Line chart showing confidence score trends over time
+- `dashboard/components/execution-depth-chart.tsx`: Bar chart showing plugin execution depth scores
+- `dashboard/components/fallback-ratio-heatmap.tsx`: Pie chart showing fallback ratio distribution
+- `dashboard/components/plugin-maturity-heatmap.tsx`: Area chart showing plugin maturity scores
+
+### New TypeScript Types
+
+- `ExecutionPath`: Enum for execution path types (SMOKE, STANDARD, DEEP, INTELLIGENT)
+- `ExecutionStrategy`: Interface for execution strategy configuration
+- `ConfidenceFactors`: Interface for confidence scoring factors
+- `ConfidenceScore`: Interface for confidence score with breakdown
+- `EvidenceItem`: Interface for individual evidence items
+- `EvidenceSummary`: Interface for evidence summary per plugin
+- `EscalationReason`: Interface for escalation reason tracking
+
+### Metadata vs Real Execution Differences
+
+**v2.4 (Metadata Only):**
+- Plugin depth scores were static metadata
+- Evidence richness scores were static metadata
+- Confidence scores were static metadata
+- No actual execution intelligence
+
+**v2.5 (Real Execution):**
+- Execution intelligence engine dynamically chooses execution paths
+- Evidence collection framework calculates richness scores dynamically from actual evidence
+- Confidence scorer calculates scores dynamically from run results, evidence, and historical data
+- Fallback escalation automatically promotes to deeper validation when needed
+
+### Changed Files
+
+**Backend:**
+- `orchestrator/execution_intelligence.py`: New module - execution intelligence engine
+- `orchestrator/evidence_collector.py`: New module - evidence collection framework
+- `orchestrator/confidence_scorer.py`: New module - confidence scoring algorithms
+- `api/app.py`: Bumped version to 2.5.0
+- `orchestrator/compatibility.py`: Updated platform version to 2.5.0
+
+**Frontend:**
+- `dashboard/lib/types.ts`: Added execution intelligence TypeScript types
+- `dashboard/components/confidence-trend-chart.tsx`: New widget
+- `dashboard/components/execution-depth-chart.tsx`: New widget
+- `dashboard/components/fallback-ratio-heatmap.tsx`: New widget
+- `dashboard/components/plugin-maturity-heatmap.tsx`: New widget
+
+**Tests:**
+- `tests/test_execution_intelligence.py`: New test file for execution intelligence
+- `tests/test_evidence_collector.py`: New test file for evidence collector
+- `tests/test_confidence_scorer.py`: New test file for confidence scorer
+
+### Test Results
+
+**Execution Intelligence Tests (9 tests):**
+- test_choose_execution_path_smoke: ✅
+- test_choose_execution_path_deep: ✅
+- test_choose_execution_path_forced: ✅
+- test_should_escalate_high_fallback: ✅
+- test_should_escalate_low_real_execution: ✅
+- test_should_escalate_smoke_failure: ✅
+- test_should_escalate_flaky_standard: ✅
+- test_should_not_escalate_healthy: ✅
+- test_escalation_history: ✅
+
+**Evidence Collector Tests (8 tests):**
+- test_web_playwright_adapter_collect_evidence: ✅
+- test_web_playwright_adapter_richness: ✅
+- test_api_contract_adapter_collect_evidence: ✅
+- test_rag_grounding_adapter_collect_evidence: ✅
+- test_evidence_collector_collect_all: ✅
+- test_evidence_collector_richness_scores: ✅
+- test_evidence_collector_generate_summary: ✅
+
+**Confidence Scorer Tests (8 tests):**
+- test_web_playwright_confidence_strategy: ✅
+- test_api_contract_confidence_strategy: ✅
+- test_rag_grounding_confidence_strategy: ✅
+- test_confidence_sorer_calculate_confidence: ✅
+- test_confidence_sorer_aggregate_confidence: ✅
+- test_confidence_sorer_generic_strategy: ✅
+- test_confidence_factors_defaults: ✅
+
+**Total: 25 new tests added**
+
+### Recommended v2.6 Roadmap
+
+1. **Execution Engine Integration**: Integrate execution intelligence engine into the actual run execution flow
+2. **Real Evidence Collection**: Connect evidence collectors to actual plugin execution outputs
+3. **Dynamic Confidence Updates**: Update confidence scores in real-time during run execution
+4. **Dashboard Integration**: Add execution intelligence widgets to actual dashboard pages
+5. **Escalation Workflows**: Implement automatic re-run with escalated paths
+6. **Custom Strategies**: Allow users to define custom confidence strategies
+7. **Evidence Storage**: Persist evidence items to database for historical analysis
+8. **ML-Based Confidence**: Add machine learning models for confidence prediction
+
+## v2.4.0 - Execution Depth Expansion
+
+Version 2.4.0 significantly increases real execution depth across all built-in plugins and reduces fallback-only smoke behavior.
+
+### Key Features
+
+- **Plugin Execution Depth Metrics**: Added execution_depth_score, evidence_richness_score, and confidence_score to all plugins
+- **Deeper Validation Layers**: Multi-step journeys, negative paths, retry/rollback, threshold calibration, grounding confidence, safety consistency, schema evolution, and anomaly heuristics
+- **Enhanced Result Contracts**: Run and ProjectSummary models now include fallback_ratio and real_execution_ratio metrics
+- **Plugin Maturity Trending**: Platform summary includes plugin maturity trend data
+- **Upgraded Plugin Capabilities**:
+  - web_playwright: Added multi_step_journeys, negative_path_testing, retry_rollback_validation, threshold_calibration
+  - api_contract: Added multi_endpoint_journeys, negative_request_testing, retry_mechanism_validation, schema_evolution_detection, anomaly_heuristics
+  - model_evaluation: Added multi_dataset_evaluation, negative_sample_testing, threshold_calibration, drift_detection
+  - rag_grounding: Added multi_hop_grounding, negative_citation_testing, confidence_threshold_validation, grounding_confidence_scoring
+  - llm_consistency: Added multi_turn_consistency, adversarial_input_testing, safety_consistency_validation, output_confidence_scoring
+  - workflow_validator: Added multi_workflow_journeys, negative_state_testing, rollback_validation, state_consistency_checks
+  - data_pipeline_validator: Added multi_stage_validation, negative_data_testing, anomaly_detection_heuristics, schema_evolution_tracking
+
+### Plugin Maturity Before/After
+
+| Plugin | Before Support Level | After Support Level | Before Depth Score | After Depth Score |
+|--------|---------------------|---------------------|-------------------|-------------------|
+| web_playwright | FULL | FULL | 0.0 | 0.85 |
+| api_contract | FULL | FULL | 0.0 | 0.90 |
+| model_evaluation | USABLE | FULL | 0.0 | 0.80 |
+| rag_grounding | USABLE | FULL | 0.0 | 0.78 |
+| llm_consistency | PARTIAL | USABLE | 0.0 | 0.70 |
+| workflow_validator | FULL | FULL | 0.0 | 0.88 |
+| data_pipeline_validator | PARTIAL | USABLE | 0.0 | 0.75 |
+
+### Changed Files
+
+- `orchestrator/models.py`: Added execution depth metrics to PluginMetadata, Run, ProjectSummary, PlatformSummary
+- `orchestrator/compatibility.py`: Upgraded all built-in plugins with deeper capabilities and execution depth scores
+- `orchestrator/platform_summary.py`: Updated report generation to calculate and include new metrics
+- `api/app.py`: Bumped version to 2.4.0
+- `dashboard/lib/types.ts`: Updated TypeScript types to match new backend models
+- `tests/test_compatibility.py`: Added tests for plugin execution depth metrics
+- `tests/test_models.py`: Added tests for Run and ProjectSummary execution depth metrics
+
+## v2.2.0 - Dashboard UI + Query UX
+
+Version 2.2.0 introduces a modern web dashboard for the Universal Testing Platform, built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, and Recharts.
+
+### Dashboard Features
+
+- **Platform Overview**: View platform-wide metrics including total projects, active projects, total runs, failing projects, flaky projects, quality gate overview, and plugin usage
+- **Projects List**: Browse all projects with search, filter by product type, filter by gate result, and sorting
+- **Project Detail**: View project metadata, summary, trend charts, flaky summary, compatibility, and latest runs
+- **Runs Explorer**: Explore test runs across all projects with status, duration, timestamps, and artifacts
+- **Plugin Catalog**: Browse available plugins with support level, capabilities, compatibility notes, and onboarding completeness
+
+### Quick Start
+
+1. Start the backend API:
+   ```bash
+   uvicorn api.app:app --reload
+   ```
+
+2. Install dashboard dependencies:
+   ```bash
+   cd dashboard
+   npm install
+   ```
+
+3. Start the dashboard:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser to `http://localhost:3000`
+
+The dashboard will be available with interactive charts, real-time data fetching, and a clean, modern UI.
+
+### Dashboard Tech Stack
+
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first CSS framework
+- **shadcn/ui**: Beautiful, accessible component library
+- **TanStack Query**: Data fetching and state management
+- **Recharts**: Chart library for data visualization
+- **Lucide React**: Icon library
+
+For detailed dashboard documentation, see [dashboard/README.md](dashboard/README.md).
+
+---
+
+## v2.1.0 - Platform API
+
+Version 2.1.0 introduces a FastAPI-based Platform API with multi-tenant support, transforming the system from a CLI tool to a full testing platform.
+
+### Platform API Features
+
+- **FastAPI Backend**: RESTful API for managing projects, runs, and quality gates
+- **Multi-tenant/Workspace Model**: Support for multiple workspaces with role-based access control
+- **Project Registry**: File-based project storage with metadata and tags
+- **Run Registry**: Track test runs with status, results, and trends
+- **Plugin System**: Built-in plugin catalog with compatibility analysis
+- **Dashboard-Ready Summaries**: Platform-wide and project-specific summaries for dashboards
+
+### Quick Start
+
+Start the API server:
+
+```bash
+uvicorn api.app:app --reload
+```
+
+The API will be available at `http://localhost:8000` with interactive docs at `http://localhost:8000/docs`.
+
+### API Endpoints
+
+**Health**
+- `GET /health/` - Health check
+
+**Projects**
+- `GET /projects/` - List projects (supports workspace filtering)
+- `POST /projects/` - Create a new project
+- `GET /projects/{project_id}` - Get project details
+- `POST /projects/{project_id}/run` - Trigger a test run
+
+**Runs**
+- `GET /projects/{project_id}/runs` - List runs for a project
+- `GET /projects/{project_id}/summary` - Get project summary
+- `GET /projects/{project_id}/trends` - Get trend data
+
+**Platform**
+- `GET /platform/summary` - Platform-wide summary
+- `GET /platform/projects/latest` - Latest status for all projects
+
+**Plugins**
+- `GET /plugins/` - List available plugins
+- `GET /plugins/{plugin_name}` - Get plugin details
+- `GET /plugins/{plugin_name}/compatibility` - Analyze plugin compatibility
+
+### Multi-tenant Support
+
+Use headers to specify user context:
+
+```
+X-User-ID: user123
+X-Workspace-ID: workspace456
+X-User-Role: admin  # viewer, maintainer, or admin
+```
+
+### Initialize Platform from Existing Domains
+
+To import existing domain-based configurations into the new platform:
+
+```bash
+python scripts/init_platform.py
+```
+
+This will:
+- Import existing domains (order, store_verify, didaunao_release_audit) as projects
+- Import existing output directories as runs
+- Initialize the platform registry
+
+### Backward Compatibility
+
+All existing CLI flows remain unchanged:
+- Domain-based manual flows (order, store_verify, didaunao_release_audit)
+- KB-based workflows
+- Orchestrator-based execution
+- Validation scripts
+
+The platform API layer is additive and does not replace existing functionality.
+
+---
+
+## Legacy Domain-Based Flows (v2.0 and earlier)
+
 This repository now supports three manual domain flows plus the existing Order orchestrator path:
 
 - `order`: legacy static-doc manual flow

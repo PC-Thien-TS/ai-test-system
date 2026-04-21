@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-04-20T06:49:16.500166+00:00",
+  "order_id": 817,
+  "store_id": 9768,
+  "payment_attempt_id": 213,
+  "payment_transaction_id": null,
+  "initial_status": "pending",
+  "final_status": "cancelled",
+  "user_visible": true,
+  "merchant_visible": true,
+  "admin_visible": false,
+  "notes": [
+    "Golden path created order 817 for store 9768 and verified user detail/history."
+  ],
+  "branches": {
+    "payment": {
+      "order_id": 817,
+      "status": 200,
+      "note": "Payment init+verify contract completed without webhook mutation."
+    },
+    "merchant_visibility": {
+      "order_id": 817,
+      "status": 200,
+      "note": "Merchant list/detail visibility confirmed."
+    },
+    "cancel": {
+      "order_id": 818,
+      "status": 10,
+      "note": "create -> cancel branch verified by user detail"
+    },
+    "no_show": {
+      "order_id": null,
+      "status": null,
+      "note": "Missing API_NO_SHOW_ORDER_ID seed."
+    },
+    "stale_terminal": {
+      "order_id": 761,
+      "status": 60,
+      "note": "Repeated terminal action returned controlled status and did not crash."
+    }
+  }
+}

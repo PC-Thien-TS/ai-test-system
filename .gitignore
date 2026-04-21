@@ -1,32 +1,29 @@
-# ----------------------
 # Python
-# ----------------------
-.venv/
 __pycache__/
 *.pyc
+*.pyo
+.venv/
 
-# ----------------------
 # Requirements KB input docs
-# ----------------------
 requirements/**/**/*.docx
 requirements/**/**/*.pdf
 requirements/**/**/*.pptx
 
-# ----------------------
 # Generated KB artifacts
-# ----------------------
 kb/index/
 requirements/**/code_facts/*.md
 
-# ----------------------
 # Test artifacts
-# ----------------------
 .pytest_cache/
 .pytest_tmp/
+.pytest_tmp_fix_dashboard_lark/
+.pytest_tmp_v1_baseline_verify/
+pytest_tmp_dash_run2/
 tests/tmp_pytest*/
 artifacts/*
 !artifacts/**/.gitkeep
 
+# Logs / summaries
 *.log
 *.latest.log
 *.summary.json
@@ -35,31 +32,22 @@ artifacts/*
 playwright-report/
 test-output/
 
-# ----------------------
 # Outputs
-# ----------------------
 outputs/
 
-# ----------------------
-# Local configs
-# ----------------------
+# Local configs / env
 evidence_sources.yaml
 .env
+.env.*
 danhsach.txt
 
-# ----------------------
 # Node
-# ----------------------
 node_modules/
-
-# ----------------------
-# Temp files
-# ----------------------
-*.tmp
-*.cache
-
-# local tools
-tools_fix_*.py
-
-# node
 package-lock.json
+
+# Next.js
+dashboard/.next/
+dashboard/out/
+
+# JSON artifacts
+*.json

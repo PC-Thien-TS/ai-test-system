@@ -1,0 +1,132 @@
+requirements:
+  - id: RM-REQ-001
+    title: User login with verified account
+    description: Registered user can login only after email verification.
+    source_type: prd
+    module: Auth & Account
+    submodule: Login
+    acceptance_criteria:
+      - User with verified email can login successfully.
+      - Unverified user is redirected to verification flow.
+    business_rules:
+      - Lock account after 5 failed attempts.
+    roles: [user]
+    dependencies: [Verification / Email]
+    priority: p0
+    risk_hints: [auth, permission]
+    related_flows: [login_register_verify]
+    changed_area: true
+
+  - id: RM-REQ-002
+    title: Store search by keyword and location
+    description: User can search stores by keyword and sort by distance.
+    source_type: srs
+    acceptance_criteria:
+      - Search returns matching stores within selected radius.
+      - Sorting by distance is stable.
+    roles: [user]
+    priority: p1
+    related_flows: [search_to_store_detail]
+
+  - id: RM-REQ-003
+    title: Add menu item to cart from store detail
+    description: User adds one or more menu items to cart from store detail page.
+    source_type: workflow
+    acceptance_criteria:
+      - Cart updates quantity and subtotal instantly.
+    roles: [user]
+    dependencies: [Store Detail & Menu]
+    priority: p1
+    related_flows: [store_detail_to_cart]
+
+  - id: RM-REQ-004
+    title: Checkout creates order with idempotent token
+    description: Checkout submits order once and returns a unique order id.
+    source_type: srs
+    acceptance_criteria:
+      - One checkout action produces one order id.
+    business_rules:
+      - Idempotent token must prevent duplicate creation.
+    roles: [user]
+    dependencies: [Cart, Payment]
+    priority: p0
+    related_flows: [cart_to_checkout, checkout_create_order]
+
+  - id: RM-REQ-005
+    title: Payment callback retry and timeout handling
+    description: Payment callback retries on transient failures and times out safely.
+    source_type: api_contract
+    acceptance_criteria:
+      - Callback retry uses exponential backoff.
+      - Timeout transitions order to pending_payment_review.
+    business_rules:
+      - Duplicate callback with same transaction id is ignored.
+    roles: [system]
+    dependencies: [Order Creation]
+    priority: p0
+    risk_hints: [callback, retry, timeout, payment]
+    related_flows: [order_to_payment_init, payment_callback_retry_timeout]
+    changed_area: true
+
+  - id: RM-REQ-006
+    title: Merchant confirms or rejects incoming order
+    description: Merchant can confirm or reject orders within SLA.
+    source_type: prd
+    acceptance_criteria:
+      - Merchant confirm moves order to confirmed.
+      - Merchant reject sets reason and notifies user.
+    roles: [merchant]
+    dependencies: [Order Lifecycle, Notifications]
+    priority: p1
+    related_flows: [merchant_confirm_reject]
+
+  - id: RM-REQ-007
+    title: Admin can view order status timeline
+    description: Admin dashboard shows order status history and actor actions.
+    source_type: workflow
+    acceptance_criteria:
+      - Timeline includes all state changes with timestamps.
+    roles: [admin]
+    dependencies: [Order Lifecycle]
+    priority: p2
+    related_flows: [admin_tracking]
+
+  - id: RM-REQ-008
+    title: Verify email binding on account creation
+    description: Verification email must be sent and token validated before account activation.
+    source_type: acceptance_criteria
+    acceptance_criteria:
+      - Verification token expires after configured TTL.
+    roles: [user]
+    dependencies: [Auth & Account]
+    priority: p1
+    risk_hints: [verify email, security]
+    related_flows: [login_register_verify]
+
+  - id: RM-REQ-009
+    title: Prevent duplicate checkout under concurrent clicks
+    description: Duplicate checkout requests should not create duplicate orders.
+    source_type: srs
+    acceptance_criteria:
+      - Concurrent checkout returns same order id.
+    business_rules:
+      - Duplicate checkout request is deduplicated by idempotency key.
+    roles: [user]
+    dependencies: [Cart, Order Creation, Payment]
+    priority: p0
+    risk_hints: [duplicate, checkout, payment]
+    related_flows: [cart_to_checkout, checkout_create_order]
+
+  - id: RM-REQ-010
+    title: Invalid order state transition is blocked
+    description: System must block invalid transitions, e.g., delivered back to paid.
+    source_type: business_rule
+    acceptance_criteria:
+      - Invalid transition returns domain error and audit log.
+    business_rules:
+      - State machine transitions follow configured matrix.
+    roles: [system, admin]
+    dependencies: [Order Lifecycle]
+    priority: p0
+    risk_hints: [state transition, invalid]
+    related_flows: [cancellation_invalid_state_transition]

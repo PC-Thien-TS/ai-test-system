@@ -1,0 +1,41 @@
+{
+  "generated_at_utc": "2026-04-16T11:15:53.140646+00:00",
+  "adapter": {
+    "adapter_id": "rankmate",
+    "product_name": "RankMate / Didaunao"
+  },
+  "changed_files": [
+    "merchant/order_transition_service.cs",
+    "merchant/dashboard_complete_order.ts"
+  ],
+  "selected_flows": [
+    {
+      "flow_id": "order_core",
+      "title": "Order Core Flow",
+      "matched_files": [
+        "merchant/order_transition_service.cs",
+        "merchant/dashboard_complete_order.ts"
+      ],
+      "suites": [
+        "tests/rankmate_wave1/test_order_api.py",
+        "tests/rankmate_wave1/test_order_lifecycle_flow_api.py"
+      ]
+    },
+    {
+      "flow_id": "merchant_handling",
+      "title": "Merchant Handling Flow",
+      "matched_files": [
+        "merchant/order_transition_service.cs",
+        "merchant/dashboard_complete_order.ts"
+      ],
+      "suites": [
+        "tests/rankmate_wave1/test_merchant_transition_api.py"
+      ]
+    }
+  ],
+  "powershell_commands": [
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_order_lifecycle_flow_api.py",
+    "python -m pytest -q -rs tests/rankmate_wave1/test_merchant_transition_api.py"
+  ]
+}
