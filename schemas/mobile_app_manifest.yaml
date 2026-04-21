@@ -1,0 +1,305 @@
+# Mobile App Manifest - Login Slice
+# REAL sample manifest for Codex planner consumption
+
+app:
+  name: "Rankmate App"
+  package_name: "com.rankmate.mobile"
+  version: "1.0.0"
+  build_number: "1"
+
+  platform: ios
+  min_os_version: "15.0"
+  target_os_version: "17.0"
+
+  description: "Rankmate mobile application"
+  category: "ecommerce"
+  developer: "Rankmate"
+
+screens:
+  - screen_id: "login_screen"
+    name: "LoginScreen"
+    type: AUTH_LOGIN
+
+    route: "/login"
+    deep_link: "rankmate://login"
+    parent_screen: null
+
+    elements:
+      - element_id: "username_field"
+        type: text_field
+        role: INPUT_USERNAME
+        locator: "test-id:username"
+        locator_type: id
+        required: true
+        editable: true
+
+      - element_id: "password_field"
+        type: password_field
+        role: INPUT_PASSWORD
+        locator: "test-id:password"
+        locator_type: id
+        required: true
+        editable: true
+
+      - element_id: "login_button"
+        type: button
+        role: ACTION_SUBMIT
+        locator: "test-id:login-button"
+        locator_type: id
+        required: true
+        editable: false
+
+      - element_id: "forgot_password_link"
+        type: button
+        role: NAVIGATION_FORGOT_PASSWORD
+        locator: "test-id:forgot-password"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "error_message"
+        type: label
+        role: SIGNAL_ERROR
+        locator: "test-id:error-message"
+        locator_type: id
+        required: false
+        editable: false
+
+      - element_id: "loading_indicator"
+        type: icon
+        role: SIGNAL_LOADING
+        locator: "test-id:loading"
+        locator_type: id
+        required: false
+        editable: false
+
+    requires_auth: false
+    requires_network: true
+    orientation: portrait
+    scrollable: false
+
+    test_obligations:
+      validation: true
+      network: true
+      lifecycle: true
+      performance: true
+      accessibility: true
+      security: true
+
+features:
+  - feature_id: "auth_login"
+    name: "Login"
+    category: auth
+
+    screens:
+      - login_screen
+
+    priority: critical
+    test_automated: true
+    test_manual: false
+
+    depends_on: []
+
+    config:
+      min_password_length: 8
+      max_login_attempts: 5
+      session_timeout: 1800
+
+test_obligations:
+  - obligation_id: "OBL-LOGIN-001"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: validation
+
+    criteria:
+      - description: "Username field required"
+        expected_result: "Empty username shows error"
+        oracle_id: ORC-VAL-003
+
+    automated: true
+    manual: false
+    priority: critical
+
+  - obligation_id: "OBL-LOGIN-002"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: validation
+
+    criteria:
+      - description: "Password field required"
+        expected_result: "Empty password shows error"
+        oracle_id: ORC-VAL-003
+
+    automated: true
+    manual: false
+    priority: critical
+
+  - obligation_id: "OBL-LOGIN-003"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: network
+
+    criteria:
+      - description: "Login API success on valid credentials"
+        expected_result: "HTTP 200, token returned"
+        oracle_id: ORC-NET-001
+
+    automated: true
+    manual: false
+    priority: critical
+
+  - obligation_id: "OBL-LOGIN-004"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: network
+
+    criteria:
+      - description: "Login API failure on invalid credentials"
+        expected_result: "HTTP 401, error message displayed"
+        oracle_id: ORC-FAIL-001
+
+    automated: true
+    manual: false
+    priority: critical
+
+  - obligation_id: "OBL-LOGIN-005"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: lifecycle
+
+    criteria:
+      - description: "Form data preserved on rotation"
+        expected_result: "Input values unchanged after rotation"
+        oracle_id: ORC-LIF-001
+
+    automated: true
+    manual: false
+    priority: high
+
+  - obligation_id: "OBL-LOGIN-006"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: performance
+
+    criteria:
+      - description: "Login completion time"
+        expected_result: "Time <= 3 seconds"
+        oracle_id: ORC-PER-001
+
+    automated: true
+    manual: false
+    priority: high
+
+  - obligation_id: "OBL-LOGIN-007"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: accessibility
+
+    criteria:
+      - description: "All fields have accessibility labels"
+        expected_result: "Labels present for all interactive elements"
+        oracle_id: ORC-ACC-001
+
+    automated: true
+    manual: false
+    priority: high
+
+  - obligation_id: "OBL-LOGIN-008"
+    feature_id: auth_login
+    screen_id: login_screen
+
+    type: security
+
+    criteria:
+      - description: "Password field masked"
+        expected_result: "Characters displayed as bullets"
+        oracle_id: ORC-SEC-001
+
+    automated: true
+    manual: false
+    priority: critical
+
+oracles:
+  - oracle_id: ORC-VAL-003
+    name: Required Field Validation
+    type: success_condition
+    condition: Required field validation
+    expected_value: Error message displayed
+    operator: contains
+    severity: critical
+    category: functional
+    description: Required field validation triggers error
+    rationale: Prevents incomplete data submission
+
+  - oracle_id: ORC-NET-001
+    name: Login API Success
+    type: success_condition
+    condition: Login API returns success
+    expected_value: HTTP 200, auth token returned
+    operator: equals
+    severity: critical
+    category: functional
+    description: Valid credentials successfully authenticate
+    rationale: Core authentication flow must work
+
+  - oracle_id: ORC-FAIL-001
+    name: Invalid Credentials Failure
+    type: failure_condition
+    condition: Login fails with invalid credentials
+    expected_value: Error message displayed, login blocked
+    operator: contains
+    severity: critical
+    category: functional
+    description: Invalid credentials rejected
+    rationale: Security, prevents unauthorized access
+
+  - oracle_id: ORC-LIF-001
+    name: State Preservation on Rotation
+    type: success_condition
+    condition: Form data preserved on rotation
+    expected_value: Input values unchanged after rotation
+    operator: equals
+    severity: high
+    category: functional
+    description: Screen rotation preserves user input
+    rationale: User experience, data loss prevention
+
+  - oracle_id: ORC-PER-001
+    name: Login Completion Time
+    type: performance_threshold
+    condition: Login completes within acceptable time
+    expected_value: Time <= 3 seconds
+    operator: less_than_or_equal
+    severity: high
+    category: performance
+    description: Login flow completes quickly
+    rationale: User experience, performance benchmark
+
+  - oracle_id: ORC-ACC-001
+    name: Screen Reader Labels
+    type: accessibility_standard
+    condition: All interactive elements have accessibility labels
+    expected_value: Accessibility label present for all interactive elements
+    operator: equals
+    severity: high
+    category: accessibility
+    description: Screen reader can announce all controls
+    rationale: Accessibility compliance, inclusive design
+
+  - oracle_id: ORC-SEC-001
+    name: Password Masking
+    type: security_check
+    condition: Password field masks input
+    expected_value: Characters displayed as bullets
+    operator: equals
+    severity: critical
+    category: security
+    description: Password input is hidden
+    rationale: Security, prevents shoulder surfing
