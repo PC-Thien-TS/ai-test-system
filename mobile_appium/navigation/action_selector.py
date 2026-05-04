@@ -7,6 +7,7 @@ from mobile_appium.classifier import (
     SCREEN_TYPE_CONTENT_DETAIL,
     SCREEN_TYPE_CONTENT_LIST,
 )
+from mobile_appium.policy_adapter import normalize_exploration_policy
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,9 @@ def select_next_action(
     if not isinstance(policy, dict) or not policy:
         return deterministic_action
 
-    ranking = policy.get("action_ranking", {})
+    normalized_policy = normalize_exploration_policy(policy)
+
+    ranking = normalized_policy.get("action_ranking", {})
     if not isinstance(ranking, dict):
         return deterministic_action
 
@@ -47,7 +50,7 @@ def select_next_action(
     if deterministic_action is not None:
         available_actions[deterministic_action.action] = deterministic_action
 
-    fallback_behavior = policy.get("fallback_behavior", {})
+    fallback_behavior = normalized_policy.get("fallback_behavior", {})
     if not isinstance(fallback_behavior, dict):
         fallback_behavior = {}
 
@@ -68,6 +71,9 @@ def select_next_action(
             ]
 
     for item in sorted_ranked_actions:
+        if not bool(item.get("supported", True)):
+            continue
+
         action_name = str(item.get("action", "")).strip()
         if action_name not in available_actions:
             continue
