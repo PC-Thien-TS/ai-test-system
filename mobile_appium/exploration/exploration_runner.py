@@ -9,6 +9,7 @@ import yaml
 from mobile_appium.driver import MobileTestSettings, get_mobile_settings
 from mobile_appium.journey import MobileJourneyRunner
 from mobile_appium.navigation import select_next_action
+from mobile_appium.policy_adapter import normalize_exploration_policy
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -54,7 +55,8 @@ class MobileExplorationRunner:
         self.journey_runner = MobileJourneyRunner(driver, self.settings)
 
     def _screen_priorities(self, policy: dict[str, Any]) -> dict[str, int]:
-        priorities = policy.get("screen_priorities", {})
+        normalized_policy = normalize_exploration_policy(policy)
+        priorities = normalized_policy.get("screen_priorities", {})
         if not isinstance(priorities, dict):
             return {}
         normalized: dict[str, int] = {}
@@ -72,7 +74,8 @@ class MobileExplorationRunner:
         visited_screen_types: list[str],
         executed_actions: list[str],
     ) -> tuple[float, dict[str, Any]]:
-        coverage_strategy = policy.get("coverage_strategy", {})
+        normalized_policy = normalize_exploration_policy(policy)
+        coverage_strategy = normalized_policy.get("coverage_strategy", {})
         if not isinstance(coverage_strategy, dict):
             coverage_strategy = {}
 
@@ -86,7 +89,7 @@ class MobileExplorationRunner:
             target_actions = []
         target_actions = [str(item).strip() for item in target_actions if str(item).strip()]
 
-        screen_priorities = self._screen_priorities(policy)
+        screen_priorities = self._screen_priorities(normalized_policy)
         weight_by_screen_priority = bool(coverage_strategy.get("weight_by_screen_priority"))
 
         visited_screen_set = set(visited_screen_types)
@@ -127,6 +130,7 @@ class MobileExplorationRunner:
             "actions_executed": executed_actions,
             "action_target_count": len(target_actions),
             "action_coverage": round(action_coverage, 4),
+            "policy_shape": normalized_policy.get("policy_shape", "flat"),
         }
 
     def explore(
@@ -138,7 +142,7 @@ class MobileExplorationRunner:
         max_steps: int | None = None,
         policy_path: Path | None = None,
     ) -> ExplorationResult:
-        policy = load_exploration_policy(policy_path)
+        policy = normalize_exploration_policy(load_exploration_policy(policy_path))
         stop_conditions = policy.get("stop_conditions", {}) if isinstance(policy, dict) else {}
         if not isinstance(stop_conditions, dict):
             stop_conditions = {}
@@ -155,6 +159,7 @@ class MobileExplorationRunner:
         effective_max_steps = max(1, effective_max_steps)
 
         cycle_detection_enabled = bool(stop_conditions.get("cycle_detection", True))
+        max_cycles = max(1, int(stop_conditions.get("max_cycles", 1))) if cycle_detection_enabled else 0
         stop_on_no_valid_action = bool(stop_conditions.get("stop_on_no_valid_action", True))
         stop_on_coverage_threshold = bool(stop_conditions.get("stop_on_coverage_threshold", False))
         try:
@@ -166,12 +171,17 @@ class MobileExplorationRunner:
         except (TypeError, ValueError):
             repeated_failure_threshold = 1
         repeated_failure_threshold = max(1, repeated_failure_threshold)
+        per_screen_step_limits = stop_conditions.get("per_screen_step_limits", {})
+        if not isinstance(per_screen_step_limits, dict):
+            per_screen_step_limits = {}
+        default_max_steps_per_screen = max(0, int(stop_conditions.get("max_steps_per_screen", 0)))
 
         current_screen = start_screen
         steps: list[ExplorationStepResult] = []
         visited_screen_types: list[str] = []
         executed_actions: list[str] = []
-        visited_actions: set[tuple[str, str]] = set()
+        visited_actions: dict[tuple[str, str], int] = {}
+        screen_step_counts: dict[str, int] = {}
         repeated_failures = 0
         stop_reason = "max_steps_reached"
         coverage_score = 0.0
@@ -199,6 +209,7 @@ class MobileExplorationRunner:
             )
             if screen_result.screen_type not in visited_screen_types:
                 visited_screen_types.append(screen_result.screen_type)
+            screen_step_counts[screen_result.screen_type] = screen_step_counts.get(screen_result.screen_type, 0) + 1
 
             if screen_result.passed:
                 repeated_failures = 0
@@ -219,6 +230,15 @@ class MobileExplorationRunner:
                 stop_reason = "coverage_threshold_reached"
                 break
 
+            screen_limit = per_screen_step_limits.get(screen_result.screen_type, default_max_steps_per_screen)
+            try:
+                screen_limit = int(screen_limit)
+            except (TypeError, ValueError):
+                screen_limit = 0
+            if screen_limit > 0 and screen_step_counts[screen_result.screen_type] >= screen_limit:
+                stop_reason = "max_steps_per_screen_reached"
+                break
+
             action = select_next_action(
                 screen_result.screen_type,
                 policy=policy,
@@ -229,11 +249,12 @@ class MobileExplorationRunner:
                 break
 
             cycle_key = (screen_result.screen_name, action.action)
-            if cycle_detection_enabled and cycle_key in visited_actions:
+            prior_cycles = visited_actions.get(cycle_key, 0)
+            if cycle_detection_enabled and prior_cycles >= max_cycles:
                 stop_reason = "cycle_detected"
                 break
 
-            visited_actions.add(cycle_key)
+            visited_actions[cycle_key] = prior_cycles + 1
             executed_actions.append(action.action)
             current_screen = self.journey_runner._execute_navigation_action(action)
         else:
