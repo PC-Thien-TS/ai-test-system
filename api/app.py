@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import health, platform, plugins, projects, runs, storage
+from api.routes import health, mobile, platform, plugins, projects, runs, storage
 
 
 @asynccontextmanager
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(storage.router, prefix="/storage", tags=["storage"])
     app.include_router(platform.router, prefix="/platform", tags=["platform"])
     app.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
+    app.include_router(mobile.router, prefix="/mobile", tags=["mobile"])
     
     return app
 
