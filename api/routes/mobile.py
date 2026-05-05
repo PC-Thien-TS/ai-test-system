@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 import api.deps as api_deps
 from api.deps import require_maintainer
 from mobile_appium import MobileRunService
+from mobile_appium.run_service import InvalidMobileArtifactPathError, resolve_mobile_artifact_output_path
 
 router = APIRouter()
 
@@ -41,27 +42,17 @@ class MobileRunResponse(BaseModel):
 
 
 def _resolve_safe_output_path(raw_output_path: str | None) -> Path | None:
-    if raw_output_path is None or not str(raw_output_path).strip():
-        return None
-
-    repo_root = Path(api_deps.REPO_ROOT).resolve()
-    artifacts_root = (repo_root / "artifacts").resolve()
-    candidate = Path(str(raw_output_path).strip())
-    resolved = candidate.resolve() if candidate.is_absolute() else (repo_root / candidate).resolve()
-
     try:
-        resolved.relative_to(artifacts_root)
-    except ValueError as exc:
+        return resolve_mobile_artifact_output_path(raw_output_path, repo_root=api_deps.REPO_ROOT)
+    except InvalidMobileArtifactPathError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="output_path must resolve under artifacts/ inside the repository",
         ) from exc
 
-    return resolved
-
 
 def get_mobile_run_service() -> MobileRunService:
-    return MobileRunService()
+    return MobileRunService(repo_root=api_deps.REPO_ROOT)
 
 
 @router.post("/runs/exploration", response_model=MobileRunResponse)

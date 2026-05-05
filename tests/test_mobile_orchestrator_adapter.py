@@ -4,6 +4,8 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
+
 from mobile_appium import MobileRunArtifact, MobileRunService, MobileTestSettings
 from orchestrator.mobile_adapter import (
     MOBILE_EXPLORATION_PLUGIN,
@@ -149,3 +151,19 @@ def test_execute_mobile_exploration_run_returns_platform_style_shape():
         "duration_ms",
         "error",
     }
+
+
+def test_mobile_orchestrator_adapter_rejects_non_artifacts_output_path():
+    adapter = MobileOrchestratorAdapter(service=MobileRunService(MobileTestSettings()))
+
+    with pytest.raises(
+        ValueError,
+        match="output_path must resolve under artifacts/ inside the repository",
+    ):
+        adapter.execute_exploration_run(
+            start_screen="LoginScreen",
+            username="demo",
+            password="demo123",
+            max_steps=8,
+            output_path="tmp/mobile_adapter_run.json",
+        )
