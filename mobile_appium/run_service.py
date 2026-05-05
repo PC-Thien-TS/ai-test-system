@@ -19,6 +19,38 @@ def _isoformat_utc(value: datetime) -> str:
     return value.isoformat().replace("+00:00", "Z")
 
 
+class InvalidMobileArtifactPathError(ValueError):
+    """Raised when a mobile artifact output path resolves outside repo-local artifacts/."""
+
+
+def _default_repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def resolve_mobile_artifact_output_path(
+    output_path: str | Path | None,
+    *,
+    repo_root: str | Path | None = None,
+) -> Path | None:
+    if output_path is None or not str(output_path).strip():
+        return None
+
+    resolved_repo_root = Path(repo_root) if repo_root is not None else _default_repo_root()
+    resolved_repo_root = resolved_repo_root.resolve()
+    artifacts_root = (resolved_repo_root / "artifacts").resolve()
+    candidate = Path(str(output_path).strip())
+    resolved = candidate.resolve() if candidate.is_absolute() else (resolved_repo_root / candidate).resolve()
+
+    try:
+        resolved.relative_to(artifacts_root)
+    except ValueError as exc:
+        raise InvalidMobileArtifactPathError(
+            "output_path must resolve under artifacts/ inside the repository"
+        ) from exc
+
+    return resolved
+
+
 @dataclass(frozen=True)
 class MobileRunArtifact:
     run_id: str
@@ -38,8 +70,14 @@ class MobileRunArtifact:
 
 
 class MobileRunService:
-    def __init__(self, settings: MobileTestSettings | None = None) -> None:
+    def __init__(
+        self,
+        settings: MobileTestSettings | None = None,
+        *,
+        repo_root: str | Path | None = None,
+    ) -> None:
         self.settings = settings or get_mobile_settings()
+        self.repo_root = Path(repo_root) if repo_root is not None else _default_repo_root()
 
     def _resolve_policy_shape(self) -> str:
         normalized = normalize_exploration_policy(load_exploration_policy())
@@ -58,6 +96,7 @@ class MobileRunService:
         max_steps: int | None = None,
         output_path: str | Path | None = None,
     ) -> MobileRunArtifact:
+        resolved_output_path = resolve_mobile_artifact_output_path(output_path, repo_root=self.repo_root)
         run_id = uuid.uuid4().hex
         started_at = _utc_now()
         driver = None
@@ -109,7 +148,7 @@ class MobileRunService:
             if driver is not None and hasattr(driver, "quit"):
                 driver.quit()
 
-        if output_path is not None:
-            self._write_artifact(Path(output_path), artifact)
+        if resolved_output_path is not None:
+            self._write_artifact(resolved_output_path, artifact)
         return artifact
 

@@ -4,8 +4,11 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
+
 from mobile_appium import MobileRunService
 from mobile_appium.exploration import ExplorationResult, ExplorationStepResult
+from mobile_appium.run_service import InvalidMobileArtifactPathError
 
 
 def _workspace_artifact_path(test_name: str) -> Path:
@@ -136,3 +139,43 @@ def test_mobile_run_service_preserves_exploration_result_shape(monkeypatch, mobi
     assert artifact.coverage_score == 0.5
     assert artifact.policy_shape == "flat"
     assert artifact.error == ""
+
+
+@pytest.mark.parametrize(
+    "output_path",
+    [
+        Path("../mobile_run_escape.json"),
+        Path("tmp/mobile_run.json"),
+    ],
+)
+def test_mobile_run_service_rejects_paths_outside_artifacts(output_path, mobile_settings):
+    service = MobileRunService(mobile_settings)
+
+    with pytest.raises(
+        InvalidMobileArtifactPathError,
+        match="output_path must resolve under artifacts/ inside the repository",
+    ):
+        service.run_bounded_exploration(
+            start_screen="LoginScreen",
+            username=mobile_settings.valid_username,
+            password=mobile_settings.valid_password,
+            max_steps=8,
+            output_path=output_path,
+        )
+
+
+def test_mobile_run_service_rejects_absolute_path_outside_repo_artifacts(mobile_settings):
+    service = MobileRunService(mobile_settings)
+    outside_path = Path("tmp_mobile_run_outside_artifacts.json").resolve()
+
+    with pytest.raises(
+        InvalidMobileArtifactPathError,
+        match="output_path must resolve under artifacts/ inside the repository",
+    ):
+        service.run_bounded_exploration(
+            start_screen="LoginScreen",
+            username=mobile_settings.valid_username,
+            password=mobile_settings.valid_password,
+            max_steps=8,
+            output_path=outside_path,
+        )

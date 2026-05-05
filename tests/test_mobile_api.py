@@ -142,3 +142,44 @@ def test_trigger_mobile_exploration_run_response_schema_and_safe_output_path(cli
     artifact_path = temp_repo_root / "artifacts" / "mobile_runs" / "api_mobile_run.json"
     assert artifact_path.exists()
     artifact_path.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize(
+    "output_path",
+    [
+        "../api_mobile_run_escape.json",
+        "tmp/api_mobile_run.json",
+    ],
+)
+def test_trigger_mobile_exploration_run_rejects_unsafe_relative_output_path(client, output_path):
+    response = client.post(
+        "/mobile/runs/exploration",
+        json={
+            "start_screen": "LoginScreen",
+            "output_path": output_path,
+        },
+        headers={"X-User-ID": "test-user", "X-User-Role": "maintainer"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "output_path must resolve under artifacts/ inside the repository",
+    }
+
+
+def test_trigger_mobile_exploration_run_rejects_absolute_output_path_outside_repo(client, temp_repo_root):
+    outside_path = temp_repo_root.parent / f"{temp_repo_root.name}_outside.json"
+
+    response = client.post(
+        "/mobile/runs/exploration",
+        json={
+            "start_screen": "LoginScreen",
+            "output_path": str(outside_path),
+        },
+        headers={"X-User-ID": "test-user", "X-User-Role": "maintainer"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "output_path must resolve under artifacts/ inside the repository",
+    }
