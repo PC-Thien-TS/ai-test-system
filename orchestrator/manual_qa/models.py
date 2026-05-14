@@ -480,6 +480,66 @@ class APIScriptPackageManifest:
         return asdict(self)
 
 
+@dataclass
+class WebPlaywrightGap:
+    """Deterministic readiness gap for future Playwright web draft generation."""
+
+    gap_id: str
+    test_case_id: str
+    gap_type: str
+    message: str
+    severity: str
+    recommendation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class WebPlaywrightReadiness:
+    """Deterministic readiness assessment for future Playwright web draft generation."""
+
+    readiness_id: str
+    test_case_id: str
+    requirement_ids: List[str] = field(default_factory=list)
+    module: str = ""
+    title: str = ""
+    readiness_status: str = "Needs More Data"
+    readiness_score: int = 0
+    page_url: str = ""
+    selector_hints: List[str] = field(default_factory=list)
+    action_hints: List[str] = field(default_factory=list)
+    assertion_hints: List[str] = field(default_factory=list)
+    gaps: List[WebPlaywrightGap] = field(default_factory=list)
+    strengths: List[str] = field(default_factory=list)
+    suggested_next_step: str = ""
+    automation_candidate_id: str = ""
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "readiness_id": self.readiness_id,
+            "test_case_id": self.test_case_id,
+            "requirement_ids": list(self.requirement_ids),
+            "module": self.module,
+            "title": self.title,
+            "readiness_status": self.readiness_status,
+            "readiness_score": self.readiness_score,
+            "page_url": self.page_url,
+            "selector_hints": list(self.selector_hints),
+            "action_hints": list(self.action_hints),
+            "assertion_hints": list(self.assertion_hints),
+            "gaps": [gap.to_dict() for gap in self.gaps],
+            "strengths": list(self.strengths),
+            "suggested_next_step": self.suggested_next_step,
+            "automation_candidate_id": self.automation_candidate_id,
+            "created_at": self.created_at,
+            "metadata": dict(self.metadata),
+        }
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

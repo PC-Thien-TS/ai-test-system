@@ -34,6 +34,7 @@ from orchestrator.manual_qa.models import (
     TestResult,
     TestRun,
     TestSuite,
+    WebPlaywrightReadiness,
 )
 from orchestrator.manual_qa.project_service import ProjectProfileService
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
@@ -44,6 +45,7 @@ from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
+from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
 
 
@@ -68,6 +70,7 @@ class ManualQACLI:
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
         self.script_readiness_service = ScriptReadinessService()
+        self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -159,6 +162,10 @@ class ManualQACLI:
         readiness_parser = subparsers.add_parser("script-readiness")
         readiness_parser.add_argument("--workspace", required=True)
         readiness_parser.set_defaults(handler=self._handle_script_readiness)
+
+        web_readiness_parser = subparsers.add_parser("web-playwright-readiness")
+        web_readiness_parser.add_argument("--workspace", required=True)
+        web_readiness_parser.set_defaults(handler=self._handle_web_playwright_readiness)
 
         api_drafts_parser = subparsers.add_parser("generate-api-drafts")
         api_drafts_parser.add_argument("--workspace", required=True)
@@ -379,6 +386,41 @@ class ManualQACLI:
         print(
             "Script readiness:"
             f" total={len(readiness_items)}"
+            f" ready={ready}"
+            f" needs_more_data={needs_more_data}"
+            f" not_suitable={not_suitable}"
+        )
+        return 0
+
+    def _handle_web_playwright_readiness(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        project = self._load_project(workspace / "project.json") if (workspace / "project.json").exists() else None
+        automation_candidates = self._load_automation_candidates(
+            workspace / "automation_candidates" / "candidates.json"
+        )
+        script_readiness_items = self._load_script_readiness_items(
+            workspace / "reports" / "script_readiness.json"
+        )
+        readiness_items = self.web_playwright_readiness_service.analyze_web_playwright_readiness_batch(
+            test_cases,
+            script_readiness_items=script_readiness_items,
+            automation_candidates=automation_candidates,
+            project_type_hint=project.product_type if project is not None else None,
+        )
+        json_path = workspace / "reports" / "web_playwright_readiness.json"
+        md_path = workspace / "reports" / "web_playwright_readiness.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in readiness_items])
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(readiness_items))
+        self.workspace_service.update_workspace_manifest(workspace)
+        ready = len([item for item in readiness_items if item.readiness_status == "Ready"])
+        needs_more_data = len(
+            [item for item in readiness_items if item.readiness_status == "Needs More Data"]
+        )
+        not_suitable = len([item for item in readiness_items if item.readiness_status == "Not Suitable"])
+        print(
+            "Web Playwright readiness:"
+            f" total_evaluated={len(readiness_items)}"
             f" ready={ready}"
             f" needs_more_data={needs_more_data}"
             f" not_suitable={not_suitable}"

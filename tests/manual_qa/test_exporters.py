@@ -80,6 +80,14 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_json_string,
     export_summary_to_markdown_file,
     export_summary_to_markdown_string,
+    export_web_playwright_readiness_list_to_json_file,
+    export_web_playwright_readiness_list_to_json_string,
+    export_web_playwright_readiness_list_to_markdown_file,
+    export_web_playwright_readiness_list_to_markdown_string,
+    export_web_playwright_readiness_to_json_file,
+    export_web_playwright_readiness_to_json_string,
+    export_web_playwright_readiness_to_markdown_file,
+    export_web_playwright_readiness_to_markdown_string,
 )
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
@@ -96,6 +104,7 @@ from orchestrator.manual_qa.run_service import TestRunService
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
+from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
 
 
 def _build_bundle() -> ExportBundle:
@@ -320,6 +329,36 @@ def _build_api_script_validation_and_package():
         validation_report_files=["script_drafts/api/api_script_validation.json"],
     )
     return validation_results[0], validation_results, manifest
+
+
+def _build_web_playwright_readiness_items():
+    service = WebPlaywrightReadinessService()
+    primary = service.analyze_web_playwright_readiness(
+        ManualTestCase(
+            test_case_id="TC-300",
+            requirement_ids=["REQ-300"],
+            module="Portal UI",
+            title="Login page submit flow",
+            steps=[
+                "Navigate to /login page.",
+                "Fill data-testid=login-email with valid email.",
+                "Fill data-testid=login-password with valid password.",
+                "Click button text sign in.",
+            ],
+            expected_result="User should see dashboard and URL contains /dashboard.",
+        )
+    )
+    secondary = service.analyze_web_playwright_readiness(
+        ManualTestCase(
+            test_case_id="TC-301",
+            requirement_ids=["REQ-301"],
+            module="Portal UI",
+            title="Visual review looks good",
+            steps=["Open /homepage and review manually."],
+            expected_result="Looks good visually.",
+        )
+    )
+    return primary, [primary, secondary]
 
 
 def test_exports_json_string():
@@ -781,3 +820,54 @@ def test_writes_api_script_validation_result_and_package_markdown_files(tmp_path
     assert "APIVAL-001" in result_path.read_text(encoding="utf-8")
     assert "APIVAL-002" in results_path.read_text(encoding="utf-8")
     assert "APIPKG-001" in manifest_path.read_text(encoding="utf-8")
+
+
+def test_exports_web_playwright_readiness_and_list_json_strings():
+    readiness, readiness_items = _build_web_playwright_readiness_items()
+
+    readiness_payload = json.loads(export_web_playwright_readiness_to_json_string(readiness))
+    list_payload = json.loads(export_web_playwright_readiness_list_to_json_string(readiness_items))
+
+    assert readiness_payload["readiness_id"] == "WPREAD-001"
+    assert readiness_payload["test_case_id"] == "TC-300"
+    assert "selector_hints" in readiness_payload
+    assert list_payload[1]["readiness_id"] == "WPREAD-002"
+
+
+def test_writes_web_playwright_readiness_and_list_json_files(tmp_path):
+    readiness, readiness_items = _build_web_playwright_readiness_items()
+
+    readiness_path = tmp_path / "web_playwright_readiness.json"
+    list_path = tmp_path / "web_playwright_readiness_list.json"
+
+    export_web_playwright_readiness_to_json_file(readiness, readiness_path)
+    export_web_playwright_readiness_list_to_json_file(readiness_items, list_path)
+
+    assert json.loads(readiness_path.read_text(encoding="utf-8"))["readiness_id"] == "WPREAD-001"
+    assert json.loads(list_path.read_text(encoding="utf-8"))[1]["test_case_id"] == "TC-301"
+
+
+def test_exports_web_playwright_readiness_and_list_markdown_strings():
+    readiness, readiness_items = _build_web_playwright_readiness_items()
+
+    readiness_markdown = export_web_playwright_readiness_to_markdown_string(readiness)
+    list_markdown = export_web_playwright_readiness_list_to_markdown_string(readiness_items)
+
+    assert "WPREAD-001" in readiness_markdown
+    assert "TC-300" in readiness_markdown
+    assert "Selector Hints" in readiness_markdown
+    assert "Suggested Next Step" in readiness_markdown
+    assert "WPREAD-002" in list_markdown
+
+
+def test_writes_web_playwright_readiness_and_list_markdown_files(tmp_path):
+    readiness, readiness_items = _build_web_playwright_readiness_items()
+
+    readiness_path = tmp_path / "web_playwright_readiness.md"
+    list_path = tmp_path / "web_playwright_readiness_list.md"
+
+    export_web_playwright_readiness_to_markdown_file(readiness, readiness_path)
+    export_web_playwright_readiness_list_to_markdown_file(readiness_items, list_path)
+
+    assert "WPREAD-001" in readiness_path.read_text(encoding="utf-8")
+    assert "WPREAD-002" in list_path.read_text(encoding="utf-8")

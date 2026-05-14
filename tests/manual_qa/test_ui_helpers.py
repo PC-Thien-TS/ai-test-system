@@ -22,6 +22,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_project,
     load_requirements,
     load_script_readiness_items,
+    load_web_playwright_readiness_items,
     load_testcases,
     resolve_workspace,
     safe_load_json_artifact,
@@ -228,6 +229,23 @@ def test_load_api_validation_and_package_manifest_artifacts(tmp_path):
     assert manifest["package_id"] == "APIPKG-001"
     assert "script_drafts/api/api_script_validation.json" in files
     assert "script_drafts/api/api_script_package_manifest.md" in files
+
+
+def test_load_web_playwright_readiness_items_returns_report_items(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    (workspace / "reports" / "web_playwright_readiness.json").write_text(
+        '[{"readiness_id":"WPREAD-001","test_case_id":"TC-901","requirement_ids":["REQ-901"],'
+        '"module":"Portal UI","title":"Login page submit flow","readiness_status":"Ready",'
+        '"readiness_score":80,"page_url":"/login","selector_hints":["data-testid=login-email"],'
+        '"action_hints":["click"],"assertion_hints":["url contains"],"gaps":[],"strengths":["Selectors present"],'
+        '"suggested_next_step":"Proceed to Playwright script draft generation","automation_candidate_id":"AUTO-001",'
+        '"created_at":"2024-01-11T00:00:00Z","metadata":{}}]',
+        encoding="utf-8",
+    )
+
+    loaded = load_web_playwright_readiness_items(workspace)
+
+    assert loaded[0]["readiness_id"] == "WPREAD-001"
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

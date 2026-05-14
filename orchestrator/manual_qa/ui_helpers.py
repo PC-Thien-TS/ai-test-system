@@ -80,6 +80,7 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
     bugs = load_bugs(workspace)
     candidates = load_automation_candidates(workspace)
     readiness_items = load_script_readiness_items(workspace)
+    web_playwright_readiness_items = load_web_playwright_readiness_items(workspace)
 
     actions: list[str] = []
     if not project:
@@ -104,6 +105,9 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
         actions.append("Score automation candidates for the current test cases.")
     if testcases and not readiness_items:
         actions.append("Generate a script readiness report before attempting draft generation.")
+    if readiness_items and not web_playwright_readiness_items:
+        if any(item.get("target_type") in {"web_ui", "manual_only"} for item in readiness_items):
+            actions.append("Generate a Web Playwright readiness report for web UI-like cases.")
     if load_api_script_drafts(workspace) and not load_api_script_validation_results(workspace):
         actions.append("Validate generated API draft artifacts and review the package manifest.")
     if bugs and candidates:
@@ -196,6 +200,10 @@ def list_api_validation_files(workspace_path: str | Path | None) -> list[str]:
 
 def load_script_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "script_readiness.json")
+
+
+def load_web_playwright_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "web_playwright_readiness.json")
 
 
 def load_api_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:

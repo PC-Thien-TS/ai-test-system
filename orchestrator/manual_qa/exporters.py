@@ -22,6 +22,8 @@ from orchestrator.manual_qa.models import (
     ScriptGenerationReadiness,
     TestRun,
     TestSuite,
+    WebPlaywrightGap,
+    WebPlaywrightReadiness,
 )
 
 
@@ -30,7 +32,7 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness],
     ) -> str:
         if isinstance(payload, list):
             return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
@@ -38,7 +40,7 @@ class ManualQAExporter:
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -48,7 +50,7 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness],
         *,
         title: Optional[str] = None,
     ) -> str:
@@ -64,6 +66,8 @@ class ManualQAExporter:
                 return self._export_api_script_draft_list_markdown(payload, title=title)
             if isinstance(first_item, APIScriptValidationResult):
                 return self._export_api_script_validation_result_list_markdown(payload, title=title)
+            if isinstance(first_item, WebPlaywrightReadiness):
+                return self._export_web_playwright_readiness_list_markdown(payload, title=title)
             return self._export_automation_candidate_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
@@ -91,6 +95,10 @@ class ManualQAExporter:
             return self._export_api_script_validation_result_markdown(payload, title=title)
         if isinstance(payload, APIScriptPackageManifest):
             return self._export_api_script_package_manifest_markdown(payload, title=title)
+        if isinstance(payload, WebPlaywrightGap):
+            return self._export_web_playwright_gap_markdown(payload, title=title)
+        if isinstance(payload, WebPlaywrightReadiness):
+            return self._export_web_playwright_readiness_markdown(payload, title=title)
         if isinstance(payload, AutomationCandidate):
             return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
@@ -700,9 +708,102 @@ class ManualQAExporter:
         lines.append("")
         return "\n".join(lines)
 
+    def _export_web_playwright_gap_markdown(
+        self,
+        gap: WebPlaywrightGap,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Playwright Gap - {gap.gap_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Gap",
+            f"- Gap ID: {gap.gap_id}",
+            f"- Test Case ID: {gap.test_case_id}",
+            f"- Gap Type: {gap.gap_type}",
+            f"- Severity: {gap.severity}",
+            f"- Message: {gap.message}",
+            f"- Recommendation: {gap.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_web_playwright_readiness_markdown(
+        self,
+        readiness: WebPlaywrightReadiness,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Playwright Readiness - {readiness.readiness_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Readiness",
+            f"- Readiness ID: {readiness.readiness_id}",
+            f"- Test Case ID: {readiness.test_case_id}",
+            f"- Module: {readiness.module or 'N/A'}",
+            f"- Title: {readiness.title or 'N/A'}",
+            f"- Readiness Status: {readiness.readiness_status}",
+            f"- Readiness Score: {readiness.readiness_score}",
+            f"- Page URL: {readiness.page_url or 'N/A'}",
+            f"- Automation Candidate ID: {readiness.automation_candidate_id or 'N/A'}",
+            "",
+            "## Selector Hints",
+        ]
+        for item in readiness.selector_hints or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Action Hints"])
+        for item in readiness.action_hints or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Assertion Hints"])
+        for item in readiness.assertion_hints or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Strengths"])
+        for item in readiness.strengths or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Gaps"])
+        if not readiness.gaps:
+            lines.append("- None")
+        for gap in readiness.gaps:
+            lines.append(
+                f"- {gap.gap_id} [{gap.severity}] {gap.gap_type}: {gap.message} | Recommendation: {gap.recommendation}"
+            )
+        lines.extend(["", "## Suggested Next Step", readiness.suggested_next_step or "N/A", ""])
+        return "\n".join(lines)
+
+    def _export_web_playwright_readiness_list_markdown(
+        self,
+        items: list[WebPlaywrightReadiness],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Web Playwright Readiness Report"
+        lines = [f"# {heading}", ""]
+        for item in items:
+            lines.extend(
+                [
+                    f"## {item.readiness_id}",
+                    f"- Test Case ID: {item.test_case_id}",
+                    f"- Module: {item.module or 'N/A'}",
+                    f"- Title: {item.title or 'N/A'}",
+                    f"- Readiness Status: {item.readiness_status}",
+                    f"- Readiness Score: {item.readiness_score}",
+                    f"- Page URL: {item.page_url or 'N/A'}",
+                    f"- Selector Hints: {', '.join(item.selector_hints) if item.selector_hints else 'None'}",
+                    f"- Action Hints: {', '.join(item.action_hints) if item.action_hints else 'None'}",
+                    f"- Assertion Hints: {', '.join(item.assertion_hints) if item.assertion_hints else 'None'}",
+                    f"- Strengths: {', '.join(item.strengths) if item.strengths else 'None'}",
+                    f"- Gaps: {', '.join(gap.gap_type for gap in item.gaps) if item.gaps else 'None'}",
+                    f"- Suggested Next Step: {item.suggested_next_step}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -1212,3 +1313,84 @@ def export_api_script_package_manifest_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(manifest, path, title=title)
+
+
+def export_web_playwright_gap_to_json_string(gap: WebPlaywrightGap) -> str:
+    return ManualQAExporter().export_json_string(gap)
+
+
+def export_web_playwright_gap_to_json_file(gap: WebPlaywrightGap, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(gap, path)
+
+
+def export_web_playwright_gap_to_markdown_string(
+    gap: WebPlaywrightGap,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(gap, title=title)
+
+
+def export_web_playwright_gap_to_markdown_file(
+    gap: WebPlaywrightGap,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(gap, path, title=title)
+
+
+def export_web_playwright_readiness_to_json_string(readiness: WebPlaywrightReadiness) -> str:
+    return ManualQAExporter().export_json_string(readiness)
+
+
+def export_web_playwright_readiness_to_json_file(
+    readiness: WebPlaywrightReadiness,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(readiness, path)
+
+
+def export_web_playwright_readiness_to_markdown_string(
+    readiness: WebPlaywrightReadiness,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(readiness, title=title)
+
+
+def export_web_playwright_readiness_to_markdown_file(
+    readiness: WebPlaywrightReadiness,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(readiness, path, title=title)
+
+
+def export_web_playwright_readiness_list_to_json_string(items: list[WebPlaywrightReadiness]) -> str:
+    return ManualQAExporter().export_json_string(items)
+
+
+def export_web_playwright_readiness_list_to_json_file(
+    items: list[WebPlaywrightReadiness],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(items, path)
+
+
+def export_web_playwright_readiness_list_to_markdown_string(
+    items: list[WebPlaywrightReadiness],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(items, title=title)
+
+
+def export_web_playwright_readiness_list_to_markdown_file(
+    items: list[WebPlaywrightReadiness],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(items, path, title=title)

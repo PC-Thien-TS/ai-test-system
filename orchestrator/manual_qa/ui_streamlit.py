@@ -35,6 +35,7 @@ from orchestrator.manual_qa.script_readiness_service import ScriptReadinessServi
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
+from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
@@ -59,6 +60,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_requirements,
     load_runs,
     load_script_readiness_items,
+    load_web_playwright_readiness_items,
     load_testcases,
     resolve_workspace,
     safe_load_json_artifact,
@@ -91,6 +93,7 @@ class ManualQAStreamlitUI:
         self.api_script_generator = APITestScriptGenerator()
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
+        self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.demo_service = DemoWorkflowService()
         self.exporter = ManualQAExporter()
 
@@ -665,6 +668,43 @@ class ManualQAStreamlitUI:
                     f"needs_more_data={needs_more_data}, not_suitable={not_suitable}"
                 )
 
+            if st.button("Generate Web Playwright readiness report"):
+                test_cases = [ManualTestCase(**item) for item in load_testcases(workspace)]
+                if not test_cases:
+                    st.warning("Generate manual test cases first.")
+                else:
+                    candidates = [AutomationCandidate(**item) for item in load_automation_candidates(workspace)]
+                    readiness_payloads = load_script_readiness_items(workspace)
+                    upstream_readiness = [
+                        ScriptGenerationReadiness(
+                            **{
+                                **item,
+                                "gaps": item.get("gaps", []),
+                            }
+                        )
+                        for item in readiness_payloads
+                        if isinstance(item, dict)
+                    ]
+                    project = load_project(workspace)
+                    web_readiness_items = self.web_playwright_readiness_service.analyze_web_playwright_readiness_batch(
+                        test_cases,
+                        script_readiness_items=upstream_readiness,
+                        automation_candidates=candidates,
+                        project_type_hint=project.get("product_type", ""),
+                    )
+                    self.workspace_service.write_json(
+                        workspace / "reports" / "web_playwright_readiness.json",
+                        [item.to_dict() for item in web_readiness_items],
+                    )
+                    self.workspace_service.write_markdown(
+                        workspace / "reports" / "web_playwright_readiness.md",
+                        self.exporter.export_markdown_string(web_readiness_items),
+                    )
+                    self.workspace_service.update_workspace_manifest(workspace)
+                    st.success(
+                        f"Generated Web Playwright readiness report for {len(web_readiness_items)} test cases."
+                    )
+
             if st.button("Generate API script drafts"):
                 test_cases = [ManualTestCase(**item) for item in load_testcases(workspace)]
                 readiness_payloads = load_script_readiness_items(workspace)
@@ -754,6 +794,30 @@ class ManualQAStreamlitUI:
                 selected_validation_file = st.selectbox("API validation artifact", options=validation_files)
                 language = "markdown" if selected_validation_file.endswith(".md") else "json"
                 st.code(get_artifact_preview(workspace / selected_validation_file), language=language)
+
+            web_playwright_readiness_items = load_web_playwright_readiness_items(workspace)
+            if web_playwright_readiness_items:
+                ready = len(
+                    [item for item in web_playwright_readiness_items if item.get("readiness_status") == "Ready"]
+                )
+                needs_more_data = len(
+                    [
+                        item
+                        for item in web_playwright_readiness_items
+                        if item.get("readiness_status") == "Needs More Data"
+                    ]
+                )
+                not_suitable = len(
+                    [
+                        item
+                        for item in web_playwright_readiness_items
+                        if item.get("readiness_status") == "Not Suitable"
+                    ]
+                )
+                st.caption(
+                    f"Web Playwright readiness: total={len(web_playwright_readiness_items)}, ready={ready}, "
+                    f"needs_more_data={needs_more_data}, not_suitable={not_suitable}"
+                )
 
     def _load_suite_model(self, path: Path) -> TestSuite:
         return TestSuite(**self.workspace_service.read_json(path))

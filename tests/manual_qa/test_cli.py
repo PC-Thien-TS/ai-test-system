@@ -103,6 +103,33 @@ def _write_api_testcases(workspace: Path) -> None:
     )
 
 
+def _write_web_ui_testcases(workspace: Path) -> None:
+    payload = [
+        {
+            "test_case_id": "TC-901",
+            "requirement_ids": ["REQ-901"],
+            "module": "Portal UI",
+            "title": "Login page submit flow",
+            "preconditions": [],
+            "steps": [
+                "Navigate to /login page.",
+                "Fill data-testid=login-email with valid email.",
+                "Fill data-testid=login-password with valid password.",
+                "Click button text sign in.",
+            ],
+            "expected_result": "User should see dashboard and URL contains /dashboard.",
+            "priority": "High",
+            "test_type": "Positive",
+            "status": "Not Run",
+            "metadata": {},
+        }
+    ]
+    (workspace / "testcases" / "testcases.json").write_text(
+        json.dumps(payload, indent=2),
+        encoding="utf-8",
+    )
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -411,6 +438,69 @@ def test_validate_api_drafts_handles_missing_drafts_file_clearly(tmp_path):
     exit_code = main(["validate-api-drafts", "--workspace", str(workspace)])
 
     assert exit_code == 1
+
+
+def test_web_playwright_readiness_writes_reports_and_prints_summary(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "portal-web-demo",
+                "name": "Portal Web Demo",
+                "product_type": "web",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_web_ui_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["web-playwright-readiness", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "web_playwright_readiness.json").exists()
+    assert (workspace / "reports" / "web_playwright_readiness.md").exists()
+    assert "Web Playwright readiness:" in captured.out
+    assert "total_evaluated=1" in captured.out
+    assert list(workspace.rglob("*.spec.ts")) == []
+
+
+def test_web_playwright_readiness_handles_no_eligible_cases_clearly(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "order-api-demo",
+                "name": "Order API Demo",
+                "product_type": "api",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_api_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["web-playwright-readiness", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "web_playwright_readiness.json").exists()
+    assert (workspace / "reports" / "web_playwright_readiness.md").exists()
+    assert "total_evaluated=0" in captured.out
+    assert list(workspace.rglob("*.spec.ts")) == []
 
 
 def test_invalid_missing_file_returns_non_zero(tmp_path):
