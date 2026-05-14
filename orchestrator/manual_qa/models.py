@@ -234,6 +234,61 @@ class BugDraft:
         return asdict(self)
 
 
+@dataclass
+class FailureSignature:
+    """Deterministic failure signature for Manual QA memory."""
+
+    signature_id: str
+    fingerprint: str
+    module: str
+    test_case_id: str
+    title: str
+    symptom: str
+    expected_result: str = ""
+    actual_result: str = ""
+    environment: str = ""
+    build: str = ""
+    severity: str = ""
+    priority: str = ""
+    source_bug_id: str = ""
+    tags: List[str] = field(default_factory=list)
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class FailureRecord:
+    """Deterministic in-memory failure memory record."""
+
+    record_id: str
+    signature: FailureSignature
+    occurrence_count: int
+    first_seen: str | None = None
+    last_seen: str | None = None
+    related_bug_ids: List[str] = field(default_factory=list)
+    related_run_ids: List[str] = field(default_factory=list)
+    related_test_case_ids: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "record_id": self.record_id,
+            "signature": self.signature.to_dict(),
+            "occurrence_count": self.occurrence_count,
+            "first_seen": self.first_seen,
+            "last_seen": self.last_seen,
+            "related_bug_ids": list(self.related_bug_ids),
+            "related_run_ids": list(self.related_run_ids),
+            "related_test_case_ids": list(self.related_test_case_ids),
+            "notes": list(self.notes),
+            "metadata": dict(self.metadata),
+        }
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

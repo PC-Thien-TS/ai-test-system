@@ -15,6 +15,18 @@ from orchestrator.manual_qa.exporters import (
     export_evidence_to_json_string,
     export_evidence_to_markdown_file,
     export_evidence_to_markdown_string,
+    export_failure_record_to_json_file,
+    export_failure_record_to_json_string,
+    export_failure_record_to_markdown_file,
+    export_failure_record_to_markdown_string,
+    export_failure_records_to_json_file,
+    export_failure_records_to_json_string,
+    export_failure_records_to_markdown_file,
+    export_failure_records_to_markdown_string,
+    export_failure_signature_to_json_file,
+    export_failure_signature_to_json_string,
+    export_failure_signature_to_markdown_file,
+    export_failure_signature_to_markdown_string,
     export_run_to_json_file,
     export_run_to_json_string,
     export_run_to_markdown_file,
@@ -30,6 +42,7 @@ from orchestrator.manual_qa.exporters import (
 )
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
+from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
     ChecklistItem,
     ExportBundle,
@@ -149,6 +162,26 @@ def _build_evidence_and_bug():
         evidence=[evidence],
     )
     return evidence, bug
+
+
+def _build_failure_signature_and_record():
+    service = FailureMemoryService()
+    signature = service.create_failure_signature(
+        module="Checkout",
+        test_case_id="TC-001",
+        title="Checkout validation failure",
+        symptom="Validation message missing",
+        expected_result="A validation message is shown.",
+        actual_result="The request succeeded without validation.",
+        environment="staging",
+        build="build-001",
+        severity="Major",
+        priority="High",
+        source_bug_id="BUG-001",
+        metadata={"run_id": "RUN-001"},
+    )
+    record = service.remember_failure(signature)
+    return signature, record, [record]
 
 
 def test_exports_json_string():
@@ -311,3 +344,68 @@ def test_writes_evidence_and_bug_draft_markdown_files(tmp_path):
     assert "BUG-001" in bug_markdown
     assert "TC-001" in bug_markdown
     assert "No validation message was shown." in bug_markdown
+
+
+def test_exports_failure_signature_record_and_record_list_json_strings():
+    signature, record, records = _build_failure_signature_and_record()
+
+    signature_payload = json.loads(export_failure_signature_to_json_string(signature))
+    record_payload = json.loads(export_failure_record_to_json_string(record))
+    records_payload = json.loads(export_failure_records_to_json_string(records))
+
+    assert signature_payload["signature_id"] == "FSIG-001"
+    assert signature_payload["fingerprint"].startswith("FP-")
+    assert record_payload["record_id"] == "FMEM-001"
+    assert record_payload["occurrence_count"] == 1
+    assert record_payload["related_bug_ids"] == ["BUG-001"]
+    assert records_payload[0]["record_id"] == "FMEM-001"
+
+
+def test_writes_failure_signature_record_and_record_list_json_files(tmp_path):
+    signature, record, records = _build_failure_signature_and_record()
+
+    signature_path = tmp_path / "failure_signature.json"
+    record_path = tmp_path / "failure_record.json"
+    records_path = tmp_path / "failure_records.json"
+
+    export_failure_signature_to_json_file(signature, signature_path)
+    export_failure_record_to_json_file(record, record_path)
+    export_failure_records_to_json_file(records, records_path)
+
+    assert json.loads(signature_path.read_text(encoding="utf-8"))["signature_id"] == "FSIG-001"
+    assert json.loads(record_path.read_text(encoding="utf-8"))["occurrence_count"] == 1
+    assert json.loads(records_path.read_text(encoding="utf-8"))[0]["related_bug_ids"] == ["BUG-001"]
+
+
+def test_exports_failure_signature_record_and_record_list_markdown_strings():
+    signature, record, records = _build_failure_signature_and_record()
+
+    signature_markdown = export_failure_signature_to_markdown_string(signature)
+    record_markdown = export_failure_record_to_markdown_string(record)
+    records_markdown = export_failure_records_to_markdown_string(records)
+
+    assert "FSIG-001" in signature_markdown
+    assert signature.fingerprint in signature_markdown
+    assert "FMEM-001" in record_markdown
+    assert "Occurrence Count: 1" in record_markdown
+    assert "BUG-001" in record_markdown
+    assert "FMEM-001" in records_markdown
+
+
+def test_writes_failure_signature_record_and_record_list_markdown_files(tmp_path):
+    signature, record, records = _build_failure_signature_and_record()
+
+    signature_path = tmp_path / "failure_signature.md"
+    record_path = tmp_path / "failure_record.md"
+    records_path = tmp_path / "failure_records.md"
+
+    export_failure_signature_to_markdown_file(signature, signature_path)
+    export_failure_record_to_markdown_file(record, record_path)
+    export_failure_records_to_markdown_file(records, records_path)
+
+    assert "FSIG-001" in signature_path.read_text(encoding="utf-8")
+    record_markdown = record_path.read_text(encoding="utf-8")
+    assert "FMEM-001" in record_markdown
+    assert signature.fingerprint in record_markdown
+    assert "BUG-001" in record_markdown
+    assert "FMEM-001" in records_path.read_text(encoding="utf-8")

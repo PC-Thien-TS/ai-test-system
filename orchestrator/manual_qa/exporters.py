@@ -6,7 +6,16 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from orchestrator.manual_qa.models import BugDraft, Evidence, ExportBundle, RunSummary, TestRun, TestSuite
+from orchestrator.manual_qa.models import (
+    BugDraft,
+    Evidence,
+    ExportBundle,
+    FailureRecord,
+    FailureSignature,
+    RunSummary,
+    TestRun,
+    TestSuite,
+)
 
 
 class ManualQAExporter:
@@ -14,13 +23,15 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
     ) -> str:
+        if isinstance(payload, list):
+            return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
         return json.dumps(payload.to_dict(), indent=2, ensure_ascii=False, sort_keys=True)
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -30,10 +41,12 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
         *,
         title: Optional[str] = None,
     ) -> str:
+        if isinstance(payload, list):
+            return self._export_failure_record_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
         if isinstance(payload, TestSuite):
@@ -44,6 +57,10 @@ class ManualQAExporter:
             return self._export_evidence_markdown(payload, title=title)
         if isinstance(payload, BugDraft):
             return self._export_bug_draft_markdown(payload, title=title)
+        if isinstance(payload, FailureSignature):
+            return self._export_failure_signature_markdown(payload, title=title)
+        if isinstance(payload, FailureRecord):
+            return self._export_failure_record_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
 
     def _export_bundle_markdown(
@@ -259,9 +276,90 @@ class ManualQAExporter:
         )
         return "\n".join(lines)
 
+    def _export_failure_signature_markdown(
+        self,
+        signature: FailureSignature,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Failure Signature - {signature.signature_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Signature",
+            f"- Signature ID: {signature.signature_id}",
+            f"- Fingerprint: {signature.fingerprint}",
+            f"- Module: {signature.module or 'N/A'}",
+            f"- Test Case ID: {signature.test_case_id or 'N/A'}",
+            f"- Title: {signature.title or 'N/A'}",
+            f"- Symptom: {signature.symptom or 'N/A'}",
+            f"- Expected Result: {signature.expected_result or 'N/A'}",
+            f"- Actual Result: {signature.actual_result or 'N/A'}",
+            f"- Environment: {signature.environment or 'N/A'}",
+            f"- Build: {signature.build or 'N/A'}",
+            f"- Severity: {signature.severity or 'N/A'}",
+            f"- Priority: {signature.priority or 'N/A'}",
+            f"- Source Bug ID: {signature.source_bug_id or 'N/A'}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_failure_record_markdown(
+        self,
+        record: FailureRecord,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Failure Record - {record.record_id}"
+        signature = record.signature
+        lines = [
+            f"# {heading}",
+            "",
+            "## Failure Record",
+            f"- Record ID: {record.record_id}",
+            f"- Signature ID: {signature.signature_id}",
+            f"- Fingerprint: {signature.fingerprint}",
+            f"- Module: {signature.module or 'N/A'}",
+            f"- Test Case ID: {signature.test_case_id or 'N/A'}",
+            f"- Title: {signature.title or 'N/A'}",
+            f"- Symptom: {signature.symptom or 'N/A'}",
+            f"- Expected Result: {signature.expected_result or 'N/A'}",
+            f"- Actual Result: {signature.actual_result or 'N/A'}",
+            f"- Severity: {signature.severity or 'N/A'}",
+            f"- Priority: {signature.priority or 'N/A'}",
+            f"- Occurrence Count: {record.occurrence_count}",
+            f"- Related Bug IDs: {', '.join(record.related_bug_ids) if record.related_bug_ids else 'None'}",
+            f"- Related Run IDs: {', '.join(record.related_run_ids) if record.related_run_ids else 'None'}",
+            f"- Related Test Case IDs: {', '.join(record.related_test_case_ids) if record.related_test_case_ids else 'None'}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_failure_record_list_markdown(
+        self,
+        records: list[FailureRecord],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Failure Records"
+        lines = [f"# {heading}", ""]
+        for record in records:
+            lines.extend(
+                [
+                    f"## {record.record_id}",
+                    f"- Signature ID: {record.signature.signature_id}",
+                    f"- Fingerprint: {record.signature.fingerprint}",
+                    f"- Occurrence Count: {record.occurrence_count}",
+                    f"- Actual Result: {record.signature.actual_result or 'N/A'}",
+                    f"- Related Bug IDs: {', '.join(record.related_bug_ids) if record.related_bug_ids else 'None'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -400,3 +498,78 @@ def export_bug_draft_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(bug_draft, path, title=title)
+
+
+def export_failure_signature_to_json_string(signature: FailureSignature) -> str:
+    return ManualQAExporter().export_json_string(signature)
+
+
+def export_failure_signature_to_json_file(signature: FailureSignature, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(signature, path)
+
+
+def export_failure_signature_to_markdown_string(
+    signature: FailureSignature,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(signature, title=title)
+
+
+def export_failure_signature_to_markdown_file(
+    signature: FailureSignature,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(signature, path, title=title)
+
+
+def export_failure_record_to_json_string(record: FailureRecord) -> str:
+    return ManualQAExporter().export_json_string(record)
+
+
+def export_failure_record_to_json_file(record: FailureRecord, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(record, path)
+
+
+def export_failure_record_to_markdown_string(
+    record: FailureRecord,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(record, title=title)
+
+
+def export_failure_record_to_markdown_file(
+    record: FailureRecord,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(record, path, title=title)
+
+
+def export_failure_records_to_json_string(records: list[FailureRecord]) -> str:
+    return ManualQAExporter().export_json_string(records)
+
+
+def export_failure_records_to_json_file(records: list[FailureRecord], path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(records, path)
+
+
+def export_failure_records_to_markdown_string(
+    records: list[FailureRecord],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(records, title=title)
+
+
+def export_failure_records_to_markdown_file(
+    records: list[FailureRecord],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(records, path, title=title)
