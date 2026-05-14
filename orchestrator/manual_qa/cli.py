@@ -1,0 +1,423 @@
+"""Thin argparse CLI adapter for Manual QA workflows."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+from typing import Any
+
+from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
+from orchestrator.manual_qa.bug_service import BugDraftService
+from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
+from orchestrator.manual_qa.evidence_service import EvidenceService
+from orchestrator.manual_qa.exporters import ManualQAExporter
+from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
+from orchestrator.manual_qa.models import (
+    AutomationCandidate,
+    BugDraft,
+    ChecklistItem,
+    Evidence,
+    ManualTestCase,
+    NormalizedRequirement,
+    ProjectProfile,
+    RunSummary,
+    TestResult,
+    TestRun,
+    TestSuite,
+)
+from orchestrator.manual_qa.project_service import ProjectProfileService
+from orchestrator.manual_qa.requirement_importer import RequirementImporter
+from orchestrator.manual_qa.requirement_normalizer import RequirementNormalizer
+from orchestrator.manual_qa.result_service import TestResultService
+from orchestrator.manual_qa.run_service import TestRunService
+from orchestrator.manual_qa.summary_service import RunSummaryService
+from orchestrator.manual_qa.suite_service import TestSuiteService
+from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
+from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
+
+
+class ManualQACLI:
+    """Thin file-based CLI orchestrating existing Manual QA services."""
+
+    def __init__(self) -> None:
+        self.workspace_service = ManualQAWorkspaceService()
+        self.project_service = ProjectProfileService()
+        self.importer = RequirementImporter()
+        self.normalizer = RequirementNormalizer()
+        self.checklist_generator = ChecklistGenerator()
+        self.testcase_generator = ManualTestCaseGenerator()
+        self.suite_service = TestSuiteService()
+        self.run_service = TestRunService()
+        self.result_service = TestResultService()
+        self.summary_service = RunSummaryService()
+        self.evidence_service = EvidenceService()
+        self.bug_service = BugDraftService()
+        self.automation_service = AutomationCandidateService()
+        self.exporter = ManualQAExporter()
+
+    def run(self, argv: list[str] | None = None) -> int:
+        parser = self._build_parser()
+        args = parser.parse_args(argv)
+        try:
+            return args.handler(args)
+        except FileNotFoundError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+
+    def _build_parser(self) -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(prog="manual_qa")
+        subparsers = parser.add_subparsers(dest="command", required=True)
+
+        init_parser = subparsers.add_parser("init-workspace")
+        init_parser.add_argument("--path", required=True)
+        init_parser.set_defaults(handler=self._handle_init_workspace)
+
+        project_parser = subparsers.add_parser("create-project")
+        project_parser.add_argument("--workspace", required=True)
+        project_parser.add_argument("--name", required=True)
+        project_parser.add_argument("--product-type", required=True)
+        project_parser.add_argument("--description", default="")
+        project_parser.add_argument("--owner", default="")
+        project_parser.set_defaults(handler=self._handle_create_project)
+
+        import_parser = subparsers.add_parser("import-requirements")
+        import_parser.add_argument("--workspace", required=True)
+        import_parser.add_argument("--input", required=True)
+        import_parser.set_defaults(handler=self._handle_import_requirements)
+
+        checklist_parser = subparsers.add_parser("generate-checklist")
+        checklist_parser.add_argument("--workspace", required=True)
+        checklist_parser.set_defaults(handler=self._handle_generate_checklist)
+
+        testcase_parser = subparsers.add_parser("generate-testcases")
+        testcase_parser.add_argument("--workspace", required=True)
+        testcase_parser.set_defaults(handler=self._handle_generate_testcases)
+
+        suite_parser = subparsers.add_parser("create-suite")
+        suite_parser.add_argument("--workspace", required=True)
+        suite_parser.add_argument("--name", required=True)
+        suite_parser.add_argument("--scope", default="")
+        suite_parser.add_argument("--owner", default="")
+        suite_parser.set_defaults(handler=self._handle_create_suite)
+
+        run_parser = subparsers.add_parser("create-run")
+        run_parser.add_argument("--workspace", required=True)
+        run_parser.add_argument("--suite", required=True)
+        run_parser.add_argument("--env", required=True)
+        run_parser.add_argument("--build", required=True)
+        run_parser.add_argument("--tester", required=True)
+        run_parser.set_defaults(handler=self._handle_create_run)
+
+        update_parser = subparsers.add_parser("update-result")
+        update_parser.add_argument("--workspace", required=True)
+        update_parser.add_argument("--run", required=True)
+        update_parser.add_argument("--case", required=True)
+        update_parser.add_argument("--status", required=True)
+        update_parser.add_argument("--actual", default=None)
+        update_parser.add_argument("--notes", default=None)
+        update_parser.set_defaults(handler=self._handle_update_result)
+
+        evidence_parser = subparsers.add_parser("attach-evidence")
+        evidence_parser.add_argument("--workspace", required=True)
+        evidence_parser.add_argument("--run", required=True)
+        evidence_parser.add_argument("--case", required=True)
+        evidence_parser.add_argument("--type", required=True)
+        evidence_parser.add_argument("--path", required=True)
+        evidence_parser.add_argument("--description", default=None)
+        evidence_parser.add_argument("--content-type", default=None)
+        evidence_parser.set_defaults(handler=self._handle_attach_evidence)
+
+        bug_parser = subparsers.add_parser("generate-bug")
+        bug_parser.add_argument("--workspace", required=True)
+        bug_parser.add_argument("--run", required=True)
+        bug_parser.add_argument("--case", required=True)
+        bug_parser.set_defaults(handler=self._handle_generate_bug)
+
+        automation_parser = subparsers.add_parser("score-automation")
+        automation_parser.add_argument("--workspace", required=True)
+        automation_parser.set_defaults(handler=self._handle_score_automation)
+
+        return parser
+
+    def _handle_init_workspace(self, args: argparse.Namespace) -> int:
+        workspace = self.workspace_service.create_workspace(args.path)
+        print(f"Workspace initialized at {workspace}")
+        return 0
+
+    def _handle_create_project(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        project = self.project_service.create_project_profile(
+            name=args.name,
+            product_type=args.product_type,
+            description=args.description,
+            owner=args.owner,
+        )
+        output_path = workspace / "project.json"
+        self.workspace_service.write_json(output_path, project.to_dict())
+        print(f"Project written to {output_path}")
+        return 0
+
+    def _handle_import_requirements(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        input_path = Path(args.input)
+        raw_text = self.workspace_service.read_text(input_path)
+        raw_records = self.importer.import_requirements(raw_text, source_ref=str(input_path))
+        normalized = self.normalizer.normalize_requirements(raw_records)
+        output_path = workspace / "requirements" / "normalized_requirements.json"
+        self.workspace_service.write_json(output_path, [item.to_dict() for item in normalized])
+        print(f"Normalized requirements written to {output_path}")
+        return 0
+
+    def _handle_generate_checklist(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        requirements = self._load_requirements(workspace / "requirements" / "normalized_requirements.json")
+        checklist = self.checklist_generator.generate(requirements)
+        json_path = workspace / "checklists" / "checklist.json"
+        md_path = workspace / "checklists" / "checklist.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in checklist])
+        self.workspace_service.write_markdown(md_path, self._render_checklist_markdown(checklist))
+        print(f"Checklist written to {json_path}")
+        return 0
+
+    def _handle_generate_testcases(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        requirements = self._load_requirements(workspace / "requirements" / "normalized_requirements.json")
+        test_cases = self.testcase_generator.generate(requirements)
+        json_path = workspace / "testcases" / "testcases.json"
+        md_path = workspace / "testcases" / "testcases.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in test_cases])
+        self.workspace_service.write_markdown(md_path, self._render_testcases_markdown(test_cases))
+        print(f"Test cases written to {json_path}")
+        return 0
+
+    def _handle_create_suite(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        project = self._load_project(workspace / "project.json")
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        suite = self.suite_service.create_test_suite(
+            project_id=project.project_id,
+            name=args.name,
+            test_cases=[case.test_case_id for case in test_cases],
+            scope=args.scope,
+            owner=args.owner,
+        )
+        suite_slug = self._slug(args.name) or suite.suite_id.lower()
+        json_path = workspace / "suites" / f"{suite_slug}.json"
+        md_path = workspace / "suites" / f"{suite_slug}.md"
+        self.workspace_service.write_json(json_path, suite.to_dict())
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(suite))
+        print(f"Suite written to {json_path}")
+        return 0
+
+    def _handle_create_run(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        project = self._load_project(workspace / "project.json")
+        suite = self._load_suite(self._resolve_workspace_path(workspace, args.suite))
+        test_run = self.run_service.create_test_run(
+            project_id=project.project_id,
+            suite=suite,
+            environment=args.env,
+            build=args.build,
+            tester=args.tester,
+        )
+        json_path = workspace / "runs" / f"{test_run.run_id}.json"
+        md_path = workspace / "runs" / f"{test_run.run_id}.md"
+        self.workspace_service.write_json(json_path, test_run.to_dict())
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(test_run))
+        print(f"Run written to {json_path}")
+        return 0
+
+    def _handle_update_result(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        run_path = self._resolve_workspace_path(workspace, args.run)
+        test_run = self._load_run(run_path)
+        updated_run = self.result_service.update_test_result(
+            test_run,
+            args.case,
+            args.status,
+            actual_result=args.actual,
+            notes=args.notes,
+        )
+        summary = self.summary_service.summarize_test_run(updated_run)
+        self.workspace_service.write_json(run_path, updated_run.to_dict())
+        summary_json = workspace / "runs" / f"{updated_run.run_id}-summary.json"
+        summary_md = workspace / "runs" / f"{updated_run.run_id}-summary.md"
+        self.workspace_service.write_json(summary_json, summary.to_dict())
+        self.workspace_service.write_markdown(summary_md, self.exporter.export_markdown_string(summary))
+        print(f"Run updated at {run_path}")
+        return 0
+
+    def _handle_attach_evidence(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        run_path = self._resolve_workspace_path(workspace, args.run)
+        test_run = self._load_run(run_path)
+        evidence = self.evidence_service.attach_evidence(
+            test_run,
+            args.case,
+            args.type,
+            args.path,
+            description=args.description,
+            content_type=args.content_type,
+        )
+        evidence_json = workspace / "evidence" / f"{evidence.evidence_id}.json"
+        evidence_md = workspace / "evidence" / f"{evidence.evidence_id}.md"
+        self.workspace_service.write_json(evidence_json, evidence.to_dict())
+        self.workspace_service.write_markdown(evidence_md, self.exporter.export_markdown_string(evidence))
+        self.workspace_service.write_json(run_path, test_run.to_dict())
+        print(f"Evidence written to {evidence_json}")
+        return 0
+
+    def _handle_generate_bug(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        run_path = self._resolve_workspace_path(workspace, args.run)
+        test_run = self._load_run(run_path)
+        test_case = self._find_test_case(workspace, args.case)
+        evidence = self._find_evidence_for_case(workspace, test_run.run_id, args.case)
+        bug = self.bug_service.generate_bug_draft(
+            test_run,
+            args.case,
+            test_case=test_case,
+            evidence=evidence,
+        )
+        bug_json = workspace / "bugs" / f"{bug.bug_id}.json"
+        bug_md = workspace / "bugs" / f"{bug.bug_id}.md"
+        self.workspace_service.write_json(bug_json, bug.to_dict())
+        self.workspace_service.write_markdown(bug_md, self.exporter.export_markdown_string(bug))
+        print(f"Bug draft written to {bug_json}")
+        return 0
+
+    def _handle_score_automation(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        failure_records = self._load_failure_records(workspace / "failure_memory")
+        candidates = self.automation_service.score_automation_candidates(
+            test_cases,
+            failure_records=failure_records,
+        )
+        json_path = workspace / "automation_candidates" / "candidates.json"
+        md_path = workspace / "automation_candidates" / "candidates.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in candidates])
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(candidates))
+        print(f"Automation candidates written to {json_path}")
+        return 0
+
+    def _workspace(self, path: str) -> Path:
+        workspace = Path(path)
+        if not workspace.exists():
+            raise FileNotFoundError(f"Workspace does not exist: {workspace}")
+        return workspace
+
+    def _resolve_workspace_path(self, workspace: Path, value: str) -> Path:
+        candidate = Path(value)
+        return candidate if candidate.is_absolute() else workspace / candidate
+
+    def _load_project(self, path: Path) -> ProjectProfile:
+        data = self.workspace_service.read_json(path)
+        return ProjectProfile(**data)
+
+    def _load_requirements(self, path: Path) -> list[NormalizedRequirement]:
+        data = self.workspace_service.read_json(path)
+        return [NormalizedRequirement(**item) for item in data]
+
+    def _load_test_cases(self, path: Path) -> list[ManualTestCase]:
+        data = self.workspace_service.read_json(path)
+        return [ManualTestCase(**item) for item in data]
+
+    def _load_suite(self, path: Path) -> TestSuite:
+        data = self.workspace_service.read_json(path)
+        return TestSuite(**data)
+
+    def _load_run(self, path: Path) -> TestRun:
+        data = self.workspace_service.read_json(path)
+        results = [TestResult(**item) for item in data.get("results", [])]
+        payload = dict(data)
+        payload["results"] = results
+        return TestRun(**payload)
+
+    def _load_failure_records(self, directory: Path) -> list[FailureRecord]:
+        if not directory.exists():
+            return []
+
+        records: list[FailureRecord] = []
+        for path in sorted(directory.glob("*.json")):
+            data = self.workspace_service.read_json(path)
+            if isinstance(data, list):
+                records.extend(self._deserialize_failure_records(data))
+                continue
+            if "record_id" not in data or "signature" not in data:
+                continue
+            records.extend(self._deserialize_failure_records([data]))
+        return records
+
+    def _deserialize_failure_records(self, items: list[dict[str, Any]]) -> list[FailureRecord]:
+        records: list[FailureRecord] = []
+        for item in items:
+            signature = FailureSignature(**item["signature"])
+            payload = dict(item)
+            payload["signature"] = signature
+            records.append(FailureRecord(**payload))
+        return records
+
+    def _find_test_case(self, workspace: Path, test_case_id: str) -> ManualTestCase | None:
+        path = workspace / "testcases" / "testcases.json"
+        if not path.exists():
+            return None
+        for test_case in self._load_test_cases(path):
+            if test_case.test_case_id == test_case_id:
+                return test_case
+        return None
+
+    def _find_evidence_for_case(self, workspace: Path, run_id: str, test_case_id: str) -> list[Evidence]:
+        evidence_dir = workspace / "evidence"
+        if not evidence_dir.exists():
+            return []
+
+        evidence_items: list[Evidence] = []
+        for path in sorted(evidence_dir.glob("*.json")):
+            data = self.workspace_service.read_json(path)
+            if data.get("run_id") != run_id or data.get("test_case_id") != test_case_id:
+                continue
+            evidence_items.append(Evidence(**data))
+        return evidence_items
+
+    def _render_checklist_markdown(self, checklist: list[ChecklistItem]) -> str:
+        lines = ["# Checklist", ""]
+        for item in checklist:
+            lines.extend(
+                [
+                    f"- {item.checklist_id} [{item.requirement_id}] {item.title}",
+                    f"  Description: {item.description}",
+                ]
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _render_testcases_markdown(self, test_cases: list[ManualTestCase]) -> str:
+        lines = ["# Manual Test Cases", ""]
+        for case in test_cases:
+            lines.extend(
+                [
+                    f"- {case.test_case_id} [{', '.join(case.requirement_ids)}] {case.title}",
+                    f"  Expected: {case.expected_result}",
+                ]
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _slug(self, value: str) -> str:
+        text = "".join(char.lower() if char.isalnum() else "-" for char in value.strip())
+        while "--" in text:
+            text = text.replace("--", "-")
+        return text.strip("-")
+
+
+def main(argv: list[str] | None = None) -> int:
+    return ManualQACLI().run(argv)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
