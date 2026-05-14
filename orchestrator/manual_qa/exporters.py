@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from orchestrator.manual_qa.models import (
+    AutomationCandidate,
     BugDraft,
     Evidence,
     ExportBundle,
@@ -23,7 +24,7 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
     ) -> str:
         if isinstance(payload, list):
             return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
@@ -31,7 +32,7 @@ class ManualQAExporter:
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -41,12 +42,17 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
         *,
         title: Optional[str] = None,
     ) -> str:
         if isinstance(payload, list):
-            return self._export_failure_record_list_markdown(payload, title=title)
+            if not payload:
+                return f"# {title or 'Export'}\n"
+            first_item = payload[0]
+            if isinstance(first_item, FailureRecord):
+                return self._export_failure_record_list_markdown(payload, title=title)
+            return self._export_automation_candidate_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
         if isinstance(payload, TestSuite):
@@ -61,6 +67,8 @@ class ManualQAExporter:
             return self._export_failure_signature_markdown(payload, title=title)
         if isinstance(payload, FailureRecord):
             return self._export_failure_record_markdown(payload, title=title)
+        if isinstance(payload, AutomationCandidate):
+            return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
 
     def _export_bundle_markdown(
@@ -357,9 +365,67 @@ class ManualQAExporter:
             )
         return "\n".join(lines)
 
+    def _export_automation_candidate_markdown(
+        self,
+        candidate: AutomationCandidate,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Automation Candidate - {candidate.candidate_id}"
+        reasons = candidate.reasons or ["None"]
+        blockers = candidate.blockers or ["None"]
+        related_records = candidate.related_failure_record_ids or ["None"]
+        lines = [
+            f"# {heading}",
+            "",
+            "## Candidate",
+            f"- Candidate ID: {candidate.candidate_id}",
+            f"- Test Case ID: {candidate.test_case_id}",
+            f"- Module: {candidate.module or 'N/A'}",
+            f"- Title: {candidate.title or 'N/A'}",
+            f"- Score: {candidate.score}",
+            f"- Recommendation: {candidate.recommendation}",
+            f"- Suggested Automation Type: {candidate.suggested_automation_type}",
+            "",
+            "## Reasons",
+        ]
+        for reason in reasons:
+            lines.append(f"- {reason}")
+        lines.extend(["", "## Blockers"])
+        for blocker in blockers:
+            lines.append(f"- {blocker}")
+        lines.extend(["", "## Related Failure Record IDs"])
+        for record_id in related_records:
+            lines.append(f"- {record_id}")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_automation_candidate_list_markdown(
+        self,
+        candidates: list[AutomationCandidate],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Automation Candidates"
+        lines = [f"# {heading}", ""]
+        for candidate in candidates:
+            lines.extend(
+                [
+                    f"## {candidate.candidate_id}",
+                    f"- Test Case ID: {candidate.test_case_id}",
+                    f"- Score: {candidate.score}",
+                    f"- Recommendation: {candidate.recommendation}",
+                    f"- Suggested Automation Type: {candidate.suggested_automation_type}",
+                    f"- Reasons: {', '.join(candidate.reasons) if candidate.reasons else 'None'}",
+                    f"- Blockers: {', '.join(candidate.blockers) if candidate.blockers else 'None'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | list[FailureRecord],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -573,3 +639,53 @@ def export_failure_records_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(records, path, title=title)
+
+
+def export_automation_candidate_to_json_string(candidate: AutomationCandidate) -> str:
+    return ManualQAExporter().export_json_string(candidate)
+
+
+def export_automation_candidate_to_json_file(candidate: AutomationCandidate, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(candidate, path)
+
+
+def export_automation_candidate_to_markdown_string(
+    candidate: AutomationCandidate,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(candidate, title=title)
+
+
+def export_automation_candidate_to_markdown_file(
+    candidate: AutomationCandidate,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(candidate, path, title=title)
+
+
+def export_automation_candidates_to_json_string(candidates: list[AutomationCandidate]) -> str:
+    return ManualQAExporter().export_json_string(candidates)
+
+
+def export_automation_candidates_to_json_file(candidates: list[AutomationCandidate], path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(candidates, path)
+
+
+def export_automation_candidates_to_markdown_string(
+    candidates: list[AutomationCandidate],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(candidates, title=title)
+
+
+def export_automation_candidates_to_markdown_file(
+    candidates: list[AutomationCandidate],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(candidates, path, title=title)

@@ -110,6 +110,7 @@ class ExportBundle:
 class TestSuite:
     """Deterministic manual test suite."""
 
+    __test__ = False
     suite_id: str
     project_id: str
     name: str
@@ -127,6 +128,7 @@ class TestSuite:
 class TestResult:
     """Deterministic manual test result."""
 
+    __test__ = False
     result_id: str
     run_id: str
     test_case_id: str
@@ -144,6 +146,7 @@ class TestResult:
 class TestRun:
     """Deterministic manual test run."""
 
+    __test__ = False
     run_id: str
     project_id: str
     suite_id: str
@@ -287,6 +290,28 @@ class FailureRecord:
             "notes": list(self.notes),
             "metadata": dict(self.metadata),
         }
+
+
+@dataclass
+class AutomationCandidate:
+    """Deterministic automation candidate recommendation."""
+
+    candidate_id: str
+    test_case_id: str
+    requirement_ids: List[str] = field(default_factory=list)
+    module: str = ""
+    title: str = ""
+    score: int = 0
+    recommendation: str = "Do Not Automate"
+    reasons: List[str] = field(default_factory=list)
+    blockers: List[str] = field(default_factory=list)
+    suggested_automation_type: str = "unknown"
+    related_failure_record_ids: List[str] = field(default_factory=list)
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
 
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:

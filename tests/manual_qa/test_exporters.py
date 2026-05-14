@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import json
 
+from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.exporters import (
+    export_automation_candidate_to_json_file,
+    export_automation_candidate_to_json_string,
+    export_automation_candidate_to_markdown_file,
+    export_automation_candidate_to_markdown_string,
+    export_automation_candidates_to_json_file,
+    export_automation_candidates_to_json_string,
+    export_automation_candidates_to_markdown_file,
+    export_automation_candidates_to_markdown_string,
     export_bug_draft_to_json_file,
     export_bug_draft_to_json_string,
     export_bug_draft_to_markdown_file,
@@ -182,6 +191,35 @@ def _build_failure_signature_and_record():
     )
     record = service.remember_failure(signature)
     return signature, record, [record]
+
+
+def _build_automation_candidate_and_list():
+    service = AutomationCandidateService()
+    primary = service.score_automation_candidate(
+        ManualTestCase(
+            test_case_id="TC-010",
+            requirement_ids=["REQ-010"],
+            module="Order API",
+            title="Regression API order create flow",
+            steps=["Send create order request.", "Inspect response."],
+            expected_result="Response status code is 200 and order is created.",
+            priority="High",
+            test_type="Regression",
+        )
+    )
+    secondary = service.score_automation_candidate(
+        ManualTestCase(
+            test_case_id="TC-011",
+            requirement_ids=["REQ-011"],
+            module="Checkout",
+            title="Visual only checkout appearance review looks good",
+            steps=["Open checkout page.", "Review manually."],
+            expected_result="Looks good to tester.",
+            priority="Medium",
+            test_type="Usability",
+        )
+    )
+    return primary, [primary, secondary]
 
 
 def test_exports_json_string():
@@ -409,3 +447,60 @@ def test_writes_failure_signature_record_and_record_list_markdown_files(tmp_path
     assert signature.fingerprint in record_markdown
     assert "BUG-001" in record_markdown
     assert "FMEM-001" in records_path.read_text(encoding="utf-8")
+
+
+def test_exports_automation_candidate_and_list_json_strings():
+    candidate, candidates = _build_automation_candidate_and_list()
+
+    candidate_payload = json.loads(export_automation_candidate_to_json_string(candidate))
+    candidates_payload = json.loads(export_automation_candidates_to_json_string(candidates))
+
+    assert candidate_payload["candidate_id"] == "AUTO-001"
+    assert candidate_payload["recommendation"] == "Should Automate"
+    assert candidate_payload["suggested_automation_type"] == "api"
+    assert isinstance(candidate_payload["reasons"], list)
+    assert isinstance(candidate_payload["blockers"], list)
+    assert candidates_payload[1]["candidate_id"] == "AUTO-002"
+
+
+def test_writes_automation_candidate_and_list_json_files(tmp_path):
+    candidate, candidates = _build_automation_candidate_and_list()
+
+    candidate_path = tmp_path / "automation_candidate.json"
+    candidates_path = tmp_path / "automation_candidates.json"
+
+    export_automation_candidate_to_json_file(candidate, candidate_path)
+    export_automation_candidates_to_json_file(candidates, candidates_path)
+
+    assert json.loads(candidate_path.read_text(encoding="utf-8"))["candidate_id"] == "AUTO-001"
+    assert json.loads(candidates_path.read_text(encoding="utf-8"))[1]["candidate_id"] == "AUTO-002"
+
+
+def test_exports_automation_candidate_and_list_markdown_strings():
+    candidate, candidates = _build_automation_candidate_and_list()
+
+    candidate_markdown = export_automation_candidate_to_markdown_string(candidate)
+    candidates_markdown = export_automation_candidates_to_markdown_string(candidates)
+
+    assert "AUTO-001" in candidate_markdown
+    assert "Should Automate" in candidate_markdown
+    assert "api" in candidate_markdown
+    assert "Reasons" in candidate_markdown
+    assert "Blockers" in candidate_markdown
+    assert "AUTO-002" in candidates_markdown
+
+
+def test_writes_automation_candidate_and_list_markdown_files(tmp_path):
+    candidate, candidates = _build_automation_candidate_and_list()
+
+    candidate_path = tmp_path / "automation_candidate.md"
+    candidates_path = tmp_path / "automation_candidates.md"
+
+    export_automation_candidate_to_markdown_file(candidate, candidate_path)
+    export_automation_candidates_to_markdown_file(candidates, candidates_path)
+
+    candidate_markdown = candidate_path.read_text(encoding="utf-8")
+    assert "AUTO-001" in candidate_markdown
+    assert "Should Automate" in candidate_markdown
+    candidates_markdown = candidates_path.read_text(encoding="utf-8")
+    assert "AUTO-002" in candidates_markdown

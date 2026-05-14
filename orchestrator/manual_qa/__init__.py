@@ -1,5 +1,10 @@
 """Manual QA public exports."""
 
+from orchestrator.manual_qa.automation_candidate_service import (
+    AutomationCandidateService,
+    score_automation_candidate,
+    score_automation_candidates,
+)
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
 from orchestrator.manual_qa.bug_service import BugDraftService, generate_bug_draft
 from orchestrator.manual_qa.evidence_service import EvidenceService, attach_evidence
@@ -13,6 +18,14 @@ from orchestrator.manual_qa.failure_memory_service import (
 )
 from orchestrator.manual_qa.exporters import (
     ManualQAExporter,
+    export_automation_candidate_to_json_file,
+    export_automation_candidate_to_json_string,
+    export_automation_candidate_to_markdown_file,
+    export_automation_candidate_to_markdown_string,
+    export_automation_candidates_to_json_file,
+    export_automation_candidates_to_json_string,
+    export_automation_candidates_to_markdown_file,
+    export_automation_candidates_to_markdown_string,
     export_bug_draft_to_json_file,
     export_bug_draft_to_json_string,
     export_bug_draft_to_markdown_file,
@@ -51,6 +64,7 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_markdown_string,
 )
 from orchestrator.manual_qa.models import (
+    AutomationCandidate,
     BugDraft,
     ChecklistItem,
     Evidence,
@@ -75,6 +89,8 @@ from orchestrator.manual_qa.suite_service import TestSuiteService, create_test_s
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 
 __all__ = [
+    "AutomationCandidate",
+    "AutomationCandidateService",
     "BugDraft",
     "BugDraftService",
     "ChecklistGenerator",
@@ -110,8 +126,18 @@ __all__ = [
     "find_similar_failures",
     "generate_bug_draft",
     "remember_failure",
+    "score_automation_candidate",
+    "score_automation_candidates",
     "summarize_test_run",
     "update_test_result",
+    "export_automation_candidate_to_json_file",
+    "export_automation_candidate_to_json_string",
+    "export_automation_candidate_to_markdown_file",
+    "export_automation_candidate_to_markdown_string",
+    "export_automation_candidates_to_json_file",
+    "export_automation_candidates_to_json_string",
+    "export_automation_candidates_to_markdown_file",
+    "export_automation_candidates_to_markdown_string",
     "export_bug_draft_to_json_file",
     "export_bug_draft_to_json_string",
     "export_bug_draft_to_markdown_file",
