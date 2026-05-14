@@ -23,6 +23,7 @@ from orchestrator.manual_qa.models import (
     NormalizedRequirement,
     ProjectProfile,
     RunSummary,
+    ScriptGenerationReadiness,
     TestResult,
     TestRun,
     TestSuite,
@@ -34,6 +35,7 @@ from orchestrator.manual_qa.result_service import TestResultService
 from orchestrator.manual_qa.run_service import TestRunService
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
+from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
 
@@ -55,6 +57,7 @@ class ManualQACLI:
         self.evidence_service = EvidenceService()
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
+        self.script_readiness_service = ScriptReadinessService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -142,6 +145,10 @@ class ManualQACLI:
         automation_parser = subparsers.add_parser("score-automation")
         automation_parser.add_argument("--workspace", required=True)
         automation_parser.set_defaults(handler=self._handle_score_automation)
+
+        readiness_parser = subparsers.add_parser("script-readiness")
+        readiness_parser.add_argument("--workspace", required=True)
+        readiness_parser.set_defaults(handler=self._handle_script_readiness)
 
         validate_parser = subparsers.add_parser("validate-workspace")
         validate_parser.add_argument("--workspace", required=True)
@@ -331,6 +338,35 @@ class ManualQACLI:
         print(f"Automation candidates written to {json_path}")
         return 0
 
+    def _handle_script_readiness(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        project = self._load_project(workspace / "project.json") if (workspace / "project.json").exists() else None
+        automation_candidates = self._load_automation_candidates(
+            workspace / "automation_candidates" / "candidates.json"
+        )
+        readiness_items = self.script_readiness_service.analyze_script_readiness_batch(
+            test_cases,
+            automation_candidates=automation_candidates,
+            project_type_hint=project.product_type if project is not None else None,
+        )
+        json_path = workspace / "reports" / "script_readiness.json"
+        md_path = workspace / "reports" / "script_readiness.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in readiness_items])
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(readiness_items))
+        self.workspace_service.update_workspace_manifest(workspace)
+        ready = len([item for item in readiness_items if item.readiness_status == "Ready"])
+        needs_more_data = len([item for item in readiness_items if item.readiness_status == "Needs More Data"])
+        not_suitable = len([item for item in readiness_items if item.readiness_status == "Not Suitable"])
+        print(
+            "Script readiness:"
+            f" total={len(readiness_items)}"
+            f" ready={ready}"
+            f" needs_more_data={needs_more_data}"
+            f" not_suitable={not_suitable}"
+        )
+        return 0
+
     def _handle_validate_workspace(self, args: argparse.Namespace) -> int:
         workspace = Path(args.workspace)
         validation = self.workspace_service.validate_workspace(workspace)
@@ -429,6 +465,14 @@ class ManualQACLI:
                 continue
             records.extend(self._deserialize_failure_records([data]))
         return records
+
+    def _load_automation_candidates(self, path: Path) -> list[AutomationCandidate]:
+        if not path.exists():
+            return []
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        return [AutomationCandidate(**item) for item in data if isinstance(item, dict)]
 
     def _deserialize_failure_records(self, items: list[dict[str, Any]]) -> list[FailureRecord]:
         records: list[FailureRecord] = []

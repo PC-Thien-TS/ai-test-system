@@ -14,6 +14,8 @@ from orchestrator.manual_qa.models import (
     FailureRecord,
     FailureSignature,
     RunSummary,
+    ScriptGenerationGap,
+    ScriptGenerationReadiness,
     TestRun,
     TestSuite,
 )
@@ -24,7 +26,7 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness],
     ) -> str:
         if isinstance(payload, list):
             return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
@@ -32,7 +34,7 @@ class ManualQAExporter:
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -42,7 +44,7 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness],
         *,
         title: Optional[str] = None,
     ) -> str:
@@ -52,6 +54,8 @@ class ManualQAExporter:
             first_item = payload[0]
             if isinstance(first_item, FailureRecord):
                 return self._export_failure_record_list_markdown(payload, title=title)
+            if isinstance(first_item, ScriptGenerationReadiness):
+                return self._export_script_readiness_list_markdown(payload, title=title)
             return self._export_automation_candidate_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
@@ -67,6 +71,10 @@ class ManualQAExporter:
             return self._export_failure_signature_markdown(payload, title=title)
         if isinstance(payload, FailureRecord):
             return self._export_failure_record_markdown(payload, title=title)
+        if isinstance(payload, ScriptGenerationGap):
+            return self._export_script_gap_markdown(payload, title=title)
+        if isinstance(payload, ScriptGenerationReadiness):
+            return self._export_script_readiness_markdown(payload, title=title)
         if isinstance(payload, AutomationCandidate):
             return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
@@ -423,9 +431,97 @@ class ManualQAExporter:
             )
         return "\n".join(lines)
 
+    def _export_script_gap_markdown(
+        self,
+        gap: ScriptGenerationGap,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Script Readiness Gap - {gap.gap_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Gap",
+            f"- Gap ID: {gap.gap_id}",
+            f"- Test Case ID: {gap.test_case_id}",
+            f"- Gap Type: {gap.gap_type}",
+            f"- Severity: {gap.severity}",
+            f"- Message: {gap.message}",
+            f"- Recommendation: {gap.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_script_readiness_markdown(
+        self,
+        readiness: ScriptGenerationReadiness,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Script Readiness - {readiness.readiness_id}"
+        strengths = readiness.strengths or ["None"]
+        gaps = readiness.gaps or []
+        lines = [
+            f"# {heading}",
+            "",
+            "## Readiness",
+            f"- Readiness ID: {readiness.readiness_id}",
+            f"- Test Case ID: {readiness.test_case_id}",
+            f"- Module: {readiness.module or 'N/A'}",
+            f"- Title: {readiness.title or 'N/A'}",
+            f"- Target Type: {readiness.target_type}",
+            f"- Readiness Status: {readiness.readiness_status}",
+            f"- Readiness Score: {readiness.readiness_score}",
+            f"- Automation Candidate ID: {readiness.automation_candidate_id or 'N/A'}",
+            "",
+            "## Strengths",
+        ]
+        for strength in strengths:
+            lines.append(f"- {strength}")
+        lines.extend(["", "## Gaps"])
+        if not gaps:
+            lines.append("- None")
+        for gap in gaps:
+            lines.append(
+                f"- {gap.gap_id} [{gap.severity}] {gap.gap_type}: {gap.message} | Recommendation: {gap.recommendation}"
+            )
+        lines.extend(
+            [
+                "",
+                "## Suggested Next Step",
+                readiness.suggested_next_step or "N/A",
+                "",
+            ]
+        )
+        return "\n".join(lines)
+
+    def _export_script_readiness_list_markdown(
+        self,
+        items: list[ScriptGenerationReadiness],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Script Readiness Report"
+        lines = [f"# {heading}", ""]
+        for item in items:
+            lines.extend(
+                [
+                    f"## {item.readiness_id}",
+                    f"- Test Case ID: {item.test_case_id}",
+                    f"- Target Type: {item.target_type}",
+                    f"- Readiness Status: {item.readiness_status}",
+                    f"- Readiness Score: {item.readiness_score}",
+                    f"- Strengths: {', '.join(item.strengths) if item.strengths else 'None'}",
+                    f"- Gaps: {', '.join(gap.gap_type for gap in item.gaps) if item.gaps else 'None'}",
+                    f"- Suggested Next Step: {item.suggested_next_step}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | list[FailureRecord] | list[AutomationCandidate],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -689,3 +785,78 @@ def export_automation_candidates_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(candidates, path, title=title)
+
+
+def export_script_gap_to_json_string(gap: ScriptGenerationGap) -> str:
+    return ManualQAExporter().export_json_string(gap)
+
+
+def export_script_gap_to_json_file(gap: ScriptGenerationGap, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(gap, path)
+
+
+def export_script_gap_to_markdown_string(
+    gap: ScriptGenerationGap,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(gap, title=title)
+
+
+def export_script_gap_to_markdown_file(
+    gap: ScriptGenerationGap,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(gap, path, title=title)
+
+
+def export_script_readiness_to_json_string(readiness: ScriptGenerationReadiness) -> str:
+    return ManualQAExporter().export_json_string(readiness)
+
+
+def export_script_readiness_to_json_file(readiness: ScriptGenerationReadiness, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(readiness, path)
+
+
+def export_script_readiness_to_markdown_string(
+    readiness: ScriptGenerationReadiness,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(readiness, title=title)
+
+
+def export_script_readiness_to_markdown_file(
+    readiness: ScriptGenerationReadiness,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(readiness, path, title=title)
+
+
+def export_script_readiness_list_to_json_string(items: list[ScriptGenerationReadiness]) -> str:
+    return ManualQAExporter().export_json_string(items)
+
+
+def export_script_readiness_list_to_json_file(items: list[ScriptGenerationReadiness], path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(items, path)
+
+
+def export_script_readiness_list_to_markdown_string(
+    items: list[ScriptGenerationReadiness],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(items, title=title)
+
+
+def export_script_readiness_list_to_markdown_file(
+    items: list[ScriptGenerationReadiness],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(items, path, title=title)

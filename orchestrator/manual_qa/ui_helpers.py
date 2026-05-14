@@ -79,6 +79,7 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
     runs = load_runs(workspace)
     bugs = load_bugs(workspace)
     candidates = load_automation_candidates(workspace)
+    readiness_items = load_script_readiness_items(workspace)
 
     actions: list[str] = []
     if not project:
@@ -101,6 +102,8 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
             actions.append("Attach evidence metadata and generate a bug draft for failed results.")
     if testcases and not candidates:
         actions.append("Score automation candidates for the current test cases.")
+    if testcases and not readiness_items:
+        actions.append("Generate a script readiness report before attempting draft generation.")
     if bugs and candidates:
         actions.append("Review bug drafts and automation recommendations.")
 
@@ -157,6 +160,10 @@ def list_bug_files(workspace_path: str | Path | None) -> list[str]:
 
 def list_candidate_files(workspace_path: str | Path | None) -> list[str]:
     return [item for item in _list_artifacts_by_folder(workspace_path, "automation_candidates") if item.endswith(".json")]
+
+
+def load_script_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "script_readiness.json")
 
 
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:

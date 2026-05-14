@@ -12,12 +12,21 @@ from orchestrator.manual_qa.demo_service import DemoWorkflowService
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
-from orchestrator.manual_qa.models import Evidence, ManualTestCase, NormalizedRequirement, TestResult, TestRun, TestSuite
+from orchestrator.manual_qa.models import (
+    AutomationCandidate,
+    Evidence,
+    ManualTestCase,
+    NormalizedRequirement,
+    TestResult,
+    TestRun,
+    TestSuite,
+)
 from orchestrator.manual_qa.project_service import ProjectProfileService, SUPPORTED_PRODUCT_TYPES
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
 from orchestrator.manual_qa.requirement_normalizer import RequirementNormalizer
 from orchestrator.manual_qa.result_service import TestResultService
 from orchestrator.manual_qa.run_service import TestRunService
+from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
@@ -39,6 +48,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_project,
     load_requirements,
     load_runs,
+    load_script_readiness_items,
     load_testcases,
     resolve_workspace,
     safe_load_json_artifact,
@@ -64,6 +74,7 @@ class ManualQAStreamlitUI:
         self.run_service = TestRunService()
         self.result_service = TestResultService()
         self.summary_service = RunSummaryService()
+        self.script_readiness_service = ScriptReadinessService()
         self.evidence_service = EvidenceService()
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
@@ -603,6 +614,43 @@ class ManualQAStreamlitUI:
                 st.code(get_artifact_preview(preview_path), language=language)
             else:
                 st.info("No reports found yet.")
+
+            if st.button("Generate script readiness report"):
+                test_cases = [ManualTestCase(**item) for item in load_testcases(workspace)]
+                if not test_cases:
+                    st.warning("Generate manual test cases first.")
+                else:
+                    candidates = [AutomationCandidate(**item) for item in load_automation_candidates(workspace)]
+                    project = load_project(workspace)
+                    readiness_items = self.script_readiness_service.analyze_script_readiness_batch(
+                        test_cases,
+                        automation_candidates=candidates,
+                        project_type_hint=project.get("product_type", ""),
+                    )
+                    self.workspace_service.write_json(
+                        workspace / "reports" / "script_readiness.json",
+                        [item.to_dict() for item in readiness_items],
+                    )
+                    self.workspace_service.write_markdown(
+                        workspace / "reports" / "script_readiness.md",
+                        self.exporter.export_markdown_string(readiness_items),
+                    )
+                    self.workspace_service.update_workspace_manifest(workspace)
+                    st.success(f"Generated script readiness report for {len(readiness_items)} test cases.")
+
+            readiness_items = load_script_readiness_items(workspace)
+            if readiness_items:
+                ready = len([item for item in readiness_items if item.get("readiness_status") == "Ready"])
+                needs_more_data = len(
+                    [item for item in readiness_items if item.get("readiness_status") == "Needs More Data"]
+                )
+                not_suitable = len(
+                    [item for item in readiness_items if item.get("readiness_status") == "Not Suitable"]
+                )
+                st.caption(
+                    f"Script readiness: total={len(readiness_items)}, ready={ready}, "
+                    f"needs_more_data={needs_more_data}, not_suitable={not_suitable}"
+                )
 
     def _load_suite_model(self, path: Path) -> TestSuite:
         return TestSuite(**self.workspace_service.read_json(path))

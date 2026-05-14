@@ -329,6 +329,58 @@ class WorkspaceValidationResult:
         return asdict(self)
 
 
+@dataclass
+class ScriptGenerationGap:
+    """Deterministic readiness gap for future script draft generation."""
+
+    gap_id: str
+    test_case_id: str
+    gap_type: str
+    message: str
+    severity: str
+    recommendation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ScriptGenerationReadiness:
+    """Deterministic readiness assessment for future script drafting."""
+
+    readiness_id: str
+    test_case_id: str
+    module: str
+    title: str
+    target_type: str
+    readiness_status: str
+    readiness_score: int
+    gaps: List[ScriptGenerationGap] = field(default_factory=list)
+    strengths: List[str] = field(default_factory=list)
+    suggested_next_step: str = ""
+    automation_candidate_id: str = ""
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "readiness_id": self.readiness_id,
+            "test_case_id": self.test_case_id,
+            "module": self.module,
+            "title": self.title,
+            "target_type": self.target_type,
+            "readiness_status": self.readiness_status,
+            "readiness_score": self.readiness_score,
+            "gaps": [gap.to_dict() for gap in self.gaps],
+            "strengths": list(self.strengths),
+            "suggested_next_step": self.suggested_next_step,
+            "automation_candidate_id": self.automation_candidate_id,
+            "created_at": self.created_at,
+            "metadata": dict(self.metadata),
+        }
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

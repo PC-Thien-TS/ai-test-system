@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 from orchestrator.manual_qa.demo_service import run_demo_workflow
+from orchestrator.manual_qa.models import ManualTestCase
+from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
@@ -14,6 +16,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_report_files,
     load_project,
     load_requirements,
+    load_script_readiness_items,
     load_testcases,
     resolve_workspace,
     safe_load_json_artifact,
@@ -141,6 +144,31 @@ def test_list_report_files_returns_reports(tmp_path):
 
     assert "reports/demo_workflow_report.json" in report_files
     assert "reports/demo_workflow_report.md" in report_files
+
+
+def test_load_script_readiness_items_returns_report_items(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    run_demo_workflow(workspace)
+    readiness_items = ScriptReadinessService().analyze_script_readiness_batch(
+        [
+            ManualTestCase(
+                test_case_id="TC-500",
+                requirement_ids=["REQ-500"],
+                module="Order API",
+                title="Create order endpoint",
+                steps=["Send POST request to /api/orders."],
+                expected_result="Status code is 201.",
+            )
+        ]
+    )
+    ManualQAWorkspaceService().write_json(
+        workspace / "reports" / "script_readiness.json",
+        [item.to_dict() for item in readiness_items],
+    )
+
+    loaded = load_script_readiness_items(workspace)
+
+    assert loaded[0]["readiness_id"] == "READ-001"
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

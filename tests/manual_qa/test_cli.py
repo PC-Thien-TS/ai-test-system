@@ -271,6 +271,31 @@ def test_demo_workflow_creates_expected_files(tmp_path):
     assert (workspace / "reports" / "demo_workflow_report.md").exists()
 
 
+def test_script_readiness_command_writes_reports_and_prints_summary(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    requirements_path = tmp_path / "requirements.md"
+    _write_requirements(requirements_path)
+    _run_base_cli_workflow(workspace, requirements_path)
+
+    exit_code = main(["script-readiness", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "script_readiness.json").exists()
+    assert (workspace / "reports" / "script_readiness.md").exists()
+    assert "Script readiness:" in captured.out
+    assert "total=" in captured.out
+
+
+def test_script_readiness_missing_testcases_returns_non_zero(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["script-readiness", "--workspace", str(workspace)])
+
+    assert exit_code == 1
+
+
 def test_invalid_missing_file_returns_non_zero(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
     assert main(["init-workspace", "--path", str(workspace)]) == 0

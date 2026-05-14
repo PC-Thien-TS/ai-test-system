@@ -40,6 +40,14 @@ from orchestrator.manual_qa.exporters import (
     export_run_to_json_string,
     export_run_to_markdown_file,
     export_run_to_markdown_string,
+    export_script_readiness_list_to_json_file,
+    export_script_readiness_list_to_json_string,
+    export_script_readiness_list_to_markdown_file,
+    export_script_readiness_list_to_markdown_string,
+    export_script_readiness_to_json_file,
+    export_script_readiness_to_json_string,
+    export_script_readiness_to_markdown_file,
+    export_script_readiness_to_markdown_string,
     export_suite_to_json_file,
     export_suite_to_json_string,
     export_suite_to_markdown_file,
@@ -61,6 +69,7 @@ from orchestrator.manual_qa.models import (
 )
 from orchestrator.manual_qa.result_service import TestResultService
 from orchestrator.manual_qa.run_service import TestRunService
+from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 
@@ -217,6 +226,33 @@ def _build_automation_candidate_and_list():
             expected_result="Looks good to tester.",
             priority="Medium",
             test_type="Usability",
+        )
+    )
+    return primary, [primary, secondary]
+
+
+def _build_script_readiness_items():
+    service = ScriptReadinessService()
+    primary = service.analyze_script_readiness(
+        ManualTestCase(
+            test_case_id="TC-100",
+            requirement_ids=["REQ-100"],
+            module="Order API",
+            title="Create order endpoint returns status code 201",
+            steps=["Send POST request to /api/orders with valid payload.", "Verify response status code is 201."],
+            expected_result="Response status code is 201 and order is created.",
+            priority="High",
+            metadata={"test_data": "valid order payload"},
+        )
+    )
+    secondary = service.analyze_script_readiness(
+        ManualTestCase(
+            test_case_id="TC-101",
+            requirement_ids=["REQ-101"],
+            module="Checkout UI",
+            title="Visual only checkout review looks good",
+            steps=["Open checkout page and review manually."],
+            expected_result="Looks good to the tester.",
         )
     )
     return primary, [primary, secondary]
@@ -504,3 +540,54 @@ def test_writes_automation_candidate_and_list_markdown_files(tmp_path):
     assert "Should Automate" in candidate_markdown
     candidates_markdown = candidates_path.read_text(encoding="utf-8")
     assert "AUTO-002" in candidates_markdown
+
+
+def test_exports_script_readiness_and_list_json_strings():
+    readiness, readiness_items = _build_script_readiness_items()
+
+    readiness_payload = json.loads(export_script_readiness_to_json_string(readiness))
+    list_payload = json.loads(export_script_readiness_list_to_json_string(readiness_items))
+
+    assert readiness_payload["readiness_id"] == "READ-001"
+    assert readiness_payload["test_case_id"] == "TC-100"
+    assert "gaps" in readiness_payload
+    assert list_payload[1]["readiness_id"] == "READ-002"
+
+
+def test_writes_script_readiness_and_list_json_files(tmp_path):
+    readiness, readiness_items = _build_script_readiness_items()
+
+    readiness_path = tmp_path / "script_readiness.json"
+    list_path = tmp_path / "script_readiness_list.json"
+
+    export_script_readiness_to_json_file(readiness, readiness_path)
+    export_script_readiness_list_to_json_file(readiness_items, list_path)
+
+    assert json.loads(readiness_path.read_text(encoding="utf-8"))["readiness_id"] == "READ-001"
+    assert json.loads(list_path.read_text(encoding="utf-8"))[1]["test_case_id"] == "TC-101"
+
+
+def test_exports_script_readiness_and_list_markdown_strings():
+    readiness, readiness_items = _build_script_readiness_items()
+
+    readiness_markdown = export_script_readiness_to_markdown_string(readiness)
+    list_markdown = export_script_readiness_list_to_markdown_string(readiness_items)
+
+    assert "READ-001" in readiness_markdown
+    assert "TC-100" in readiness_markdown
+    assert "Readiness Score" in readiness_markdown
+    assert "Suggested Next Step" in readiness_markdown
+    assert "READ-002" in list_markdown
+
+
+def test_writes_script_readiness_and_list_markdown_files(tmp_path):
+    readiness, readiness_items = _build_script_readiness_items()
+
+    readiness_path = tmp_path / "script_readiness.md"
+    list_path = tmp_path / "script_readiness_list.md"
+
+    export_script_readiness_to_markdown_file(readiness, readiness_path)
+    export_script_readiness_list_to_markdown_file(readiness_items, list_path)
+
+    assert "READ-001" in readiness_path.read_text(encoding="utf-8")
+    assert "READ-002" in list_path.read_text(encoding="utf-8")
