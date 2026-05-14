@@ -192,6 +192,48 @@ class RunSummary:
         return asdict(self)
 
 
+@dataclass
+class Evidence:
+    """Deterministic evidence metadata attached to a manual run/result."""
+
+    evidence_id: str
+    run_id: str
+    test_case_id: str
+    evidence_type: str
+    path_or_url: str
+    description: str = ""
+    content_type: str = ""
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class BugDraft:
+    """Deterministic offline bug draft generated from a manual result."""
+
+    bug_id: str
+    run_id: str
+    test_case_id: str
+    title: str
+    severity: str
+    priority: str
+    environment: str
+    build: str
+    steps_to_reproduce: List[str] = field(default_factory=list)
+    expected_result: str = ""
+    actual_result: str = ""
+    evidence_ids: List[str] = field(default_factory=list)
+    status: str = "Draft"
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

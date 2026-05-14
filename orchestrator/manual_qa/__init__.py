@@ -1,12 +1,22 @@
 """Manual QA public exports."""
 
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
+from orchestrator.manual_qa.bug_service import BugDraftService, generate_bug_draft
+from orchestrator.manual_qa.evidence_service import EvidenceService, attach_evidence
 from orchestrator.manual_qa.exporters import (
     ManualQAExporter,
+    export_bug_draft_to_json_file,
+    export_bug_draft_to_json_string,
+    export_bug_draft_to_markdown_file,
+    export_bug_draft_to_markdown_string,
     export_bundle_to_json_file,
     export_bundle_to_json_string,
     export_bundle_to_markdown_file,
     export_bundle_to_markdown_string,
+    export_evidence_to_json_file,
+    export_evidence_to_json_string,
+    export_evidence_to_markdown_file,
+    export_evidence_to_markdown_string,
     export_run_to_json_file,
     export_run_to_json_string,
     export_run_to_markdown_file,
@@ -21,7 +31,9 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_markdown_string,
 )
 from orchestrator.manual_qa.models import (
+    BugDraft,
     ChecklistItem,
+    Evidence,
     ExportBundle,
     ManualTestCase,
     NormalizedRequirement,
@@ -41,8 +53,12 @@ from orchestrator.manual_qa.suite_service import TestSuiteService, create_test_s
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 
 __all__ = [
+    "BugDraft",
+    "BugDraftService",
     "ChecklistGenerator",
     "ChecklistItem",
+    "Evidence",
+    "EvidenceService",
     "ExportBundle",
     "ManualQAExporter",
     "ManualTestCase",
@@ -60,14 +76,24 @@ __all__ = [
     "TestRunService",
     "TestSuite",
     "TestSuiteService",
+    "attach_evidence",
     "create_test_run",
     "create_test_suite",
+    "generate_bug_draft",
     "summarize_test_run",
     "update_test_result",
+    "export_bug_draft_to_json_file",
+    "export_bug_draft_to_json_string",
+    "export_bug_draft_to_markdown_file",
+    "export_bug_draft_to_markdown_string",
     "export_bundle_to_json_file",
     "export_bundle_to_json_string",
     "export_bundle_to_markdown_file",
     "export_bundle_to_markdown_string",
+    "export_evidence_to_json_file",
+    "export_evidence_to_json_string",
+    "export_evidence_to_markdown_file",
+    "export_evidence_to_markdown_string",
     "export_run_to_json_file",
     "export_run_to_json_string",
     "export_run_to_markdown_file",

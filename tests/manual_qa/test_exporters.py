@@ -3,10 +3,18 @@ from __future__ import annotations
 import json
 
 from orchestrator.manual_qa.exporters import (
+    export_bug_draft_to_json_file,
+    export_bug_draft_to_json_string,
+    export_bug_draft_to_markdown_file,
+    export_bug_draft_to_markdown_string,
     export_bundle_to_json_file,
     export_bundle_to_json_string,
     export_bundle_to_markdown_file,
     export_bundle_to_markdown_string,
+    export_evidence_to_json_file,
+    export_evidence_to_json_string,
+    export_evidence_to_markdown_file,
+    export_evidence_to_markdown_string,
     export_run_to_json_file,
     export_run_to_json_string,
     export_run_to_markdown_file,
@@ -20,6 +28,8 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_markdown_file,
     export_summary_to_markdown_string,
 )
+from orchestrator.manual_qa.bug_service import BugDraftService
+from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.models import (
     ChecklistItem,
     ExportBundle,
@@ -95,6 +105,50 @@ def _build_suite_run_summary():
     TestResultService().update_test_result(test_run, "TC-001", "Pass")
     summary = RunSummaryService().summarize_test_run(test_run)
     return suite, test_run, summary
+
+
+def _build_evidence_and_bug():
+    suite = TestSuiteService().create_test_suite(
+        project_id="checkout-web",
+        name="Checkout Regression",
+        test_cases=["TC-001"],
+    )
+    test_run = TestRunService().create_test_run(
+        project_id="checkout-web",
+        suite=suite,
+        environment="staging",
+        build="build-001",
+        tester="qa-user",
+    )
+    test_case = ManualTestCase(
+        test_case_id="TC-001",
+        requirement_ids=["REQ-001"],
+        module="Checkout",
+        title="Checkout payment validation",
+        steps=["Open checkout.", "Submit invalid payment details."],
+        expected_result="A validation message is shown.",
+    )
+    TestResultService().update_test_result(
+        test_run,
+        "TC-001",
+        "Fail",
+        actual_result="No validation message was shown.",
+    )
+    evidence = EvidenceService().attach_evidence(
+        test_run,
+        "TC-001",
+        "screenshot",
+        "artifacts/screenshots/checkout-fail.png",
+        description="Checkout failure screenshot",
+        content_type="image/png",
+    )
+    bug = BugDraftService().generate_bug_draft(
+        test_run,
+        "TC-001",
+        test_case=test_case,
+        evidence=[evidence],
+    )
+    return evidence, bug
 
 
 def test_exports_json_string():
@@ -194,3 +248,66 @@ def test_writes_suite_run_summary_markdown_files(tmp_path):
     assert "SUITE-001" in suite_path.read_text(encoding="utf-8")
     assert "RUN-001" in run_path.read_text(encoding="utf-8")
     assert "Pass Rate" in summary_path.read_text(encoding="utf-8")
+
+
+def test_exports_evidence_and_bug_draft_json_strings():
+    evidence, bug = _build_evidence_and_bug()
+
+    evidence_payload = json.loads(export_evidence_to_json_string(evidence))
+    bug_payload = json.loads(export_bug_draft_to_json_string(bug))
+
+    assert evidence_payload["evidence_id"] == "EVD-001"
+    assert evidence_payload["test_case_id"] == "TC-001"
+    assert bug_payload["bug_id"] == "BUG-001"
+    assert bug_payload["actual_result"] == "No validation message was shown."
+    assert bug_payload["expected_result"] == "A validation message is shown."
+    assert bug_payload["severity"] == "Major"
+    assert bug_payload["priority"] == "High"
+    assert bug_payload["evidence_ids"] == ["EVD-001"]
+
+
+def test_writes_evidence_and_bug_draft_json_files(tmp_path):
+    evidence, bug = _build_evidence_and_bug()
+
+    evidence_path = tmp_path / "evidence.json"
+    bug_path = tmp_path / "bug.json"
+
+    export_evidence_to_json_file(evidence, evidence_path)
+    export_bug_draft_to_json_file(bug, bug_path)
+
+    assert json.loads(evidence_path.read_text(encoding="utf-8"))["evidence_id"] == "EVD-001"
+    bug_payload = json.loads(bug_path.read_text(encoding="utf-8"))
+    assert bug_payload["bug_id"] == "BUG-001"
+    assert bug_payload["test_case_id"] == "TC-001"
+
+
+def test_exports_evidence_and_bug_draft_markdown_strings():
+    evidence, bug = _build_evidence_and_bug()
+
+    evidence_markdown = export_evidence_to_markdown_string(evidence)
+    bug_markdown = export_bug_draft_to_markdown_string(bug)
+
+    assert "EVD-001" in evidence_markdown
+    assert "BUG-001" in bug_markdown
+    assert "TC-001" in bug_markdown
+    assert "No validation message was shown." in bug_markdown
+    assert "A validation message is shown." in bug_markdown
+    assert "Major" in bug_markdown
+    assert "High" in bug_markdown
+    assert "EVD-001" in bug_markdown
+
+
+def test_writes_evidence_and_bug_draft_markdown_files(tmp_path):
+    evidence, bug = _build_evidence_and_bug()
+
+    evidence_path = tmp_path / "evidence.md"
+    bug_path = tmp_path / "bug.md"
+
+    export_evidence_to_markdown_file(evidence, evidence_path)
+    export_bug_draft_to_markdown_file(bug, bug_path)
+
+    assert "EVD-001" in evidence_path.read_text(encoding="utf-8")
+    bug_markdown = bug_path.read_text(encoding="utf-8")
+    assert "BUG-001" in bug_markdown
+    assert "TC-001" in bug_markdown
+    assert "No validation message was shown." in bug_markdown

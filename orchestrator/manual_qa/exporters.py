@@ -6,18 +6,21 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from orchestrator.manual_qa.models import ExportBundle, RunSummary, TestRun, TestSuite
+from orchestrator.manual_qa.models import BugDraft, Evidence, ExportBundle, RunSummary, TestRun, TestSuite
 
 
 class ManualQAExporter:
     """Export Manual QA content as JSON or Markdown."""
 
-    def export_json_string(self, payload: ExportBundle | TestSuite | TestRun | RunSummary) -> str:
+    def export_json_string(
+        self,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
+    ) -> str:
         return json.dumps(payload.to_dict(), indent=2, ensure_ascii=False, sort_keys=True)
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -27,7 +30,7 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
         *,
         title: Optional[str] = None,
     ) -> str:
@@ -37,6 +40,10 @@ class ManualQAExporter:
             return self._export_suite_markdown(payload, title=title)
         if isinstance(payload, TestRun):
             return self._export_run_markdown(payload, title=title)
+        if isinstance(payload, Evidence):
+            return self._export_evidence_markdown(payload, title=title)
+        if isinstance(payload, BugDraft):
+            return self._export_bug_draft_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
 
     def _export_bundle_markdown(
@@ -171,9 +178,90 @@ class ManualQAExporter:
         ]
         return "\n".join(lines)
 
+    def _export_evidence_markdown(
+        self,
+        evidence: Evidence,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Evidence - {evidence.evidence_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Evidence",
+            f"- Evidence ID: {evidence.evidence_id}",
+            f"- Run ID: {evidence.run_id}",
+            f"- Test Case ID: {evidence.test_case_id}",
+            f"- Type: {evidence.evidence_type or 'N/A'}",
+            f"- Reference: {evidence.path_or_url or 'N/A'}",
+            f"- Description: {evidence.description or 'N/A'}",
+            f"- Content Type: {evidence.content_type or 'N/A'}",
+            f"- Created At: {evidence.created_at or 'N/A'}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_bug_draft_markdown(
+        self,
+        bug_draft: BugDraft,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Bug Draft - {bug_draft.bug_id}"
+        steps = bug_draft.steps_to_reproduce or ["No explicit steps provided."]
+        evidence_ids = bug_draft.evidence_ids or ["None"]
+        lines = [
+            f"# {heading}",
+            "",
+            "## Title",
+            bug_draft.title,
+            "",
+            "## Test Case ID",
+            bug_draft.test_case_id,
+            "",
+            "## Severity",
+            bug_draft.severity,
+            "",
+            "## Priority",
+            bug_draft.priority,
+            "",
+            "## Environment",
+            bug_draft.environment or "N/A",
+            "",
+            "## Build",
+            bug_draft.build or "N/A",
+            "",
+            "## Steps to Reproduce",
+        ]
+        for step in steps:
+            lines.append(f"- {step}")
+        lines.extend(
+            [
+                "",
+                "## Expected Result",
+                bug_draft.expected_result or "N/A",
+                "",
+                "## Actual Result",
+                bug_draft.actual_result or "N/A",
+                "",
+                "## Evidence IDs",
+            ]
+        )
+        for evidence_id in evidence_ids:
+            lines.append(f"- {evidence_id}")
+        lines.extend(
+            [
+                "",
+                "## Status",
+                bug_draft.status,
+                "",
+            ]
+        )
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary,
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft,
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -266,3 +354,49 @@ def export_summary_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(summary, path, title=title)
+
+
+def export_evidence_to_json_string(evidence: Evidence) -> str:
+    return ManualQAExporter().export_json_string(evidence)
+
+
+def export_evidence_to_json_file(evidence: Evidence, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(evidence, path)
+
+
+def export_evidence_to_markdown_string(evidence: Evidence, *, title: Optional[str] = None) -> str:
+    return ManualQAExporter().export_markdown_string(evidence, title=title)
+
+
+def export_evidence_to_markdown_file(
+    evidence: Evidence,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(evidence, path, title=title)
+
+
+def export_bug_draft_to_json_string(bug_draft: BugDraft) -> str:
+    return ManualQAExporter().export_json_string(bug_draft)
+
+
+def export_bug_draft_to_json_file(bug_draft: BugDraft, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(bug_draft, path)
+
+
+def export_bug_draft_to_markdown_string(
+    bug_draft: BugDraft,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(bug_draft, title=title)
+
+
+def export_bug_draft_to_markdown_file(
+    bug_draft: BugDraft,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(bug_draft, path, title=title)
