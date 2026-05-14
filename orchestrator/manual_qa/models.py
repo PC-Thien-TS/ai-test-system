@@ -314,6 +314,21 @@ class AutomationCandidate:
         return asdict(self)
 
 
+@dataclass
+class WorkspaceValidationResult:
+    """Structured validation result for a local Manual QA workspace."""
+
+    is_valid: bool
+    missing_folders: List[str] = field(default_factory=list)
+    missing_files: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    artifact_counts: Dict[str, int] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

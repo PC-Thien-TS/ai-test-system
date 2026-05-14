@@ -10,6 +10,7 @@ from typing import Any
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
+from orchestrator.manual_qa.demo_service import DemoWorkflowService
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
@@ -55,6 +56,7 @@ class ManualQACLI:
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
         self.exporter = ManualQAExporter()
+        self.demo_service = DemoWorkflowService()
 
     def run(self, argv: list[str] | None = None) -> int:
         parser = self._build_parser()
@@ -141,6 +143,20 @@ class ManualQACLI:
         automation_parser.add_argument("--workspace", required=True)
         automation_parser.set_defaults(handler=self._handle_score_automation)
 
+        validate_parser = subparsers.add_parser("validate-workspace")
+        validate_parser.add_argument("--workspace", required=True)
+        validate_parser.set_defaults(handler=self._handle_validate_workspace)
+
+        summary_parser = subparsers.add_parser("workspace-summary")
+        summary_parser.add_argument("--workspace", required=True)
+        summary_parser.set_defaults(handler=self._handle_workspace_summary)
+
+        demo_parser = subparsers.add_parser("demo-workflow")
+        demo_parser.add_argument("--workspace", required=True)
+        demo_parser.add_argument("--project-name", default="Manual QA Demo")
+        demo_parser.add_argument("--product-type", default="web")
+        demo_parser.set_defaults(handler=self._handle_demo_workflow)
+
         return parser
 
     def _handle_init_workspace(self, args: argparse.Namespace) -> int:
@@ -158,6 +174,7 @@ class ManualQACLI:
         )
         output_path = workspace / "project.json"
         self.workspace_service.write_json(output_path, project.to_dict())
+        self.workspace_service.update_workspace_manifest(workspace, project=project)
         print(f"Project written to {output_path}")
         return 0
 
@@ -169,6 +186,7 @@ class ManualQACLI:
         normalized = self.normalizer.normalize_requirements(raw_records)
         output_path = workspace / "requirements" / "normalized_requirements.json"
         self.workspace_service.write_json(output_path, [item.to_dict() for item in normalized])
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Normalized requirements written to {output_path}")
         return 0
 
@@ -180,6 +198,7 @@ class ManualQACLI:
         md_path = workspace / "checklists" / "checklist.md"
         self.workspace_service.write_json(json_path, [item.to_dict() for item in checklist])
         self.workspace_service.write_markdown(md_path, self._render_checklist_markdown(checklist))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Checklist written to {json_path}")
         return 0
 
@@ -191,6 +210,7 @@ class ManualQACLI:
         md_path = workspace / "testcases" / "testcases.md"
         self.workspace_service.write_json(json_path, [item.to_dict() for item in test_cases])
         self.workspace_service.write_markdown(md_path, self._render_testcases_markdown(test_cases))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Test cases written to {json_path}")
         return 0
 
@@ -210,6 +230,7 @@ class ManualQACLI:
         md_path = workspace / "suites" / f"{suite_slug}.md"
         self.workspace_service.write_json(json_path, suite.to_dict())
         self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(suite))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Suite written to {json_path}")
         return 0
 
@@ -228,6 +249,7 @@ class ManualQACLI:
         md_path = workspace / "runs" / f"{test_run.run_id}.md"
         self.workspace_service.write_json(json_path, test_run.to_dict())
         self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(test_run))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Run written to {json_path}")
         return 0
 
@@ -248,6 +270,7 @@ class ManualQACLI:
         summary_md = workspace / "runs" / f"{updated_run.run_id}-summary.md"
         self.workspace_service.write_json(summary_json, summary.to_dict())
         self.workspace_service.write_markdown(summary_md, self.exporter.export_markdown_string(summary))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Run updated at {run_path}")
         return 0
 
@@ -268,6 +291,7 @@ class ManualQACLI:
         self.workspace_service.write_json(evidence_json, evidence.to_dict())
         self.workspace_service.write_markdown(evidence_md, self.exporter.export_markdown_string(evidence))
         self.workspace_service.write_json(run_path, test_run.to_dict())
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Evidence written to {evidence_json}")
         return 0
 
@@ -287,6 +311,7 @@ class ManualQACLI:
         bug_md = workspace / "bugs" / f"{bug.bug_id}.md"
         self.workspace_service.write_json(bug_json, bug.to_dict())
         self.workspace_service.write_markdown(bug_md, self.exporter.export_markdown_string(bug))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Bug draft written to {bug_json}")
         return 0
 
@@ -302,7 +327,59 @@ class ManualQACLI:
         md_path = workspace / "automation_candidates" / "candidates.md"
         self.workspace_service.write_json(json_path, [item.to_dict() for item in candidates])
         self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(candidates))
+        self.workspace_service.update_workspace_manifest(workspace)
         print(f"Automation candidates written to {json_path}")
+        return 0
+
+    def _handle_validate_workspace(self, args: argparse.Namespace) -> int:
+        workspace = Path(args.workspace)
+        validation = self.workspace_service.validate_workspace(workspace)
+        print(
+            "Workspace validation:"
+            f" valid={validation.is_valid}"
+            f" missing_folders={len(validation.missing_folders)}"
+            f" missing_files={len(validation.missing_files)}"
+        )
+        if not workspace.exists() or validation.missing_folders:
+            return 1
+        return 0
+
+    def _handle_workspace_summary(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        manifest = self.workspace_service.update_workspace_manifest(workspace)
+        validation = self.workspace_service.validate_workspace(workspace)
+        listing = self.workspace_service.list_workspace_artifacts(workspace)
+        summary = {
+            "project_id": manifest.get("project_id", ""),
+            "project_name": manifest.get("project_name", ""),
+            "product_type": manifest.get("product_type", ""),
+            "artifact_counts": listing["artifact_counts"],
+            "validation_result": validation.to_dict(),
+            "metadata": {
+                "workspace_version": manifest.get("workspace_version", ""),
+                "updated_at": manifest.get("updated_at", ""),
+            },
+        }
+        json_path = workspace / "reports" / "workspace_summary.json"
+        md_path = workspace / "reports" / "workspace_summary.md"
+        self.workspace_service.write_json(json_path, summary)
+        self.workspace_service.write_markdown(md_path, self._render_workspace_summary(summary))
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(f"Workspace summary written to {json_path}")
+        return 0
+
+    def _handle_demo_workflow(self, args: argparse.Namespace) -> int:
+        report = self.demo_service.run_demo_workflow(
+            args.workspace,
+            project_name=args.project_name,
+            product_type=args.product_type,
+        )
+        print(
+            "Demo workflow completed:"
+            f" project={report['project_id']}"
+            f" run={report['run_id']}"
+            f" bug={report['bug_id']}"
+        )
         return 0
 
     def _workspace(self, path: str) -> Path:
@@ -413,6 +490,35 @@ class ManualQACLI:
         while "--" in text:
             text = text.replace("--", "-")
         return text.strip("-")
+
+    def _render_workspace_summary(self, summary: dict[str, Any]) -> str:
+        validation = summary["validation_result"]
+        lines = [
+            "# Workspace Summary",
+            "",
+            f"- Project ID: {summary['project_id'] or 'N/A'}",
+            f"- Project Name: {summary['project_name'] or 'N/A'}",
+            f"- Product Type: {summary['product_type'] or 'N/A'}",
+            f"- Workspace Version: {summary['metadata']['workspace_version'] or 'N/A'}",
+            f"- Valid: {validation['is_valid']}",
+            "",
+            "## Artifact Counts",
+        ]
+        lines.extend(
+            f"- {folder}: {count}"
+            for folder, count in summary["artifact_counts"].items()
+        )
+        lines.extend(
+            [
+                "",
+                "## Validation",
+                f"- Missing Folders: {', '.join(validation['missing_folders']) or 'None'}",
+                f"- Missing Files: {', '.join(validation['missing_files']) or 'None'}",
+                f"- Warnings: {', '.join(validation['warnings']) or 'None'}",
+                "",
+            ]
+        )
+        return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -7,6 +7,7 @@ from orchestrator.manual_qa.automation_candidate_service import (
 )
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
 from orchestrator.manual_qa.bug_service import BugDraftService, generate_bug_draft
+from orchestrator.manual_qa.demo_service import DemoWorkflowService, run_demo_workflow
 from orchestrator.manual_qa.evidence_service import EvidenceService, attach_evidence
 from orchestrator.manual_qa.failure_memory_service import (
     FailureMemoryService,
@@ -78,6 +79,7 @@ from orchestrator.manual_qa.models import (
     TestResult,
     TestRun,
     TestSuite,
+    WorkspaceValidationResult,
 )
 from orchestrator.manual_qa.project_service import ProjectProfileService
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
@@ -87,6 +89,15 @@ from orchestrator.manual_qa.run_service import TestRunService, create_test_run
 from orchestrator.manual_qa.summary_service import RunSummaryService, summarize_test_run
 from orchestrator.manual_qa.suite_service import TestSuiteService, create_test_suite
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
+from orchestrator.manual_qa.workspace_service import (
+    ManualQAWorkspaceService,
+    create_workspace,
+    create_workspace_manifest,
+    list_workspace_artifacts,
+    read_workspace_manifest,
+    update_workspace_manifest,
+    validate_workspace,
+)
 
 __all__ = [
     "AutomationCandidate",
@@ -95,6 +106,7 @@ __all__ = [
     "BugDraftService",
     "ChecklistGenerator",
     "ChecklistItem",
+    "DemoWorkflowService",
     "Evidence",
     "EvidenceService",
     "ExportBundle",
@@ -117,7 +129,11 @@ __all__ = [
     "TestRunService",
     "TestSuite",
     "TestSuiteService",
+    "WorkspaceValidationResult",
+    "ManualQAWorkspaceService",
     "attach_evidence",
+    "create_workspace",
+    "create_workspace_manifest",
     "create_failure_signature",
     "create_failure_signature_from_bug_draft",
     "create_test_run",
@@ -125,11 +141,16 @@ __all__ = [
     "find_exact_failure",
     "find_similar_failures",
     "generate_bug_draft",
+    "list_workspace_artifacts",
+    "read_workspace_manifest",
     "remember_failure",
+    "run_demo_workflow",
     "score_automation_candidate",
     "score_automation_candidates",
     "summarize_test_run",
+    "update_workspace_manifest",
     "update_test_result",
+    "validate_workspace",
     "export_automation_candidate_to_json_file",
     "export_automation_candidate_to_json_string",
     "export_automation_candidate_to_markdown_file",

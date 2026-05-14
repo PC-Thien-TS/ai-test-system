@@ -28,21 +28,7 @@ def _write_requirements(path: Path) -> None:
     )
 
 
-def test_init_workspace_creates_folders(tmp_path):
-    workspace = tmp_path / "manual_qa_demo"
-
-    exit_code = main(["init-workspace", "--path", str(workspace)])
-
-    assert exit_code == 0
-    assert (workspace / "requirements").exists()
-    assert (workspace / "reports").exists()
-
-
-def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
-    workspace = tmp_path / "manual_qa_demo"
-    requirements_path = tmp_path / "requirements.md"
-    _write_requirements(requirements_path)
-
+def _run_base_cli_workflow(workspace: Path, requirements_path: Path) -> None:
     assert main(["init-workspace", "--path", str(workspace)]) == 0
     assert main(
         [
@@ -55,8 +41,6 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
             "web",
         ]
     ) == 0
-    assert (workspace / "project.json").exists()
-
     assert main(
         [
             "import-requirements",
@@ -66,19 +50,8 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
             str(requirements_path),
         ]
     ) == 0
-    normalized_requirements = workspace / "requirements" / "normalized_requirements.json"
-    assert normalized_requirements.exists()
-
     assert main(["generate-checklist", "--workspace", str(workspace)]) == 0
-    assert (workspace / "checklists" / "checklist.json").exists()
-    assert (workspace / "checklists" / "checklist.md").exists()
-
     assert main(["generate-testcases", "--workspace", str(workspace)]) == 0
-    testcases_json = workspace / "testcases" / "testcases.json"
-    testcases_md = workspace / "testcases" / "testcases.md"
-    assert testcases_json.exists()
-    assert testcases_md.exists()
-
     assert main(
         [
             "create-suite",
@@ -88,9 +61,6 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
             "smoke",
         ]
     ) == 0
-    suite_json = workspace / "suites" / "smoke.json"
-    assert suite_json.exists()
-
     assert main(
         [
             "create-run",
@@ -106,6 +76,40 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
             "Thien",
         ]
     ) == 0
+
+
+def test_init_workspace_creates_folders(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+
+    exit_code = main(["init-workspace", "--path", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "requirements").exists()
+    assert (workspace / "reports").exists()
+    assert (workspace / "workspace_manifest.json").exists()
+
+
+def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    requirements_path = tmp_path / "requirements.md"
+    _write_requirements(requirements_path)
+
+    _run_base_cli_workflow(workspace, requirements_path)
+    assert (workspace / "project.json").exists()
+
+    normalized_requirements = workspace / "requirements" / "normalized_requirements.json"
+    assert normalized_requirements.exists()
+    assert (workspace / "checklists" / "checklist.json").exists()
+    assert (workspace / "checklists" / "checklist.md").exists()
+
+    testcases_json = workspace / "testcases" / "testcases.json"
+    testcases_md = workspace / "testcases" / "testcases.md"
+    assert testcases_json.exists()
+    assert testcases_md.exists()
+
+    suite_json = workspace / "suites" / "smoke.json"
+    assert suite_json.exists()
+
     run_json = workspace / "runs" / "RUN-001.json"
     assert run_json.exists()
 
@@ -172,7 +176,6 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
     assert bug_md.exists()
 
     failure_memory_dir = workspace / "failure_memory"
-    failure_memory_dir.mkdir(exist_ok=True)
     failure_record_path = failure_memory_dir / "record.json"
     failure_record_path.write_text(
         json.dumps(
@@ -217,6 +220,55 @@ def test_end_to_end_cli_workflow_writes_expected_artifacts(tmp_path):
     candidates_md = workspace / "automation_candidates" / "candidates.md"
     assert candidates_json.exists()
     assert candidates_md.exists()
+
+
+def test_validate_workspace_succeeds_for_created_workspace(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    assert main(["validate-workspace", "--workspace", str(workspace)]) == 0
+
+
+def test_validate_workspace_fails_for_missing_path_or_invalid_workspace(tmp_path):
+    missing_workspace = tmp_path / "missing_workspace"
+    invalid_workspace = tmp_path / "invalid_workspace"
+    invalid_workspace.mkdir()
+
+    assert main(["validate-workspace", "--workspace", str(missing_workspace)]) == 1
+    assert main(["validate-workspace", "--workspace", str(invalid_workspace)]) == 1
+
+
+def test_workspace_summary_writes_summary_files(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    requirements_path = tmp_path / "requirements.md"
+    _write_requirements(requirements_path)
+    _run_base_cli_workflow(workspace, requirements_path)
+
+    exit_code = main(["workspace-summary", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "workspace_summary.json").exists()
+    assert (workspace / "reports" / "workspace_summary.md").exists()
+
+
+def test_demo_workflow_creates_expected_files(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+
+    exit_code = main(["demo-workflow", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "project.json").exists()
+    assert (workspace / "requirements" / "normalized_requirements.json").exists()
+    assert (workspace / "checklists" / "checklist.json").exists()
+    assert (workspace / "testcases" / "testcases.json").exists()
+    assert (workspace / "suites" / "demo-smoke.json").exists()
+    assert (workspace / "runs" / "RUN-001.json").exists()
+    assert (workspace / "evidence" / "EVD-001.json").exists()
+    assert (workspace / "bugs" / "BUG-001.json").exists()
+    assert (workspace / "automation_candidates" / "candidates.json").exists()
+    assert (workspace / "reports" / "demo_workflow_report.json").exists()
+    assert (workspace / "reports" / "demo_workflow_report.md").exists()
 
 
 def test_invalid_missing_file_returns_non_zero(tmp_path):
