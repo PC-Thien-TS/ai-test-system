@@ -88,6 +88,15 @@ from orchestrator.manual_qa.exporters import (
     export_web_playwright_readiness_to_json_string,
     export_web_playwright_readiness_to_markdown_file,
     export_web_playwright_readiness_to_markdown_string,
+    export_web_playwright_script_draft_to_json_file,
+    export_web_playwright_script_draft_to_json_string,
+    export_web_playwright_script_draft_to_markdown_file,
+    export_web_playwright_script_draft_to_markdown_string,
+    export_web_playwright_script_draft_to_python_file,
+    export_web_playwright_script_drafts_to_json_file,
+    export_web_playwright_script_drafts_to_json_string,
+    export_web_playwright_script_drafts_to_markdown_file,
+    export_web_playwright_script_drafts_to_markdown_string,
 )
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
@@ -105,6 +114,7 @@ from orchestrator.manual_qa.script_readiness_service import ScriptReadinessServi
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
+from orchestrator.manual_qa.web_playwright_script_generator import WebPlaywrightScriptGenerator
 
 
 def _build_bundle() -> ExportBundle:
@@ -359,6 +369,41 @@ def _build_web_playwright_readiness_items():
         )
     )
     return primary, [primary, secondary]
+
+
+def _build_web_playwright_script_drafts():
+    readiness_service = WebPlaywrightReadinessService()
+    generator = WebPlaywrightScriptGenerator()
+    cases = [
+        ManualTestCase(
+            test_case_id="TC-400",
+            requirement_ids=["REQ-400"],
+            module="Portal UI",
+            title="Login page submit flow",
+            steps=[
+                "Navigate to /login page.",
+                "Fill data-testid=login-email with valid email.",
+                "Fill data-testid=login-password with valid password.",
+                "Click button text sign in.",
+            ],
+            expected_result="User should see dashboard and URL contains /dashboard.",
+        ),
+        ManualTestCase(
+            test_case_id="TC-401",
+            requirement_ids=["REQ-401"],
+            module="Portal UI",
+            title="Search page filter flow",
+            steps=[
+                "Navigate to /search page.",
+                "Fill field label Search with valid text.",
+                "Click button text search.",
+            ],
+            expected_result="User should see results and URL contains /search.",
+        ),
+    ]
+    readiness_items = readiness_service.analyze_web_playwright_readiness_batch(cases)
+    drafts = generator.generate_web_playwright_script_drafts(cases, readiness_items=readiness_items)
+    return drafts[0], drafts
 
 
 def test_exports_json_string():
@@ -871,3 +916,68 @@ def test_writes_web_playwright_readiness_and_list_markdown_files(tmp_path):
 
     assert "WPREAD-001" in readiness_path.read_text(encoding="utf-8")
     assert "WPREAD-002" in list_path.read_text(encoding="utf-8")
+
+
+def test_exports_web_playwright_script_draft_and_list_json_strings():
+    draft, drafts = _build_web_playwright_script_drafts()
+
+    draft_payload = json.loads(export_web_playwright_script_draft_to_json_string(draft))
+    drafts_payload = json.loads(export_web_playwright_script_drafts_to_json_string(drafts))
+
+    assert draft_payload["draft_id"] == "WEB-DRAFT-001"
+    assert draft_payload["test_case_id"] == "TC-400"
+    assert draft_payload["status"] == "Draft"
+    assert "script_content" in draft_payload
+    assert drafts_payload[1]["draft_id"] == "WEB-DRAFT-002"
+
+
+def test_writes_web_playwright_script_draft_and_list_json_files(tmp_path):
+    draft, drafts = _build_web_playwright_script_drafts()
+
+    draft_path = tmp_path / "web_playwright_script_draft.json"
+    drafts_path = tmp_path / "web_playwright_script_drafts.json"
+
+    export_web_playwright_script_draft_to_json_file(draft, draft_path)
+    export_web_playwright_script_drafts_to_json_file(drafts, drafts_path)
+
+    assert json.loads(draft_path.read_text(encoding="utf-8"))["draft_id"] == "WEB-DRAFT-001"
+    assert json.loads(drafts_path.read_text(encoding="utf-8"))[1]["test_case_id"] == "TC-401"
+
+
+def test_exports_web_playwright_script_draft_and_list_markdown_strings():
+    draft, drafts = _build_web_playwright_script_drafts()
+
+    draft_markdown = export_web_playwright_script_draft_to_markdown_string(draft)
+    drafts_markdown = export_web_playwright_script_drafts_to_markdown_string(drafts)
+
+    assert "WEB-DRAFT-001" in draft_markdown
+    assert "TC-400" in draft_markdown
+    assert "Draft" in draft_markdown
+    assert "Warnings" in draft_markdown
+    assert "```python" in draft_markdown
+    assert "WEB-DRAFT-002" in drafts_markdown
+
+
+def test_writes_web_playwright_script_draft_and_list_markdown_files(tmp_path):
+    draft, drafts = _build_web_playwright_script_drafts()
+
+    draft_path = tmp_path / "web_playwright_script_draft.md"
+    drafts_path = tmp_path / "web_playwright_script_drafts.md"
+
+    export_web_playwright_script_draft_to_markdown_file(draft, draft_path)
+    export_web_playwright_script_drafts_to_markdown_file(drafts, drafts_path)
+
+    assert "WEB-DRAFT-001" in draft_path.read_text(encoding="utf-8")
+    assert "WEB-DRAFT-002" in drafts_path.read_text(encoding="utf-8")
+
+
+def test_writes_web_playwright_script_draft_python_file(tmp_path):
+    draft, _drafts = _build_web_playwright_script_drafts()
+    output_path = tmp_path / draft.file_name
+
+    written = export_web_playwright_script_draft_to_python_file(draft, output_path)
+
+    assert written == output_path
+    content = output_path.read_text(encoding="utf-8")
+    assert "playwright.sync_api" in content
+    assert "Draft only. Not executed / not verified." in content

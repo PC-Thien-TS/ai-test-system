@@ -35,6 +35,7 @@ from orchestrator.manual_qa.models import (
     TestRun,
     TestSuite,
     WebPlaywrightReadiness,
+    WebPlaywrightScriptDraft,
 )
 from orchestrator.manual_qa.project_service import ProjectProfileService
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
@@ -46,6 +47,7 @@ from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
+from orchestrator.manual_qa.web_playwright_script_generator import WebPlaywrightScriptGenerator
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
 
 
@@ -71,6 +73,7 @@ class ManualQACLI:
         self.api_script_packaging_service = APIScriptPackagingService()
         self.script_readiness_service = ScriptReadinessService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
+        self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -166,6 +169,10 @@ class ManualQACLI:
         web_readiness_parser = subparsers.add_parser("web-playwright-readiness")
         web_readiness_parser.add_argument("--workspace", required=True)
         web_readiness_parser.set_defaults(handler=self._handle_web_playwright_readiness)
+
+        web_drafts_parser = subparsers.add_parser("generate-web-playwright-drafts")
+        web_drafts_parser.add_argument("--workspace", required=True)
+        web_drafts_parser.set_defaults(handler=self._handle_generate_web_playwright_drafts)
 
         api_drafts_parser = subparsers.add_parser("generate-api-drafts")
         api_drafts_parser.add_argument("--workspace", required=True)
@@ -455,6 +462,36 @@ class ManualQACLI:
         )
         return 0
 
+    def _handle_generate_web_playwright_drafts(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        readiness_items = self._load_web_playwright_readiness_items(
+            workspace / "reports" / "web_playwright_readiness.json"
+        )
+        drafts = self.web_playwright_script_generator.generate_web_playwright_script_drafts(
+            test_cases,
+            readiness_items=readiness_items,
+        )
+        output_dir = workspace / "script_drafts" / "web_playwright"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        json_path = output_dir / "web_playwright_script_drafts.json"
+        md_path = output_dir / "web_playwright_script_drafts.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in drafts])
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(drafts))
+        for draft in drafts:
+            self.workspace_service.write_markdown(output_dir / draft.file_name, draft.script_content)
+        self.workspace_service.update_workspace_manifest(workspace)
+        warning_count = sum(len(item.warnings) for item in drafts)
+        skipped = len(test_cases) - len(drafts)
+        print(
+            "Web Playwright script drafts:"
+            f" total_test_cases={len(test_cases)}"
+            f" generated_drafts={len(drafts)}"
+            f" skipped_cases={skipped}"
+            f" warnings={warning_count}"
+        )
+        return 0
+
     def _handle_validate_api_drafts(self, args: argparse.Namespace) -> int:
         workspace = self._workspace(args.workspace)
         output_dir = workspace / "script_drafts" / "api"
@@ -620,6 +657,21 @@ class ManualQACLI:
             payload = dict(item)
             payload["gaps"] = gaps
             items.append(ScriptGenerationReadiness(**payload))
+        return items
+
+    def _load_web_playwright_readiness_items(self, path: Path) -> list[WebPlaywrightReadiness]:
+        if not path.exists():
+            return []
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        items: list[WebPlaywrightReadiness] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            payload = dict(item)
+            payload["gaps"] = item.get("gaps", [])
+            items.append(WebPlaywrightReadiness(**payload))
         return items
 
     def _load_api_script_validation_results(self, path: Path) -> list[APIScriptValidationResult]:

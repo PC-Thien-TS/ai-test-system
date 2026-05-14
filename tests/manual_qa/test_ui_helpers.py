@@ -15,10 +15,12 @@ from orchestrator.manual_qa.ui_helpers import (
     get_workspace_summary,
     list_api_draft_files,
     list_api_validation_files,
+    list_web_playwright_draft_files,
     list_report_files,
     load_api_script_drafts,
     load_api_script_package_manifest,
     load_api_script_validation_results,
+    load_web_playwright_script_drafts,
     load_project,
     load_requirements,
     load_script_readiness_items,
@@ -246,6 +248,29 @@ def test_load_web_playwright_readiness_items_returns_report_items(tmp_path):
     loaded = load_web_playwright_readiness_items(workspace)
 
     assert loaded[0]["readiness_id"] == "WPREAD-001"
+
+
+def test_load_web_playwright_script_drafts_and_list_files_returns_artifacts(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    draft_dir = workspace / "script_drafts" / "web_playwright"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "web_playwright_script_drafts.json").write_text(
+        '[{"draft_id":"WEB-DRAFT-001","test_case_id":"TC-901","requirement_ids":["REQ-901"],'
+        '"module":"Portal UI","title":"Login page submit flow","readiness_id":"WPREAD-001",'
+        '"framework":"playwright-python","language":"python","file_name":"test_tc_901.py",'
+        '"script_content":"from playwright.sync_api import Page, expect","status":"Draft",'
+        '"warnings":[],"assumptions":[],"metadata":{},"created_at":"2024-01-12T00:00:00Z"}]',
+        encoding="utf-8",
+    )
+    (draft_dir / "web_playwright_script_drafts.md").write_text("# Web Playwright Script Drafts", encoding="utf-8")
+    (draft_dir / "test_tc_901.py").write_text("from playwright.sync_api import Page, expect", encoding="utf-8")
+
+    loaded = load_web_playwright_script_drafts(workspace)
+    files = list_web_playwright_draft_files(workspace)
+
+    assert loaded[0]["draft_id"] == "WEB-DRAFT-001"
+    assert "script_drafts/web_playwright/web_playwright_script_drafts.json" in files
+    assert "script_drafts/web_playwright/test_tc_901.py" in files
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

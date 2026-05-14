@@ -503,6 +503,73 @@ def test_web_playwright_readiness_handles_no_eligible_cases_clearly(tmp_path, ca
     assert list(workspace.rglob("*.spec.ts")) == []
 
 
+def test_generate_web_playwright_drafts_writes_reports_and_python_draft(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "portal-web-demo",
+                "name": "Portal Web Demo",
+                "product_type": "web",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_web_ui_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+    assert main(["web-playwright-readiness", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["generate-web-playwright-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_script_drafts.json").exists()
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_script_drafts.md").exists()
+    python_drafts = list((workspace / "script_drafts" / "web_playwright").glob("*.py"))
+    assert len(python_drafts) >= 1
+    assert "Web Playwright script drafts:" in captured.out
+    assert "generated_drafts=1" in captured.out
+    assert list(workspace.rglob("*.spec.ts")) == []
+
+
+def test_generate_web_playwright_drafts_handles_no_eligible_cases_clearly(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "order-api-demo",
+                "name": "Order API Demo",
+                "product_type": "api",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_api_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+    assert main(["web-playwright-readiness", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["generate-web-playwright-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_script_drafts.json").exists()
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_script_drafts.md").exists()
+    assert list((workspace / "script_drafts" / "web_playwright").glob("*.py")) == []
+    assert "generated_drafts=0" in captured.out
+
+
 def test_invalid_missing_file_returns_non_zero(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
     assert main(["init-workspace", "--path", str(workspace)]) == 0

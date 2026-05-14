@@ -117,7 +117,7 @@ class WebPlaywrightReadinessService:
         action_hints = self._detect_action_hints(action_text)
         assertion_hints = self._detect_assertion_hints(assertion_text)
 
-        if not web_ui_like or target_type in {"api", "mobile", "unit"}:
+        if not web_ui_like or (target_type in {"api", "mobile", "unit"} and not self._looks_web_ui_like(text)):
             score = 0
             gaps.append(
                 self._gap(

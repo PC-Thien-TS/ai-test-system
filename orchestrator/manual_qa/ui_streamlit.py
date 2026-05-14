@@ -25,6 +25,7 @@ from orchestrator.manual_qa.models import (
     TestResult,
     TestRun,
     TestSuite,
+    WebPlaywrightReadiness,
 )
 from orchestrator.manual_qa.project_service import ProjectProfileService, SUPPORTED_PRODUCT_TYPES
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
@@ -36,6 +37,7 @@ from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
+from orchestrator.manual_qa.web_playwright_script_generator import WebPlaywrightScriptGenerator
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
@@ -49,6 +51,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_report_files,
     list_run_files,
     list_suite_files,
+    list_web_playwright_draft_files,
     load_automation_candidates,
     load_bugs,
     load_checklist,
@@ -61,6 +64,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_runs,
     load_script_readiness_items,
     load_web_playwright_readiness_items,
+    load_web_playwright_script_drafts,
     load_testcases,
     resolve_workspace,
     safe_load_json_artifact,
@@ -94,6 +98,7 @@ class ManualQAStreamlitUI:
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
+        self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.demo_service = DemoWorkflowService()
         self.exporter = ManualQAExporter()
 
@@ -735,6 +740,38 @@ class ManualQAStreamlitUI:
                 self.workspace_service.update_workspace_manifest(workspace)
                 st.success(f"Generated {len(drafts)} API draft artifacts.")
 
+            if st.button("Generate Web Playwright drafts"):
+                test_cases = [ManualTestCase(**item) for item in load_testcases(workspace)]
+                readiness_payloads = load_web_playwright_readiness_items(workspace)
+                readiness_items = [
+                    WebPlaywrightReadiness(
+                        **{
+                            **item,
+                            "gaps": item.get("gaps", []),
+                        }
+                    )
+                    for item in readiness_payloads
+                    if isinstance(item, dict)
+                ]
+                drafts = self.web_playwright_script_generator.generate_web_playwright_script_drafts(
+                    test_cases,
+                    readiness_items=readiness_items,
+                )
+                output_dir = workspace / "script_drafts" / "web_playwright"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                self.workspace_service.write_json(
+                    output_dir / "web_playwright_script_drafts.json",
+                    [item.to_dict() for item in drafts],
+                )
+                self.workspace_service.write_markdown(
+                    output_dir / "web_playwright_script_drafts.md",
+                    self.exporter.export_markdown_string(drafts),
+                )
+                for draft in drafts:
+                    self.workspace_service.write_markdown(output_dir / draft.file_name, draft.script_content)
+                self.workspace_service.update_workspace_manifest(workspace)
+                st.success(f"Generated {len(drafts)} Web Playwright draft artifacts.")
+
             if st.button("Validate API drafts"):
                 draft_payloads = load_api_script_drafts(workspace)
                 if not draft_payloads:
@@ -782,6 +819,22 @@ class ManualQAStreamlitUI:
                 selected_api_draft = st.selectbox("API draft artifact", options=api_draft_files)
                 language = "python" if selected_api_draft.endswith(".py") else ("markdown" if selected_api_draft.endswith(".md") else "json")
                 st.code(get_artifact_preview(workspace / selected_api_draft), language=language)
+
+            web_playwright_draft_files = list_web_playwright_draft_files(workspace)
+            web_playwright_drafts = load_web_playwright_script_drafts(workspace)
+            if web_playwright_drafts:
+                st.caption(f"Web Playwright script drafts: {len(web_playwright_drafts)}")
+            if web_playwright_draft_files:
+                selected_web_draft = st.selectbox(
+                    "Web Playwright draft artifact",
+                    options=web_playwright_draft_files,
+                )
+                language = (
+                    "python"
+                    if selected_web_draft.endswith(".py")
+                    else ("markdown" if selected_web_draft.endswith(".md") else "json")
+                )
+                st.code(get_artifact_preview(workspace / selected_web_draft), language=language)
 
             validation_results = load_api_script_validation_results(workspace)
             package_manifest = load_api_script_package_manifest(workspace)
