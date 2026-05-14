@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
@@ -17,6 +18,7 @@ from orchestrator.manual_qa.models import (
     Evidence,
     ManualTestCase,
     NormalizedRequirement,
+    ScriptGenerationReadiness,
     TestResult,
     TestRun,
     TestSuite,
@@ -38,6 +40,7 @@ from orchestrator.manual_qa.ui_helpers import (
     get_workspace_summary,
     list_bug_files,
     list_candidate_files,
+    list_api_draft_files,
     list_report_files,
     list_run_files,
     list_suite_files,
@@ -45,6 +48,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_bugs,
     load_checklist,
     load_failure_memory_records,
+    load_api_script_drafts,
     load_project,
     load_requirements,
     load_runs,
@@ -78,6 +82,7 @@ class ManualQAStreamlitUI:
         self.evidence_service = EvidenceService()
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
+        self.api_script_generator = APITestScriptGenerator()
         self.demo_service = DemoWorkflowService()
         self.exporter = ManualQAExporter()
 
@@ -651,6 +656,45 @@ class ManualQAStreamlitUI:
                     f"Script readiness: total={len(readiness_items)}, ready={ready}, "
                     f"needs_more_data={needs_more_data}, not_suitable={not_suitable}"
                 )
+
+            if st.button("Generate API script drafts"):
+                test_cases = [ManualTestCase(**item) for item in load_testcases(workspace)]
+                readiness_payloads = load_script_readiness_items(workspace)
+                readiness_items = [
+                    ScriptGenerationReadiness(**{
+                        **item,
+                        "gaps": item.get("gaps", []),
+                    })
+                    for item in readiness_payloads
+                    if isinstance(item, dict)
+                ]
+                drafts = self.api_script_generator.generate_api_script_drafts(
+                    test_cases,
+                    readiness_items=readiness_items,
+                )
+                output_dir = workspace / "script_drafts" / "api"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                self.workspace_service.write_json(
+                    output_dir / "api_script_drafts.json",
+                    [item.to_dict() for item in drafts],
+                )
+                self.workspace_service.write_markdown(
+                    output_dir / "api_script_drafts.md",
+                    self.exporter.export_markdown_string(drafts),
+                )
+                for draft in drafts:
+                    self.workspace_service.write_markdown(output_dir / draft.file_name, draft.script_content)
+                self.workspace_service.update_workspace_manifest(workspace)
+                st.success(f"Generated {len(drafts)} API draft artifacts.")
+
+            api_draft_files = list_api_draft_files(workspace)
+            api_drafts = load_api_script_drafts(workspace)
+            if api_drafts:
+                st.caption(f"API script drafts: {len(api_drafts)}")
+            if api_draft_files:
+                selected_api_draft = st.selectbox("API draft artifact", options=api_draft_files)
+                language = "python" if selected_api_draft.endswith(".py") else ("markdown" if selected_api_draft.endswith(".md") else "json")
+                st.code(get_artifact_preview(workspace / selected_api_draft), language=language)
 
     def _load_suite_model(self, path: Path) -> TestSuite:
         return TestSuite(**self.workspace_service.read_json(path))

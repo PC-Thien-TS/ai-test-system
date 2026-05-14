@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
+from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.exporters import (
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
@@ -12,6 +13,15 @@ from orchestrator.manual_qa.exporters import (
     export_automation_candidates_to_json_string,
     export_automation_candidates_to_markdown_file,
     export_automation_candidates_to_markdown_string,
+    export_api_script_draft_to_json_file,
+    export_api_script_draft_to_json_string,
+    export_api_script_draft_to_markdown_file,
+    export_api_script_draft_to_markdown_string,
+    export_api_script_draft_to_python_file,
+    export_api_script_drafts_to_json_file,
+    export_api_script_drafts_to_json_string,
+    export_api_script_drafts_to_markdown_file,
+    export_api_script_drafts_to_markdown_string,
     export_bug_draft_to_json_file,
     export_bug_draft_to_json_string,
     export_bug_draft_to_markdown_file,
@@ -256,6 +266,33 @@ def _build_script_readiness_items():
         )
     )
     return primary, [primary, secondary]
+
+
+def _build_api_script_drafts():
+    readiness_service = ScriptReadinessService()
+    generator = APITestScriptGenerator()
+    cases = [
+        ManualTestCase(
+            test_case_id="TC-200",
+            requirement_ids=["REQ-200"],
+            module="Order API",
+            title="Create order endpoint returns status code 201",
+            steps=["Send POST request to /api/orders with valid payload.", "Verify response status code is 201."],
+            expected_result="Response status code is 201 and order is created.",
+            metadata={"test_data": {"sku": "ABC-001"}},
+        ),
+        ManualTestCase(
+            test_case_id="TC-201",
+            requirement_ids=["REQ-201"],
+            module="User API",
+            title="Get user endpoint returns status code 200",
+            steps=["Send GET request to /api/users/1.", "Verify response status code is 200."],
+            expected_result="Response status code is 200 and user details are returned.",
+        ),
+    ]
+    readiness_items = readiness_service.analyze_script_readiness_batch(cases)
+    drafts = generator.generate_api_script_drafts(cases, readiness_items=readiness_items)
+    return drafts[0], drafts
 
 
 def test_exports_json_string():
@@ -591,3 +628,68 @@ def test_writes_script_readiness_and_list_markdown_files(tmp_path):
 
     assert "READ-001" in readiness_path.read_text(encoding="utf-8")
     assert "READ-002" in list_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_script_draft_and_list_json_strings():
+    draft, drafts = _build_api_script_drafts()
+
+    draft_payload = json.loads(export_api_script_draft_to_json_string(draft))
+    drafts_payload = json.loads(export_api_script_drafts_to_json_string(drafts))
+
+    assert draft_payload["draft_id"] == "API-DRAFT-001"
+    assert draft_payload["test_case_id"] == "TC-200"
+    assert draft_payload["status"] == "Draft"
+    assert "script_content" in draft_payload
+    assert drafts_payload[1]["draft_id"] == "API-DRAFT-002"
+
+
+def test_writes_api_script_draft_and_list_json_files(tmp_path):
+    draft, drafts = _build_api_script_drafts()
+
+    draft_path = tmp_path / "api_script_draft.json"
+    drafts_path = tmp_path / "api_script_drafts.json"
+
+    export_api_script_draft_to_json_file(draft, draft_path)
+    export_api_script_drafts_to_json_file(drafts, drafts_path)
+
+    assert json.loads(draft_path.read_text(encoding="utf-8"))["draft_id"] == "API-DRAFT-001"
+    assert json.loads(drafts_path.read_text(encoding="utf-8"))[1]["test_case_id"] == "TC-201"
+
+
+def test_exports_api_script_draft_and_list_markdown_strings():
+    draft, drafts = _build_api_script_drafts()
+
+    draft_markdown = export_api_script_draft_to_markdown_string(draft)
+    drafts_markdown = export_api_script_drafts_to_markdown_string(drafts)
+
+    assert "API-DRAFT-001" in draft_markdown
+    assert "TC-200" in draft_markdown
+    assert "Draft" in draft_markdown
+    assert "Warnings" in draft_markdown
+    assert "```python" in draft_markdown
+    assert "API-DRAFT-002" in drafts_markdown
+
+
+def test_writes_api_script_draft_and_list_markdown_files(tmp_path):
+    draft, drafts = _build_api_script_drafts()
+
+    draft_path = tmp_path / "api_script_draft.md"
+    drafts_path = tmp_path / "api_script_drafts.md"
+
+    export_api_script_draft_to_markdown_file(draft, draft_path)
+    export_api_script_drafts_to_markdown_file(drafts, drafts_path)
+
+    assert "API-DRAFT-001" in draft_path.read_text(encoding="utf-8")
+    assert "API-DRAFT-002" in drafts_path.read_text(encoding="utf-8")
+
+
+def test_writes_api_script_draft_python_file(tmp_path):
+    draft, _drafts = _build_api_script_drafts()
+    output_path = tmp_path / draft.file_name
+
+    written = export_api_script_draft_to_python_file(draft, output_path)
+
+    assert written == output_path
+    content = output_path.read_text(encoding="utf-8")
+    assert "requests.post" in content or "requests.get" in content
+    assert "Draft only. Not executed / not verified." in content

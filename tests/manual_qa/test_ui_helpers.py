@@ -13,7 +13,9 @@ from orchestrator.manual_qa.ui_helpers import (
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
+    list_api_draft_files,
     list_report_files,
+    load_api_script_drafts,
     load_project,
     load_requirements,
     load_script_readiness_items,
@@ -169,6 +171,29 @@ def test_load_script_readiness_items_returns_report_items(tmp_path):
     loaded = load_script_readiness_items(workspace)
 
     assert loaded[0]["readiness_id"] == "READ-001"
+
+
+def test_load_api_script_drafts_and_list_files_returns_artifacts(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    draft_dir = workspace / "script_drafts" / "api"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "api_script_drafts.json").write_text(
+        '[{"draft_id":"API-DRAFT-001","test_case_id":"TC-900","requirement_ids":["REQ-900"],'
+        '"module":"Order API","title":"Create order endpoint","readiness_id":"READ-900",'
+        '"target_type":"api","framework":"pytest-requests","language":"python","file_name":"test_tc_900.py",'
+        '"script_content":"import requests","status":"Draft","warnings":[],"assumptions":[],"metadata":{},'
+        '"created_at":"2024-01-08T00:00:00Z"}]',
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_drafts.md").write_text("# API Script Drafts", encoding="utf-8")
+    (draft_dir / "test_tc_900.py").write_text("import requests", encoding="utf-8")
+
+    loaded = load_api_script_drafts(workspace)
+    files = list_api_draft_files(workspace)
+
+    assert loaded[0]["draft_id"] == "API-DRAFT-001"
+    assert "script_drafts/api/api_script_drafts.json" in files
+    assert "script_drafts/api/test_tc_900.py" in files
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

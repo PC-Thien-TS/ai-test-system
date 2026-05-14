@@ -162,8 +162,24 @@ def list_candidate_files(workspace_path: str | Path | None) -> list[str]:
     return [item for item in _list_artifacts_by_folder(workspace_path, "automation_candidates") if item.endswith(".json")]
 
 
+def list_api_draft_files(workspace_path: str | Path | None) -> list[str]:
+    workspace = resolve_workspace(workspace_path)
+    draft_dir = workspace / "script_drafts" / "api"
+    if not draft_dir.exists():
+        return []
+    return sorted(
+        str(path.relative_to(workspace)).replace("\\", "/")
+        for path in draft_dir.iterdir()
+        if path.is_file()
+    )
+
+
 def load_script_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "script_readiness.json")
+
+
+def load_api_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_script_drafts.json")
 
 
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:

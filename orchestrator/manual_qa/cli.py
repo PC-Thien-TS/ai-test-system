@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
@@ -57,6 +58,7 @@ class ManualQACLI:
         self.evidence_service = EvidenceService()
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
+        self.api_script_generator = APITestScriptGenerator()
         self.script_readiness_service = ScriptReadinessService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
@@ -149,6 +151,10 @@ class ManualQACLI:
         readiness_parser = subparsers.add_parser("script-readiness")
         readiness_parser.add_argument("--workspace", required=True)
         readiness_parser.set_defaults(handler=self._handle_script_readiness)
+
+        api_drafts_parser = subparsers.add_parser("generate-api-drafts")
+        api_drafts_parser.add_argument("--workspace", required=True)
+        api_drafts_parser.set_defaults(handler=self._handle_generate_api_drafts)
 
         validate_parser = subparsers.add_parser("validate-workspace")
         validate_parser.add_argument("--workspace", required=True)
@@ -367,6 +373,34 @@ class ManualQACLI:
         )
         return 0
 
+    def _handle_generate_api_drafts(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        test_cases = self._load_test_cases(workspace / "testcases" / "testcases.json")
+        readiness_items = self._load_script_readiness_items(workspace / "reports" / "script_readiness.json")
+        drafts = self.api_script_generator.generate_api_script_drafts(
+            test_cases,
+            readiness_items=readiness_items,
+        )
+        output_dir = workspace / "script_drafts" / "api"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        json_path = output_dir / "api_script_drafts.json"
+        md_path = output_dir / "api_script_drafts.md"
+        self.workspace_service.write_json(json_path, [item.to_dict() for item in drafts])
+        self.workspace_service.write_markdown(md_path, self.exporter.export_markdown_string(drafts))
+        for draft in drafts:
+            self.workspace_service.write_markdown(output_dir / draft.file_name, draft.script_content)
+        self.workspace_service.update_workspace_manifest(workspace)
+        warning_count = sum(len(item.warnings) for item in drafts)
+        skipped = len(test_cases) - len(drafts)
+        print(
+            "API script drafts:"
+            f" total_test_cases={len(test_cases)}"
+            f" generated_drafts={len(drafts)}"
+            f" skipped_cases={skipped}"
+            f" warnings={warning_count}"
+        )
+        return 0
+
     def _handle_validate_workspace(self, args: argparse.Namespace) -> int:
         workspace = Path(args.workspace)
         validation = self.workspace_service.validate_workspace(workspace)
@@ -473,6 +507,22 @@ class ManualQACLI:
         if not isinstance(data, list):
             return []
         return [AutomationCandidate(**item) for item in data if isinstance(item, dict)]
+
+    def _load_script_readiness_items(self, path: Path) -> list[ScriptGenerationReadiness]:
+        if not path.exists():
+            return []
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        items: list[ScriptGenerationReadiness] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            gaps = item.get("gaps", [])
+            payload = dict(item)
+            payload["gaps"] = gaps
+            items.append(ScriptGenerationReadiness(**payload))
+        return items
 
     def _deserialize_failure_records(self, items: list[dict[str, Any]]) -> list[FailureRecord]:
         records: list[FailureRecord] = []

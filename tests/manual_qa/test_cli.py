@@ -78,6 +78,31 @@ def _run_base_cli_workflow(workspace: Path, requirements_path: Path) -> None:
     ) == 0
 
 
+def _write_api_testcases(workspace: Path) -> None:
+    payload = [
+        {
+            "test_case_id": "TC-900",
+            "requirement_ids": ["REQ-900"],
+            "module": "Order API",
+            "title": "Create order endpoint returns status code 201",
+            "preconditions": [],
+            "steps": [
+                "Send POST request to /api/orders with valid payload.",
+                "Verify response status code is 201.",
+            ],
+            "expected_result": "Response status code is 201 and order is created.",
+            "priority": "High",
+            "test_type": "Positive",
+            "status": "Not Run",
+            "metadata": {"test_data": {"sku": "SKU-001"}},
+        }
+    ]
+    (workspace / "testcases" / "testcases.json").write_text(
+        json.dumps(payload, indent=2),
+        encoding="utf-8",
+    )
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -294,6 +319,55 @@ def test_script_readiness_missing_testcases_returns_non_zero(tmp_path):
     exit_code = main(["script-readiness", "--workspace", str(workspace)])
 
     assert exit_code == 1
+
+
+def test_generate_api_drafts_writes_reports_and_python_draft(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "order-api-demo",
+                "name": "Order API Demo",
+                "product_type": "api",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_api_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["generate-api-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "api" / "api_script_drafts.json").exists()
+    assert (workspace / "script_drafts" / "api" / "api_script_drafts.md").exists()
+    python_drafts = list((workspace / "script_drafts" / "api").glob("*.py"))
+    assert len(python_drafts) >= 1
+    assert "API script drafts:" in captured.out
+    assert "generated_drafts=1" in captured.out
+
+
+def test_generate_api_drafts_handles_no_eligible_cases_clearly(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    requirements_path = tmp_path / "requirements.md"
+    _write_requirements(requirements_path)
+    _run_base_cli_workflow(workspace, requirements_path)
+
+    exit_code = main(["generate-api-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "api" / "api_script_drafts.json").exists()
+    assert (workspace / "script_drafts" / "api" / "api_script_drafts.md").exists()
+    assert list((workspace / "script_drafts" / "api").glob("*.py")) == []
+    assert "generated_drafts=0" in captured.out
 
 
 def test_invalid_missing_file_returns_non_zero(tmp_path):

@@ -381,6 +381,31 @@ class ScriptGenerationReadiness:
         }
 
 
+@dataclass
+class APITestScriptDraft:
+    """Deterministic API test script draft derived from Manual QA assets."""
+
+    draft_id: str
+    test_case_id: str
+    requirement_ids: List[str] = field(default_factory=list)
+    module: str = ""
+    title: str = ""
+    readiness_id: str = ""
+    target_type: str = "api"
+    framework: str = "pytest-requests"
+    language: str = "python"
+    file_name: str = ""
+    script_content: str = ""
+    status: str = "Draft"
+    warnings: List[str] = field(default_factory=list)
+    assumptions: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

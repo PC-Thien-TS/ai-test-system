@@ -5,6 +5,11 @@ from orchestrator.manual_qa.automation_candidate_service import (
     score_automation_candidate,
     score_automation_candidates,
 )
+from orchestrator.manual_qa.api_script_generator import (
+    APITestScriptGenerator,
+    generate_api_script_draft,
+    generate_api_script_drafts,
+)
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
 from orchestrator.manual_qa.bug_service import BugDraftService, generate_bug_draft
 from orchestrator.manual_qa.demo_service import DemoWorkflowService, run_demo_workflow
@@ -27,6 +32,15 @@ from orchestrator.manual_qa.exporters import (
     export_automation_candidates_to_json_string,
     export_automation_candidates_to_markdown_file,
     export_automation_candidates_to_markdown_string,
+    export_api_script_draft_to_json_file,
+    export_api_script_draft_to_json_string,
+    export_api_script_draft_to_markdown_file,
+    export_api_script_draft_to_markdown_string,
+    export_api_script_draft_to_python_file,
+    export_api_script_drafts_to_json_file,
+    export_api_script_drafts_to_json_string,
+    export_api_script_drafts_to_markdown_file,
+    export_api_script_drafts_to_markdown_string,
     export_bug_draft_to_json_file,
     export_bug_draft_to_json_string,
     export_bug_draft_to_markdown_file,
@@ -77,6 +91,7 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_markdown_string,
 )
 from orchestrator.manual_qa.models import (
+    APITestScriptDraft,
     AutomationCandidate,
     BugDraft,
     ChecklistItem,
@@ -111,7 +126,9 @@ from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_workspace_summary,
+    list_api_draft_files,
     load_automation_candidates,
+    load_api_script_drafts,
     load_bugs,
     load_checklist,
     load_failure_memory_records,
@@ -135,6 +152,8 @@ from orchestrator.manual_qa.workspace_service import (
 )
 
 __all__ = [
+    "APITestScriptDraft",
+    "APITestScriptGenerator",
     "AutomationCandidate",
     "AutomationCandidateService",
     "BugDraft",
@@ -169,6 +188,8 @@ __all__ = [
     "TestSuiteService",
     "WorkspaceValidationResult",
     "ManualQAWorkspaceService",
+    "generate_api_script_draft",
+    "generate_api_script_drafts",
     "analyze_script_readiness",
     "analyze_script_readiness_batch",
     "attach_evidence",
@@ -183,8 +204,10 @@ __all__ = [
     "format_artifact_count_summary",
     "generate_bug_draft",
     "get_workspace_summary",
+    "list_api_draft_files",
     "list_workspace_artifacts",
     "load_automation_candidates",
+    "load_api_script_drafts",
     "load_bugs",
     "load_checklist",
     "load_failure_memory_records",
@@ -213,6 +236,15 @@ __all__ = [
     "export_automation_candidates_to_json_string",
     "export_automation_candidates_to_markdown_file",
     "export_automation_candidates_to_markdown_string",
+    "export_api_script_draft_to_json_file",
+    "export_api_script_draft_to_json_string",
+    "export_api_script_draft_to_markdown_file",
+    "export_api_script_draft_to_markdown_string",
+    "export_api_script_draft_to_python_file",
+    "export_api_script_drafts_to_json_file",
+    "export_api_script_drafts_to_json_string",
+    "export_api_script_drafts_to_markdown_file",
+    "export_api_script_drafts_to_markdown_string",
     "export_bug_draft_to_json_file",
     "export_bug_draft_to_json_string",
     "export_bug_draft_to_markdown_file",
