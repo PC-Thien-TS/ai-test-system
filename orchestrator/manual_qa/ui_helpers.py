@@ -111,6 +111,8 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
     if web_playwright_readiness_items and not load_web_playwright_script_drafts(workspace):
         if any(item.get("readiness_status") in {"Ready", "Needs More Data"} for item in web_playwright_readiness_items):
             actions.append("Generate Web Playwright script drafts for the eligible web UI cases.")
+    if load_web_playwright_script_drafts(workspace) and not load_web_playwright_validation_results(workspace):
+        actions.append("Validate generated Web Playwright draft artifacts and review the package manifest.")
     if load_api_script_drafts(workspace) and not load_api_script_validation_results(workspace):
         actions.append("Validate generated API draft artifacts and review the package manifest.")
     if bugs and candidates:
@@ -213,6 +215,24 @@ def list_web_playwright_draft_files(workspace_path: str | Path | None) -> list[s
     )
 
 
+def list_web_playwright_validation_files(workspace_path: str | Path | None) -> list[str]:
+    workspace = resolve_workspace(workspace_path)
+    draft_dir = workspace / "script_drafts" / "web_playwright"
+    if not draft_dir.exists():
+        return []
+    targets = {
+        "web_playwright_validation.json",
+        "web_playwright_validation.md",
+        "web_playwright_package_manifest.json",
+        "web_playwright_package_manifest.md",
+    }
+    return sorted(
+        str(path.relative_to(workspace)).replace("\\", "/")
+        for path in draft_dir.iterdir()
+        if path.is_file() and path.name in targets
+    )
+
+
 def load_script_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "script_readiness.json")
 
@@ -238,6 +258,21 @@ def load_api_script_package_manifest(workspace_path: str | Path | None) -> dict[
 def load_web_playwright_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(
         resolve_workspace(workspace_path) / "script_drafts" / "web_playwright" / "web_playwright_script_drafts.json"
+    )
+
+
+def load_web_playwright_validation_results(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(
+        resolve_workspace(workspace_path) / "script_drafts" / "web_playwright" / "web_playwright_validation.json"
+    )
+
+
+def load_web_playwright_package_manifest(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(
+        resolve_workspace(workspace_path)
+        / "script_drafts"
+        / "web_playwright"
+        / "web_playwright_package_manifest.json"
     )
 
 

@@ -570,6 +570,51 @@ def test_generate_web_playwright_drafts_handles_no_eligible_cases_clearly(tmp_pa
     assert "generated_drafts=0" in captured.out
 
 
+def test_validate_web_playwright_drafts_writes_validation_and_package_reports(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "portal-web-demo",
+                "name": "Portal Web Demo",
+                "product_type": "web",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_web_ui_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+    assert main(["web-playwright-readiness", "--workspace", str(workspace)]) == 0
+    assert main(["generate-web-playwright-drafts", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["validate-web-playwright-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_validation.json").exists()
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_validation.md").exists()
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_package_manifest.json").exists()
+    assert (workspace / "script_drafts" / "web_playwright" / "web_playwright_package_manifest.md").exists()
+    assert "Web Playwright draft validation:" in captured.out
+    assert "status=" in captured.out
+    assert list(workspace.rglob("*.spec.ts")) == []
+
+
+def test_validate_web_playwright_drafts_handles_missing_drafts_file_clearly(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["validate-web-playwright-drafts", "--workspace", str(workspace)])
+
+    assert exit_code == 1
+
+
 def test_invalid_missing_file_returns_non_zero(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
     assert main(["init-workspace", "--path", str(workspace)]) == 0

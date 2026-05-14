@@ -564,6 +564,92 @@ class WebPlaywrightScriptDraft:
         return asdict(self)
 
 
+@dataclass
+class WebPlaywrightValidationIssue:
+    """Static validation issue found in a Web Playwright draft artifact."""
+
+    issue_id: str
+    draft_id: str
+    severity: str
+    issue_type: str
+    message: str
+    recommendation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class WebPlaywrightValidationResult:
+    """Static validation result for a Web Playwright draft artifact."""
+
+    validation_id: str
+    draft_id: str
+    test_case_id: str
+    file_name: str
+    is_valid: bool
+    syntax_valid: bool
+    has_draft_warning: bool
+    has_no_execution_marker: bool
+    has_playwright_import: bool
+    has_test_function: bool
+    has_page_goto: bool
+    has_locator_or_todo: bool
+    has_action_or_todo: bool
+    has_assertion_or_todo: bool
+    has_todo_page_url: bool
+    has_todo_selector: bool
+    has_todo_assertion: bool
+    issues: List[WebPlaywrightValidationIssue] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "validation_id": self.validation_id,
+            "draft_id": self.draft_id,
+            "test_case_id": self.test_case_id,
+            "file_name": self.file_name,
+            "is_valid": self.is_valid,
+            "syntax_valid": self.syntax_valid,
+            "has_draft_warning": self.has_draft_warning,
+            "has_no_execution_marker": self.has_no_execution_marker,
+            "has_playwright_import": self.has_playwright_import,
+            "has_test_function": self.has_test_function,
+            "has_page_goto": self.has_page_goto,
+            "has_locator_or_todo": self.has_locator_or_todo,
+            "has_action_or_todo": self.has_action_or_todo,
+            "has_assertion_or_todo": self.has_assertion_or_todo,
+            "has_todo_page_url": self.has_todo_page_url,
+            "has_todo_selector": self.has_todo_selector,
+            "has_todo_assertion": self.has_todo_assertion,
+            "issues": [issue.to_dict() for issue in self.issues],
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
+class WebPlaywrightPackageManifest:
+    """Packaging metadata for a validated set of Web Playwright draft artifacts."""
+
+    package_id: str
+    package_name: str
+    draft_count: int
+    valid_count: int
+    invalid_count: int
+    warning_count: int
+    draft_files: List[str] = field(default_factory=list)
+    validation_report_files: List[str] = field(default_factory=list)
+    generated_at: str | None = None
+    status: str = "Needs Attention"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

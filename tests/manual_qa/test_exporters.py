@@ -97,6 +97,18 @@ from orchestrator.manual_qa.exporters import (
     export_web_playwright_script_drafts_to_json_string,
     export_web_playwright_script_drafts_to_markdown_file,
     export_web_playwright_script_drafts_to_markdown_string,
+    export_web_playwright_validation_result_to_json_file,
+    export_web_playwright_validation_result_to_json_string,
+    export_web_playwright_validation_result_to_markdown_file,
+    export_web_playwright_validation_result_to_markdown_string,
+    export_web_playwright_validation_results_to_json_file,
+    export_web_playwright_validation_results_to_json_string,
+    export_web_playwright_validation_results_to_markdown_file,
+    export_web_playwright_validation_results_to_markdown_string,
+    export_web_playwright_package_manifest_to_json_file,
+    export_web_playwright_package_manifest_to_json_string,
+    export_web_playwright_package_manifest_to_markdown_file,
+    export_web_playwright_package_manifest_to_markdown_string,
 )
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
@@ -113,8 +125,10 @@ from orchestrator.manual_qa.run_service import TestRunService
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
+from orchestrator.manual_qa.web_playwright_packaging_service import WebPlaywrightPackagingService
 from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
 from orchestrator.manual_qa.web_playwright_script_generator import WebPlaywrightScriptGenerator
+from orchestrator.manual_qa.web_playwright_validation_service import WebPlaywrightValidationService
 
 
 def _build_bundle() -> ExportBundle:
@@ -404,6 +418,19 @@ def _build_web_playwright_script_drafts():
     readiness_items = readiness_service.analyze_web_playwright_readiness_batch(cases)
     drafts = generator.generate_web_playwright_script_drafts(cases, readiness_items=readiness_items)
     return drafts[0], drafts
+
+
+def _build_web_playwright_validation_and_package():
+    _draft, drafts = _build_web_playwright_script_drafts()
+    validation_service = WebPlaywrightValidationService()
+    packaging_service = WebPlaywrightPackagingService()
+    validation_results = validation_service.validate_web_playwright_script_drafts(drafts)
+    manifest = packaging_service.build_web_playwright_package(
+        drafts,
+        validation_results,
+        validation_report_files=["script_drafts/web_playwright/web_playwright_validation.json"],
+    )
+    return validation_results[0], validation_results, manifest
 
 
 def test_exports_json_string():
@@ -981,3 +1008,64 @@ def test_writes_web_playwright_script_draft_python_file(tmp_path):
     content = output_path.read_text(encoding="utf-8")
     assert "playwright.sync_api" in content
     assert "Draft only. Not executed / not verified." in content
+
+
+def test_exports_web_playwright_validation_result_and_package_json_strings():
+    result, results, manifest = _build_web_playwright_validation_and_package()
+
+    result_payload = json.loads(export_web_playwright_validation_result_to_json_string(result))
+    results_payload = json.loads(export_web_playwright_validation_results_to_json_string(results))
+    manifest_payload = json.loads(export_web_playwright_package_manifest_to_json_string(manifest))
+
+    assert result_payload["validation_id"] == "WPVAL-001"
+    assert result_payload["draft_id"] == "WEB-DRAFT-001"
+    assert "issues" in result_payload
+    assert results_payload[1]["validation_id"] == "WPVAL-002"
+    assert manifest_payload["package_id"] == "WPPKG-001"
+
+
+def test_writes_web_playwright_validation_result_and_package_json_files(tmp_path):
+    result, results, manifest = _build_web_playwright_validation_and_package()
+
+    result_path = tmp_path / "web_playwright_validation_result.json"
+    results_path = tmp_path / "web_playwright_validation_results.json"
+    manifest_path = tmp_path / "web_playwright_package_manifest.json"
+
+    export_web_playwright_validation_result_to_json_file(result, result_path)
+    export_web_playwright_validation_results_to_json_file(results, results_path)
+    export_web_playwright_package_manifest_to_json_file(manifest, manifest_path)
+
+    assert json.loads(result_path.read_text(encoding="utf-8"))["validation_id"] == "WPVAL-001"
+    assert json.loads(results_path.read_text(encoding="utf-8"))[1]["draft_id"] == "WEB-DRAFT-002"
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["status"] == manifest.status
+
+
+def test_exports_web_playwright_validation_result_and_package_markdown_strings():
+    result, results, manifest = _build_web_playwright_validation_and_package()
+
+    result_markdown = export_web_playwright_validation_result_to_markdown_string(result)
+    results_markdown = export_web_playwright_validation_results_to_markdown_string(results)
+    manifest_markdown = export_web_playwright_package_manifest_to_markdown_string(manifest)
+
+    assert "WPVAL-001" in result_markdown
+    assert "WEB-DRAFT-001" in result_markdown
+    assert "Is Valid" in result_markdown
+    assert "WPVAL-002" in results_markdown
+    assert "WPPKG-001" in manifest_markdown
+    assert "Package Status" in manifest_markdown
+
+
+def test_writes_web_playwright_validation_result_and_package_markdown_files(tmp_path):
+    result, results, manifest = _build_web_playwright_validation_and_package()
+
+    result_path = tmp_path / "web_playwright_validation_result.md"
+    results_path = tmp_path / "web_playwright_validation_results.md"
+    manifest_path = tmp_path / "web_playwright_package_manifest.md"
+
+    export_web_playwright_validation_result_to_markdown_file(result, result_path)
+    export_web_playwright_validation_results_to_markdown_file(results, results_path)
+    export_web_playwright_package_manifest_to_markdown_file(manifest, manifest_path)
+
+    assert "WPVAL-001" in result_path.read_text(encoding="utf-8")
+    assert "WPVAL-002" in results_path.read_text(encoding="utf-8")
+    assert "WPPKG-001" in manifest_path.read_text(encoding="utf-8")

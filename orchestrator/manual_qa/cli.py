@@ -34,8 +34,11 @@ from orchestrator.manual_qa.models import (
     TestResult,
     TestRun,
     TestSuite,
+    WebPlaywrightPackageManifest,
     WebPlaywrightReadiness,
     WebPlaywrightScriptDraft,
+    WebPlaywrightValidationIssue,
+    WebPlaywrightValidationResult,
 )
 from orchestrator.manual_qa.project_service import ProjectProfileService
 from orchestrator.manual_qa.requirement_importer import RequirementImporter
@@ -46,8 +49,10 @@ from orchestrator.manual_qa.summary_service import RunSummaryService
 from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
+from orchestrator.manual_qa.web_playwright_packaging_service import WebPlaywrightPackagingService
 from orchestrator.manual_qa.web_playwright_readiness_service import WebPlaywrightReadinessService
 from orchestrator.manual_qa.web_playwright_script_generator import WebPlaywrightScriptGenerator
+from orchestrator.manual_qa.web_playwright_validation_service import WebPlaywrightValidationService
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
 
 
@@ -74,6 +79,8 @@ class ManualQACLI:
         self.script_readiness_service = ScriptReadinessService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
+        self.web_playwright_validation_service = WebPlaywrightValidationService()
+        self.web_playwright_packaging_service = WebPlaywrightPackagingService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -173,6 +180,10 @@ class ManualQACLI:
         web_drafts_parser = subparsers.add_parser("generate-web-playwright-drafts")
         web_drafts_parser.add_argument("--workspace", required=True)
         web_drafts_parser.set_defaults(handler=self._handle_generate_web_playwright_drafts)
+
+        validate_web_drafts_parser = subparsers.add_parser("validate-web-playwright-drafts")
+        validate_web_drafts_parser.add_argument("--workspace", required=True)
+        validate_web_drafts_parser.set_defaults(handler=self._handle_validate_web_playwright_drafts)
 
         api_drafts_parser = subparsers.add_parser("generate-api-drafts")
         api_drafts_parser.add_argument("--workspace", required=True)
@@ -492,6 +503,44 @@ class ManualQACLI:
         )
         return 0
 
+    def _handle_validate_web_playwright_drafts(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        output_dir = workspace / "script_drafts" / "web_playwright"
+        drafts = self._load_web_playwright_script_drafts(output_dir / "web_playwright_script_drafts.json")
+        validation_results = self.web_playwright_validation_service.validate_web_playwright_script_drafts(drafts)
+        validation_json = output_dir / "web_playwright_validation.json"
+        validation_md = output_dir / "web_playwright_validation.md"
+        package_json = output_dir / "web_playwright_package_manifest.json"
+        package_md = output_dir / "web_playwright_package_manifest.md"
+        self.workspace_service.write_json(validation_json, [item.to_dict() for item in validation_results])
+        self.workspace_service.write_markdown(
+            validation_md,
+            self.exporter.export_markdown_string(validation_results),
+        )
+        package_manifest = self.web_playwright_packaging_service.build_web_playwright_package(
+            drafts,
+            validation_results,
+            validation_report_files=[
+                "script_drafts/web_playwright/web_playwright_validation.json",
+                "script_drafts/web_playwright/web_playwright_validation.md",
+            ],
+        )
+        self.workspace_service.write_json(package_json, package_manifest.to_dict())
+        self.workspace_service.write_markdown(
+            package_md,
+            self.exporter.export_markdown_string(package_manifest),
+        )
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "Web Playwright draft validation:"
+            f" draft_count={package_manifest.draft_count}"
+            f" valid_count={package_manifest.valid_count}"
+            f" invalid_count={package_manifest.invalid_count}"
+            f" warning_count={package_manifest.warning_count}"
+            f" status={package_manifest.status}"
+        )
+        return 0
+
     def _handle_validate_api_drafts(self, args: argparse.Namespace) -> int:
         workspace = self._workspace(args.workspace)
         output_dir = workspace / "script_drafts" / "api"
@@ -673,6 +722,12 @@ class ManualQACLI:
             payload["gaps"] = item.get("gaps", [])
             items.append(WebPlaywrightReadiness(**payload))
         return items
+
+    def _load_web_playwright_script_drafts(self, path: Path) -> list[WebPlaywrightScriptDraft]:
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        return [WebPlaywrightScriptDraft(**item) for item in data if isinstance(item, dict)]
 
     def _load_api_script_validation_results(self, path: Path) -> list[APIScriptValidationResult]:
         if not path.exists():

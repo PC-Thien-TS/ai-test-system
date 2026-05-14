@@ -23,8 +23,11 @@ from orchestrator.manual_qa.models import (
     TestRun,
     TestSuite,
     WebPlaywrightGap,
+    WebPlaywrightPackageManifest,
     WebPlaywrightReadiness,
     WebPlaywrightScriptDraft,
+    WebPlaywrightValidationIssue,
+    WebPlaywrightValidationResult,
 )
 
 
@@ -33,7 +36,7 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
     ) -> str:
         if isinstance(payload, list):
             return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
@@ -41,7 +44,7 @@ class ManualQAExporter:
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -51,7 +54,7 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
         *,
         title: Optional[str] = None,
     ) -> str:
@@ -71,6 +74,8 @@ class ManualQAExporter:
                 return self._export_web_playwright_readiness_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightScriptDraft):
                 return self._export_web_playwright_script_draft_list_markdown(payload, title=title)
+            if isinstance(first_item, WebPlaywrightValidationResult):
+                return self._export_web_playwright_validation_result_list_markdown(payload, title=title)
             return self._export_automation_candidate_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
@@ -104,6 +109,12 @@ class ManualQAExporter:
             return self._export_web_playwright_readiness_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightScriptDraft):
             return self._export_web_playwright_script_draft_markdown(payload, title=title)
+        if isinstance(payload, WebPlaywrightValidationIssue):
+            return self._export_web_playwright_validation_issue_markdown(payload, title=title)
+        if isinstance(payload, WebPlaywrightValidationResult):
+            return self._export_web_playwright_validation_result_markdown(payload, title=title)
+        if isinstance(payload, WebPlaywrightPackageManifest):
+            return self._export_web_playwright_package_manifest_markdown(payload, title=title)
         if isinstance(payload, AutomationCandidate):
             return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
@@ -863,9 +874,126 @@ class ManualQAExporter:
             )
         return "\n".join(lines)
 
+    def _export_web_playwright_validation_issue_markdown(
+        self,
+        issue: WebPlaywrightValidationIssue,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Playwright Validation Issue - {issue.issue_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Issue",
+            f"- Issue ID: {issue.issue_id}",
+            f"- Draft ID: {issue.draft_id}",
+            f"- Severity: {issue.severity}",
+            f"- Issue Type: {issue.issue_type}",
+            f"- Message: {issue.message}",
+            f"- Recommendation: {issue.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_web_playwright_validation_result_markdown(
+        self,
+        result: WebPlaywrightValidationResult,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Playwright Validation - {result.validation_id}"
+        issues = result.issues or []
+        lines = [
+            f"# {heading}",
+            "",
+            "## Validation",
+            f"- Validation ID: {result.validation_id}",
+            f"- Draft ID: {result.draft_id}",
+            f"- Test Case ID: {result.test_case_id}",
+            f"- File Name: {result.file_name}",
+            f"- Is Valid: {result.is_valid}",
+            f"- Syntax Valid: {result.syntax_valid}",
+            f"- Has Draft Warning: {result.has_draft_warning}",
+            f"- Has No Execution Marker: {result.has_no_execution_marker}",
+            f"- Has Playwright Import: {result.has_playwright_import}",
+            f"- Has Test Function: {result.has_test_function}",
+            f"- Has page.goto: {result.has_page_goto}",
+            f"- Has Locator Or TODO: {result.has_locator_or_todo}",
+            f"- Has Action Or TODO: {result.has_action_or_todo}",
+            f"- Has Assertion Or TODO: {result.has_assertion_or_todo}",
+            f"- Has TODO Page URL: {result.has_todo_page_url}",
+            f"- Has TODO Selector: {result.has_todo_selector}",
+            f"- Has TODO Assertion: {result.has_todo_assertion}",
+            "",
+            "## Issues",
+        ]
+        if not issues:
+            lines.append("- None")
+        for issue in issues:
+            lines.append(
+                f"- {issue.issue_id} [{issue.severity}] {issue.issue_type}: {issue.message} | Recommendation: {issue.recommendation}"
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_web_playwright_validation_result_list_markdown(
+        self,
+        results: list[WebPlaywrightValidationResult],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Web Playwright Validation Report"
+        lines = [f"# {heading}", ""]
+        for result in results:
+            issue_types = ", ".join(issue.issue_type for issue in result.issues) if result.issues else "None"
+            lines.extend(
+                [
+                    f"## {result.validation_id}",
+                    f"- Draft ID: {result.draft_id}",
+                    f"- File Name: {result.file_name}",
+                    f"- Is Valid: {result.is_valid}",
+                    f"- Syntax Valid: {result.syntax_valid}",
+                    f"- TODO Page URL: {result.has_todo_page_url}",
+                    f"- TODO Selector: {result.has_todo_selector}",
+                    f"- TODO Assertion: {result.has_todo_assertion}",
+                    f"- Issue List: {issue_types}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_web_playwright_package_manifest_markdown(
+        self,
+        manifest: WebPlaywrightPackageManifest,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Playwright Package Manifest - {manifest.package_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Package",
+            f"- Package ID: {manifest.package_id}",
+            f"- Package Name: {manifest.package_name}",
+            f"- Package Status: {manifest.status}",
+            f"- Draft Count: {manifest.draft_count}",
+            f"- Valid Count: {manifest.valid_count}",
+            f"- Invalid Count: {manifest.invalid_count}",
+            f"- Warning Count: {manifest.warning_count}",
+            "",
+            "## Draft Files",
+        ]
+        for draft_file in manifest.draft_files or ["None"]:
+            lines.append(f"- {draft_file}")
+        lines.extend(["", "## Validation Report Files"])
+        for report_file in manifest.validation_report_files or ["None"]:
+            lines.append(f"- {report_file}")
+        lines.append("")
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -1524,3 +1652,119 @@ def export_web_playwright_script_draft_to_python_file(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(draft.script_content, encoding="utf-8")
     return output_path
+
+
+def export_web_playwright_validation_issue_to_json_string(issue: WebPlaywrightValidationIssue) -> str:
+    return ManualQAExporter().export_json_string(issue)
+
+
+def export_web_playwright_validation_issue_to_json_file(
+    issue: WebPlaywrightValidationIssue,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(issue, path)
+
+
+def export_web_playwright_validation_issue_to_markdown_string(
+    issue: WebPlaywrightValidationIssue,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(issue, title=title)
+
+
+def export_web_playwright_validation_issue_to_markdown_file(
+    issue: WebPlaywrightValidationIssue,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(issue, path, title=title)
+
+
+def export_web_playwright_validation_result_to_json_string(result: WebPlaywrightValidationResult) -> str:
+    return ManualQAExporter().export_json_string(result)
+
+
+def export_web_playwright_validation_result_to_json_file(
+    result: WebPlaywrightValidationResult,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(result, path)
+
+
+def export_web_playwright_validation_result_to_markdown_string(
+    result: WebPlaywrightValidationResult,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(result, title=title)
+
+
+def export_web_playwright_validation_result_to_markdown_file(
+    result: WebPlaywrightValidationResult,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(result, path, title=title)
+
+
+def export_web_playwright_validation_results_to_json_string(
+    results: list[WebPlaywrightValidationResult],
+) -> str:
+    return ManualQAExporter().export_json_string(results)
+
+
+def export_web_playwright_validation_results_to_json_file(
+    results: list[WebPlaywrightValidationResult],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(results, path)
+
+
+def export_web_playwright_validation_results_to_markdown_string(
+    results: list[WebPlaywrightValidationResult],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(results, title=title)
+
+
+def export_web_playwright_validation_results_to_markdown_file(
+    results: list[WebPlaywrightValidationResult],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(results, path, title=title)
+
+
+def export_web_playwright_package_manifest_to_json_string(
+    manifest: WebPlaywrightPackageManifest,
+) -> str:
+    return ManualQAExporter().export_json_string(manifest)
+
+
+def export_web_playwright_package_manifest_to_json_file(
+    manifest: WebPlaywrightPackageManifest,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(manifest, path)
+
+
+def export_web_playwright_package_manifest_to_markdown_string(
+    manifest: WebPlaywrightPackageManifest,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(manifest, title=title)
+
+
+def export_web_playwright_package_manifest_to_markdown_file(
+    manifest: WebPlaywrightPackageManifest,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(manifest, path, title=title)

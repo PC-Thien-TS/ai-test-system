@@ -16,11 +16,14 @@ from orchestrator.manual_qa.ui_helpers import (
     list_api_draft_files,
     list_api_validation_files,
     list_web_playwright_draft_files,
+    list_web_playwright_validation_files,
     list_report_files,
     load_api_script_drafts,
     load_api_script_package_manifest,
     load_api_script_validation_results,
     load_web_playwright_script_drafts,
+    load_web_playwright_validation_results,
+    load_web_playwright_package_manifest,
     load_project,
     load_requirements,
     load_script_readiness_items,
@@ -271,6 +274,38 @@ def test_load_web_playwright_script_drafts_and_list_files_returns_artifacts(tmp_
     assert loaded[0]["draft_id"] == "WEB-DRAFT-001"
     assert "script_drafts/web_playwright/web_playwright_script_drafts.json" in files
     assert "script_drafts/web_playwright/test_tc_901.py" in files
+
+
+def test_load_web_playwright_validation_and_package_manifest_artifacts(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    draft_dir = workspace / "script_drafts" / "web_playwright"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "web_playwright_validation.json").write_text(
+        '[{"validation_id":"WPVAL-001","draft_id":"WEB-DRAFT-001","test_case_id":"TC-901","file_name":"test_tc_901.py",'
+        '"is_valid":true,"syntax_valid":true,"has_draft_warning":true,"has_no_execution_marker":true,'
+        '"has_playwright_import":true,"has_test_function":true,"has_page_goto":true,"has_locator_or_todo":true,'
+        '"has_action_or_todo":true,"has_assertion_or_todo":true,"has_todo_page_url":false,"has_todo_selector":false,'
+        '"has_todo_assertion":false,"issues":[],"metadata":{},"created_at":"2024-01-13T00:00:00Z"}]',
+        encoding="utf-8",
+    )
+    (draft_dir / "web_playwright_package_manifest.json").write_text(
+        '{"package_id":"WPPKG-001","package_name":"web-playwright-script-drafts","draft_count":1,"valid_count":1,'
+        '"invalid_count":0,"warning_count":0,"draft_files":["test_tc_901.py"],'
+        '"validation_report_files":["script_drafts/web_playwright/web_playwright_validation.json"],'
+        '"generated_at":"2024-01-14T00:00:00Z","status":"Ready for Review","metadata":{}}',
+        encoding="utf-8",
+    )
+    (draft_dir / "web_playwright_validation.md").write_text("# Web Playwright Validation Report", encoding="utf-8")
+    (draft_dir / "web_playwright_package_manifest.md").write_text("# Web Playwright Package Manifest", encoding="utf-8")
+
+    validation_results = load_web_playwright_validation_results(workspace)
+    manifest = load_web_playwright_package_manifest(workspace)
+    files = list_web_playwright_validation_files(workspace)
+
+    assert validation_results[0]["validation_id"] == "WPVAL-001"
+    assert manifest["package_id"] == "WPPKG-001"
+    assert "script_drafts/web_playwright/web_playwright_validation.json" in files
+    assert "script_drafts/web_playwright/web_playwright_package_manifest.md" in files
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():
