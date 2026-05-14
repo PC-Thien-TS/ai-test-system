@@ -14,8 +14,11 @@ from orchestrator.manual_qa.ui_helpers import (
     get_workspace_health,
     get_workspace_summary,
     list_api_draft_files,
+    list_api_validation_files,
     list_report_files,
     load_api_script_drafts,
+    load_api_script_package_manifest,
+    load_api_script_validation_results,
     load_project,
     load_requirements,
     load_script_readiness_items,
@@ -194,6 +197,37 @@ def test_load_api_script_drafts_and_list_files_returns_artifacts(tmp_path):
     assert loaded[0]["draft_id"] == "API-DRAFT-001"
     assert "script_drafts/api/api_script_drafts.json" in files
     assert "script_drafts/api/test_tc_900.py" in files
+
+
+def test_load_api_validation_and_package_manifest_artifacts(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    draft_dir = workspace / "script_drafts" / "api"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "api_script_validation.json").write_text(
+        '[{"validation_id":"APIVAL-001","draft_id":"API-DRAFT-001","test_case_id":"TC-900","file_name":"test_tc_900.py",'
+        '"is_valid":true,"syntax_valid":true,"has_draft_warning":true,"has_no_execution_marker":true,'
+        '"has_status_assertion":true,"has_todo_endpoint":false,"has_todo_payload":false,"issues":[],'
+        '"metadata":{},"created_at":"2024-01-09T00:00:00Z"}]',
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_package_manifest.json").write_text(
+        '{"package_id":"APIPKG-001","package_name":"api-script-drafts","draft_count":1,"valid_count":1,'
+        '"invalid_count":0,"warning_count":0,"draft_files":["test_tc_900.py"],'
+        '"validation_report_files":["script_drafts/api/api_script_validation.json"],'
+        '"generated_at":"2024-01-10T00:00:00Z","status":"Ready for Review","metadata":{}}',
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_validation.md").write_text("# API Script Validation Report", encoding="utf-8")
+    (draft_dir / "api_script_package_manifest.md").write_text("# API Script Package Manifest", encoding="utf-8")
+
+    validation_results = load_api_script_validation_results(workspace)
+    manifest = load_api_script_package_manifest(workspace)
+    files = list_api_validation_files(workspace)
+
+    assert validation_results[0]["validation_id"] == "APIVAL-001"
+    assert manifest["package_id"] == "APIPKG-001"
+    assert "script_drafts/api/api_script_validation.json" in files
+    assert "script_drafts/api/api_script_package_manifest.md" in files
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

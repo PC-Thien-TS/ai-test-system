@@ -4,6 +4,8 @@ import json
 
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
+from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
+from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
 from orchestrator.manual_qa.exporters import (
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
@@ -22,6 +24,18 @@ from orchestrator.manual_qa.exporters import (
     export_api_script_drafts_to_json_string,
     export_api_script_drafts_to_markdown_file,
     export_api_script_drafts_to_markdown_string,
+    export_api_script_package_manifest_to_json_file,
+    export_api_script_package_manifest_to_json_string,
+    export_api_script_package_manifest_to_markdown_file,
+    export_api_script_package_manifest_to_markdown_string,
+    export_api_script_validation_result_to_json_file,
+    export_api_script_validation_result_to_json_string,
+    export_api_script_validation_result_to_markdown_file,
+    export_api_script_validation_result_to_markdown_string,
+    export_api_script_validation_results_to_json_file,
+    export_api_script_validation_results_to_json_string,
+    export_api_script_validation_results_to_markdown_file,
+    export_api_script_validation_results_to_markdown_string,
     export_bug_draft_to_json_file,
     export_bug_draft_to_json_string,
     export_bug_draft_to_markdown_file,
@@ -293,6 +307,19 @@ def _build_api_script_drafts():
     readiness_items = readiness_service.analyze_script_readiness_batch(cases)
     drafts = generator.generate_api_script_drafts(cases, readiness_items=readiness_items)
     return drafts[0], drafts
+
+
+def _build_api_script_validation_and_package():
+    _draft, drafts = _build_api_script_drafts()
+    validation_service = APIScriptValidationService()
+    packaging_service = APIScriptPackagingService()
+    validation_results = validation_service.validate_api_script_drafts(drafts)
+    manifest = packaging_service.build_api_script_package(
+        drafts,
+        validation_results,
+        validation_report_files=["script_drafts/api/api_script_validation.json"],
+    )
+    return validation_results[0], validation_results, manifest
 
 
 def test_exports_json_string():
@@ -693,3 +720,64 @@ def test_writes_api_script_draft_python_file(tmp_path):
     content = output_path.read_text(encoding="utf-8")
     assert "requests.post" in content or "requests.get" in content
     assert "Draft only. Not executed / not verified." in content
+
+
+def test_exports_api_script_validation_result_and_list_json_strings():
+    result, results, manifest = _build_api_script_validation_and_package()
+
+    result_payload = json.loads(export_api_script_validation_result_to_json_string(result))
+    results_payload = json.loads(export_api_script_validation_results_to_json_string(results))
+    manifest_payload = json.loads(export_api_script_package_manifest_to_json_string(manifest))
+
+    assert result_payload["validation_id"] == "APIVAL-001"
+    assert result_payload["draft_id"] == "API-DRAFT-001"
+    assert "issues" in result_payload
+    assert results_payload[1]["validation_id"] == "APIVAL-002"
+    assert manifest_payload["package_id"] == "APIPKG-001"
+
+
+def test_writes_api_script_validation_result_and_list_json_files(tmp_path):
+    result, results, manifest = _build_api_script_validation_and_package()
+
+    result_path = tmp_path / "api_script_validation_result.json"
+    results_path = tmp_path / "api_script_validation_results.json"
+    manifest_path = tmp_path / "api_script_package_manifest.json"
+
+    export_api_script_validation_result_to_json_file(result, result_path)
+    export_api_script_validation_results_to_json_file(results, results_path)
+    export_api_script_package_manifest_to_json_file(manifest, manifest_path)
+
+    assert json.loads(result_path.read_text(encoding="utf-8"))["validation_id"] == "APIVAL-001"
+    assert json.loads(results_path.read_text(encoding="utf-8"))[1]["draft_id"] == "API-DRAFT-002"
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["status"] == manifest.status
+
+
+def test_exports_api_script_validation_result_and_package_markdown_strings():
+    result, results, manifest = _build_api_script_validation_and_package()
+
+    result_markdown = export_api_script_validation_result_to_markdown_string(result)
+    results_markdown = export_api_script_validation_results_to_markdown_string(results)
+    manifest_markdown = export_api_script_package_manifest_to_markdown_string(manifest)
+
+    assert "APIVAL-001" in result_markdown
+    assert "API-DRAFT-001" in result_markdown
+    assert "Is Valid" in result_markdown
+    assert "APIVAL-002" in results_markdown
+    assert "APIPKG-001" in manifest_markdown
+    assert "Package Status" in manifest_markdown
+
+
+def test_writes_api_script_validation_result_and_package_markdown_files(tmp_path):
+    result, results, manifest = _build_api_script_validation_and_package()
+
+    result_path = tmp_path / "api_script_validation_result.md"
+    results_path = tmp_path / "api_script_validation_results.md"
+    manifest_path = tmp_path / "api_script_package_manifest.md"
+
+    export_api_script_validation_result_to_markdown_file(result, result_path)
+    export_api_script_validation_results_to_markdown_file(results, results_path)
+    export_api_script_package_manifest_to_markdown_file(manifest, manifest_path)
+
+    assert "APIVAL-001" in result_path.read_text(encoding="utf-8")
+    assert "APIVAL-002" in results_path.read_text(encoding="utf-8")
+    assert "APIPKG-001" in manifest_path.read_text(encoding="utf-8")

@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Optional
 
 from orchestrator.manual_qa.models import (
+    APIScriptPackageManifest,
+    APIScriptValidationIssue,
+    APIScriptValidationResult,
     APITestScriptDraft,
     AutomationCandidate,
     BugDraft,
@@ -27,7 +30,7 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
     ) -> str:
         if isinstance(payload, list):
             return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
@@ -35,7 +38,7 @@ class ManualQAExporter:
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -45,7 +48,7 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
         *,
         title: Optional[str] = None,
     ) -> str:
@@ -59,6 +62,8 @@ class ManualQAExporter:
                 return self._export_script_readiness_list_markdown(payload, title=title)
             if isinstance(first_item, APITestScriptDraft):
                 return self._export_api_script_draft_list_markdown(payload, title=title)
+            if isinstance(first_item, APIScriptValidationResult):
+                return self._export_api_script_validation_result_list_markdown(payload, title=title)
             return self._export_automation_candidate_list_markdown(payload, title=title)
         if isinstance(payload, ExportBundle):
             return self._export_bundle_markdown(payload, title=title)
@@ -80,6 +85,12 @@ class ManualQAExporter:
             return self._export_script_readiness_markdown(payload, title=title)
         if isinstance(payload, APITestScriptDraft):
             return self._export_api_script_draft_markdown(payload, title=title)
+        if isinstance(payload, APIScriptValidationIssue):
+            return self._export_api_script_validation_issue_markdown(payload, title=title)
+        if isinstance(payload, APIScriptValidationResult):
+            return self._export_api_script_validation_result_markdown(payload, title=title)
+        if isinstance(payload, APIScriptPackageManifest):
+            return self._export_api_script_package_manifest_markdown(payload, title=title)
         if isinstance(payload, AutomationCandidate):
             return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
@@ -579,9 +590,119 @@ class ManualQAExporter:
             )
         return "\n".join(lines)
 
+    def _export_api_script_validation_issue_markdown(
+        self,
+        issue: APIScriptValidationIssue,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Script Validation Issue - {issue.issue_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Issue",
+            f"- Issue ID: {issue.issue_id}",
+            f"- Draft ID: {issue.draft_id}",
+            f"- Severity: {issue.severity}",
+            f"- Issue Type: {issue.issue_type}",
+            f"- Message: {issue.message}",
+            f"- Recommendation: {issue.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_api_script_validation_result_markdown(
+        self,
+        result: APIScriptValidationResult,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Script Validation - {result.validation_id}"
+        issues = result.issues or []
+        lines = [
+            f"# {heading}",
+            "",
+            "## Validation",
+            f"- Validation ID: {result.validation_id}",
+            f"- Draft ID: {result.draft_id}",
+            f"- Test Case ID: {result.test_case_id}",
+            f"- File Name: {result.file_name}",
+            f"- Is Valid: {result.is_valid}",
+            f"- Syntax Valid: {result.syntax_valid}",
+            f"- Has Draft Warning: {result.has_draft_warning}",
+            f"- Has No Execution Marker: {result.has_no_execution_marker}",
+            f"- Has Status Assertion: {result.has_status_assertion}",
+            f"- Has TODO Endpoint: {result.has_todo_endpoint}",
+            f"- Has TODO Payload: {result.has_todo_payload}",
+            "",
+            "## Issues",
+        ]
+        if not issues:
+            lines.append("- None")
+        for issue in issues:
+            lines.append(
+                f"- {issue.issue_id} [{issue.severity}] {issue.issue_type}: {issue.message} | Recommendation: {issue.recommendation}"
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_api_script_validation_result_list_markdown(
+        self,
+        results: list[APIScriptValidationResult],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "API Script Validation Report"
+        lines = [f"# {heading}", ""]
+        for result in results:
+            issue_types = ", ".join(issue.issue_type for issue in result.issues) if result.issues else "None"
+            lines.extend(
+                [
+                    f"## {result.validation_id}",
+                    f"- Draft ID: {result.draft_id}",
+                    f"- File Name: {result.file_name}",
+                    f"- Is Valid: {result.is_valid}",
+                    f"- Syntax Valid: {result.syntax_valid}",
+                    f"- TODO Endpoint: {result.has_todo_endpoint}",
+                    f"- TODO Payload: {result.has_todo_payload}",
+                    f"- Issue List: {issue_types}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_api_script_package_manifest_markdown(
+        self,
+        manifest: APIScriptPackageManifest,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Script Package Manifest - {manifest.package_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Package",
+            f"- Package ID: {manifest.package_id}",
+            f"- Package Name: {manifest.package_name}",
+            f"- Package Status: {manifest.status}",
+            f"- Draft Count: {manifest.draft_count}",
+            f"- Valid Count: {manifest.valid_count}",
+            f"- Invalid Count: {manifest.invalid_count}",
+            f"- Warning Count: {manifest.warning_count}",
+            "",
+            "## Draft Files",
+        ]
+        for draft_file in manifest.draft_files or ["None"]:
+            lines.append(f"- {draft_file}")
+        lines.extend(["", "## Validation Report Files"])
+        for report_file in manifest.validation_report_files or ["None"]:
+            lines.append(f"- {report_file}")
+        lines.append("")
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft],
+        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult],
         path: Path | str,
         *,
         title: Optional[str] = None,
@@ -977,3 +1098,117 @@ def export_api_script_draft_to_python_file(draft: APITestScriptDraft, path: Path
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(draft.script_content, encoding="utf-8")
     return output_path
+
+
+def export_api_script_validation_issue_to_json_string(issue: APIScriptValidationIssue) -> str:
+    return ManualQAExporter().export_json_string(issue)
+
+
+def export_api_script_validation_issue_to_json_file(
+    issue: APIScriptValidationIssue,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(issue, path)
+
+
+def export_api_script_validation_issue_to_markdown_string(
+    issue: APIScriptValidationIssue,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(issue, title=title)
+
+
+def export_api_script_validation_issue_to_markdown_file(
+    issue: APIScriptValidationIssue,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(issue, path, title=title)
+
+
+def export_api_script_validation_result_to_json_string(result: APIScriptValidationResult) -> str:
+    return ManualQAExporter().export_json_string(result)
+
+
+def export_api_script_validation_result_to_json_file(
+    result: APIScriptValidationResult,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(result, path)
+
+
+def export_api_script_validation_result_to_markdown_string(
+    result: APIScriptValidationResult,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(result, title=title)
+
+
+def export_api_script_validation_result_to_markdown_file(
+    result: APIScriptValidationResult,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(result, path, title=title)
+
+
+def export_api_script_validation_results_to_json_string(
+    results: list[APIScriptValidationResult],
+) -> str:
+    return ManualQAExporter().export_json_string(results)
+
+
+def export_api_script_validation_results_to_json_file(
+    results: list[APIScriptValidationResult],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(results, path)
+
+
+def export_api_script_validation_results_to_markdown_string(
+    results: list[APIScriptValidationResult],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(results, title=title)
+
+
+def export_api_script_validation_results_to_markdown_file(
+    results: list[APIScriptValidationResult],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(results, path, title=title)
+
+
+def export_api_script_package_manifest_to_json_string(manifest: APIScriptPackageManifest) -> str:
+    return ManualQAExporter().export_json_string(manifest)
+
+
+def export_api_script_package_manifest_to_json_file(
+    manifest: APIScriptPackageManifest,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(manifest, path)
+
+
+def export_api_script_package_manifest_to_markdown_string(
+    manifest: APIScriptPackageManifest,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(manifest, title=title)
+
+
+def export_api_script_package_manifest_to_markdown_file(
+    manifest: APIScriptPackageManifest,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(manifest, path, title=title)

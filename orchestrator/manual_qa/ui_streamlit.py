@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
+from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
+from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
@@ -14,6 +16,7 @@ from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
+    APITestScriptDraft,
     AutomationCandidate,
     Evidence,
     ManualTestCase,
@@ -41,6 +44,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_bug_files,
     list_candidate_files,
     list_api_draft_files,
+    list_api_validation_files,
     list_report_files,
     list_run_files,
     list_suite_files,
@@ -49,6 +53,8 @@ from orchestrator.manual_qa.ui_helpers import (
     load_checklist,
     load_failure_memory_records,
     load_api_script_drafts,
+    load_api_script_package_manifest,
+    load_api_script_validation_results,
     load_project,
     load_requirements,
     load_runs,
@@ -83,6 +89,8 @@ class ManualQAStreamlitUI:
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
         self.api_script_generator = APITestScriptGenerator()
+        self.api_script_validation_service = APIScriptValidationService()
+        self.api_script_packaging_service = APIScriptPackagingService()
         self.demo_service = DemoWorkflowService()
         self.exporter = ManualQAExporter()
 
@@ -687,6 +695,45 @@ class ManualQAStreamlitUI:
                 self.workspace_service.update_workspace_manifest(workspace)
                 st.success(f"Generated {len(drafts)} API draft artifacts.")
 
+            if st.button("Validate API drafts"):
+                draft_payloads = load_api_script_drafts(workspace)
+                if not draft_payloads:
+                    st.warning("No API draft artifacts were found.")
+                else:
+                    drafts = [APITestScriptDraft(**item) for item in draft_payloads if isinstance(item, dict)]
+                    validation_results = self.api_script_validation_service.validate_api_script_drafts(drafts)
+                    output_dir = workspace / "script_drafts" / "api"
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    self.workspace_service.write_json(
+                        output_dir / "api_script_validation.json",
+                        [item.to_dict() for item in validation_results],
+                    )
+                    self.workspace_service.write_markdown(
+                        output_dir / "api_script_validation.md",
+                        self.exporter.export_markdown_string(validation_results),
+                    )
+                    package_manifest = self.api_script_packaging_service.build_api_script_package(
+                        drafts,
+                        validation_results,
+                        validation_report_files=[
+                            "script_drafts/api/api_script_validation.json",
+                            "script_drafts/api/api_script_validation.md",
+                        ],
+                    )
+                    self.workspace_service.write_json(
+                        output_dir / "api_script_package_manifest.json",
+                        package_manifest.to_dict(),
+                    )
+                    self.workspace_service.write_markdown(
+                        output_dir / "api_script_package_manifest.md",
+                        self.exporter.export_markdown_string(package_manifest),
+                    )
+                    self.workspace_service.update_workspace_manifest(workspace)
+                    st.success(
+                        f"Validated {len(validation_results)} API draft artifacts. "
+                        f"Package status: {package_manifest.status}"
+                    )
+
             api_draft_files = list_api_draft_files(workspace)
             api_drafts = load_api_script_drafts(workspace)
             if api_drafts:
@@ -695,6 +742,18 @@ class ManualQAStreamlitUI:
                 selected_api_draft = st.selectbox("API draft artifact", options=api_draft_files)
                 language = "python" if selected_api_draft.endswith(".py") else ("markdown" if selected_api_draft.endswith(".md") else "json")
                 st.code(get_artifact_preview(workspace / selected_api_draft), language=language)
+
+            validation_results = load_api_script_validation_results(workspace)
+            package_manifest = load_api_script_package_manifest(workspace)
+            if validation_results:
+                st.caption(f"API draft validation results: {len(validation_results)}")
+            if package_manifest:
+                st.write(f"API draft package status: `{package_manifest.get('status', 'Unknown')}`")
+            validation_files = list_api_validation_files(workspace)
+            if validation_files:
+                selected_validation_file = st.selectbox("API validation artifact", options=validation_files)
+                language = "markdown" if selected_validation_file.endswith(".md") else "json"
+                st.code(get_artifact_preview(workspace / selected_validation_file), language=language)
 
     def _load_suite_model(self, path: Path) -> TestSuite:
         return TestSuite(**self.workspace_service.read_json(path))

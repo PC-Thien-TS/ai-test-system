@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
+from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
+from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
 from orchestrator.manual_qa.automation_candidate_service import AutomationCandidateService
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
@@ -16,6 +18,10 @@ from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
+    APIScriptPackageManifest,
+    APIScriptValidationIssue,
+    APIScriptValidationResult,
+    APITestScriptDraft,
     AutomationCandidate,
     BugDraft,
     ChecklistItem,
@@ -59,6 +65,8 @@ class ManualQACLI:
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
         self.api_script_generator = APITestScriptGenerator()
+        self.api_script_validation_service = APIScriptValidationService()
+        self.api_script_packaging_service = APIScriptPackagingService()
         self.script_readiness_service = ScriptReadinessService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
@@ -155,6 +163,10 @@ class ManualQACLI:
         api_drafts_parser = subparsers.add_parser("generate-api-drafts")
         api_drafts_parser.add_argument("--workspace", required=True)
         api_drafts_parser.set_defaults(handler=self._handle_generate_api_drafts)
+
+        validate_api_drafts_parser = subparsers.add_parser("validate-api-drafts")
+        validate_api_drafts_parser.add_argument("--workspace", required=True)
+        validate_api_drafts_parser.set_defaults(handler=self._handle_validate_api_drafts)
 
         validate_parser = subparsers.add_parser("validate-workspace")
         validate_parser.add_argument("--workspace", required=True)
@@ -401,6 +413,44 @@ class ManualQACLI:
         )
         return 0
 
+    def _handle_validate_api_drafts(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        output_dir = workspace / "script_drafts" / "api"
+        drafts = self._load_api_script_drafts(output_dir / "api_script_drafts.json")
+        validation_results = self.api_script_validation_service.validate_api_script_drafts(drafts)
+        validation_json = output_dir / "api_script_validation.json"
+        validation_md = output_dir / "api_script_validation.md"
+        package_json = output_dir / "api_script_package_manifest.json"
+        package_md = output_dir / "api_script_package_manifest.md"
+        self.workspace_service.write_json(validation_json, [item.to_dict() for item in validation_results])
+        self.workspace_service.write_markdown(
+            validation_md,
+            self.exporter.export_markdown_string(validation_results),
+        )
+        package_manifest = self.api_script_packaging_service.build_api_script_package(
+            drafts,
+            validation_results,
+            validation_report_files=[
+                "script_drafts/api/api_script_validation.json",
+                "script_drafts/api/api_script_validation.md",
+            ],
+        )
+        self.workspace_service.write_json(package_json, package_manifest.to_dict())
+        self.workspace_service.write_markdown(
+            package_md,
+            self.exporter.export_markdown_string(package_manifest),
+        )
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "API draft validation:"
+            f" draft_count={package_manifest.draft_count}"
+            f" valid_count={package_manifest.valid_count}"
+            f" invalid_count={package_manifest.invalid_count}"
+            f" warning_count={package_manifest.warning_count}"
+            f" status={package_manifest.status}"
+        )
+        return 0
+
     def _handle_validate_workspace(self, args: argparse.Namespace) -> int:
         workspace = Path(args.workspace)
         validation = self.workspace_service.validate_workspace(workspace)
@@ -508,6 +558,12 @@ class ManualQACLI:
             return []
         return [AutomationCandidate(**item) for item in data if isinstance(item, dict)]
 
+    def _load_api_script_drafts(self, path: Path) -> list[APITestScriptDraft]:
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        return [APITestScriptDraft(**item) for item in data if isinstance(item, dict)]
+
     def _load_script_readiness_items(self, path: Path) -> list[ScriptGenerationReadiness]:
         if not path.exists():
             return []
@@ -523,6 +579,26 @@ class ManualQACLI:
             payload["gaps"] = gaps
             items.append(ScriptGenerationReadiness(**payload))
         return items
+
+    def _load_api_script_validation_results(self, path: Path) -> list[APIScriptValidationResult]:
+        if not path.exists():
+            return []
+        data = self.workspace_service.read_json(path)
+        if not isinstance(data, list):
+            return []
+        results: list[APIScriptValidationResult] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            issues = [
+                APIScriptValidationIssue(**issue)
+                for issue in item.get("issues", [])
+                if isinstance(issue, dict)
+            ]
+            payload = dict(item)
+            payload["issues"] = issues
+            results.append(APIScriptValidationResult(**payload))
+        return results
 
     def _deserialize_failure_records(self, items: list[dict[str, Any]]) -> list[FailureRecord]:
         records: list[FailureRecord] = []

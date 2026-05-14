@@ -104,6 +104,8 @@ def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]
         actions.append("Score automation candidates for the current test cases.")
     if testcases and not readiness_items:
         actions.append("Generate a script readiness report before attempting draft generation.")
+    if load_api_script_drafts(workspace) and not load_api_script_validation_results(workspace):
+        actions.append("Validate generated API draft artifacts and review the package manifest.")
     if bugs and candidates:
         actions.append("Review bug drafts and automation recommendations.")
 
@@ -174,12 +176,40 @@ def list_api_draft_files(workspace_path: str | Path | None) -> list[str]:
     )
 
 
+def list_api_validation_files(workspace_path: str | Path | None) -> list[str]:
+    workspace = resolve_workspace(workspace_path)
+    draft_dir = workspace / "script_drafts" / "api"
+    if not draft_dir.exists():
+        return []
+    targets = {
+        "api_script_validation.json",
+        "api_script_validation.md",
+        "api_script_package_manifest.json",
+        "api_script_package_manifest.md",
+    }
+    return sorted(
+        str(path.relative_to(workspace)).replace("\\", "/")
+        for path in draft_dir.iterdir()
+        if path.is_file() and path.name in targets
+    )
+
+
 def load_script_readiness_items(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "reports" / "script_readiness.json")
 
 
 def load_api_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_script_drafts.json")
+
+
+def load_api_script_validation_results(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_script_validation.json")
+
+
+def load_api_script_package_manifest(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(
+        resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_script_package_manifest.json"
+    )
 
 
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:

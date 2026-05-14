@@ -370,6 +370,49 @@ def test_generate_api_drafts_handles_no_eligible_cases_clearly(tmp_path, capsys)
     assert "generated_drafts=0" in captured.out
 
 
+def test_validate_api_drafts_writes_validation_and_package_reports(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    (workspace / "project.json").write_text(
+        json.dumps(
+            {
+                "project_id": "order-api-demo",
+                "name": "Order API Demo",
+                "product_type": "api",
+                "description": "",
+                "owner": "",
+                "tags": [],
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _write_api_testcases(workspace)
+    assert main(["script-readiness", "--workspace", str(workspace)]) == 0
+    assert main(["generate-api-drafts", "--workspace", str(workspace)]) == 0
+
+    exit_code = main(["validate-api-drafts", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "api" / "api_script_validation.json").exists()
+    assert (workspace / "script_drafts" / "api" / "api_script_validation.md").exists()
+    assert (workspace / "script_drafts" / "api" / "api_script_package_manifest.json").exists()
+    assert (workspace / "script_drafts" / "api" / "api_script_package_manifest.md").exists()
+    assert "API draft validation:" in captured.out
+    assert "package status" not in captured.out.lower() or "status=" in captured.out
+
+
+def test_validate_api_drafts_handles_missing_drafts_file_clearly(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["validate-api-drafts", "--workspace", str(workspace)])
+
+    assert exit_code == 1
+
+
 def test_invalid_missing_file_returns_non_zero(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
     assert main(["init-workspace", "--path", str(workspace)]) == 0

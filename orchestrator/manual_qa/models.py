@@ -406,6 +406,80 @@ class APITestScriptDraft:
         return asdict(self)
 
 
+@dataclass
+class APIScriptValidationIssue:
+    """Static validation issue found in an API draft artifact."""
+
+    issue_id: str
+    draft_id: str
+    severity: str
+    issue_type: str
+    message: str
+    recommendation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class APIScriptValidationResult:
+    """Static validation result for an API draft artifact."""
+
+    validation_id: str
+    draft_id: str
+    test_case_id: str
+    file_name: str
+    is_valid: bool
+    syntax_valid: bool
+    has_draft_warning: bool
+    has_no_execution_marker: bool
+    has_status_assertion: bool
+    has_todo_endpoint: bool
+    has_todo_payload: bool
+    issues: List[APIScriptValidationIssue] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "validation_id": self.validation_id,
+            "draft_id": self.draft_id,
+            "test_case_id": self.test_case_id,
+            "file_name": self.file_name,
+            "is_valid": self.is_valid,
+            "syntax_valid": self.syntax_valid,
+            "has_draft_warning": self.has_draft_warning,
+            "has_no_execution_marker": self.has_no_execution_marker,
+            "has_status_assertion": self.has_status_assertion,
+            "has_todo_endpoint": self.has_todo_endpoint,
+            "has_todo_payload": self.has_todo_payload,
+            "issues": [issue.to_dict() for issue in self.issues],
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
+class APIScriptPackageManifest:
+    """Packaging metadata for a validated set of API draft artifacts."""
+
+    package_id: str
+    package_name: str
+    draft_count: int
+    valid_count: int
+    invalid_count: int
+    warning_count: int
+    draft_files: List[str] = field(default_factory=list)
+    validation_report_files: List[str] = field(default_factory=list)
+    generated_at: str | None = None
+    status: str = "Needs Attention"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 
