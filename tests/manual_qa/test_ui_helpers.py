@@ -7,11 +7,19 @@ from pathlib import Path
 from orchestrator.manual_qa.demo_service import run_demo_workflow
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
+    get_artifact_preview,
+    get_next_recommended_actions,
+    get_workspace_health,
     get_workspace_summary,
+    list_report_files,
     load_project,
     load_requirements,
     load_testcases,
     resolve_workspace,
+    safe_load_json_artifact,
+    summarize_bugs_for_ui,
+    summarize_candidates_for_ui,
+    summarize_run_for_ui,
     validate_workspace_for_ui,
 )
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
@@ -29,6 +37,41 @@ def test_validate_workspace_for_ui_handles_missing_workspace(tmp_path):
 
     assert validation["is_valid"] is False
     assert "does not exist" in validation["message"].lower()
+
+
+def test_get_workspace_health_on_missing_workspace(tmp_path):
+    health = get_workspace_health(tmp_path / "missing_workspace")
+
+    assert health["exists"] is False
+    assert health["health_level"] == "missing"
+
+
+def test_get_workspace_health_on_initialized_workspace(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    health = get_workspace_health(workspace)
+
+    assert health["exists"] is True
+    assert health["is_valid"] is True
+    assert health["health_level"] == "healthy"
+
+
+def test_get_next_recommended_actions_for_empty_workspace(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    actions = get_next_recommended_actions(workspace)
+
+    assert any("project" in action.lower() for action in actions)
+    assert any("requirements" in action.lower() for action in actions)
+
+
+def test_get_next_recommended_actions_after_demo_workflow(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    run_demo_workflow(workspace)
+
+    actions = get_next_recommended_actions(workspace)
+
+    assert any("review bug drafts" in action.lower() or "automation" in action.lower() for action in actions)
 
 
 def test_get_workspace_summary_handles_empty_workspace(tmp_path):
@@ -78,6 +121,78 @@ def test_load_testcases_returns_empty_list_when_missing(tmp_path):
     assert load_testcases(workspace) == []
 
 
+def test_safe_load_json_artifact_handles_missing_file(tmp_path):
+    payload = safe_load_json_artifact(tmp_path / "missing.json")
+
+    assert payload == {}
+
+
+def test_get_artifact_preview_handles_missing_file(tmp_path):
+    preview = get_artifact_preview(tmp_path / "missing.md")
+
+    assert "not found" in preview.lower()
+
+
+def test_list_report_files_returns_reports(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    run_demo_workflow(workspace)
+
+    report_files = list_report_files(workspace)
+
+    assert "reports/demo_workflow_report.json" in report_files
+    assert "reports/demo_workflow_report.md" in report_files
+
+
+def test_summarize_run_for_ui_handles_empty_missing_data():
+    summary = summarize_run_for_ui({})
+
+    assert summary["run_id"] == ""
+    assert summary["total"] == 0
+    assert summary["pass_rate"] == 0.0
+
+
+def test_summarize_candidates_for_ui_handles_candidate_list():
+    summary = summarize_candidates_for_ui(
+        [
+            {
+                "candidate_id": "AUTO-001",
+                "score": 80,
+                "recommendation": "Should Automate",
+            },
+            {
+                "candidate_id": "AUTO-002",
+                "score": 50,
+                "recommendation": "Consider Later",
+            },
+        ]
+    )
+
+    assert summary["count"] == 2
+    assert summary["average_score"] == 65.0
+    assert summary["recommendations"]["Should Automate"] == 1
+
+
+def test_summarize_bugs_for_ui_handles_bug_list():
+    summary = summarize_bugs_for_ui(
+        [
+            {
+                "bug_id": "BUG-001",
+                "severity": "Major",
+                "status": "Draft",
+            },
+            {
+                "bug_id": "BUG-002",
+                "severity": "Minor",
+                "status": "Draft",
+            },
+        ]
+    )
+
+    assert summary["count"] == 2
+    assert summary["statuses"]["Draft"] == 2
+    assert summary["severities"]["Major"] == 1
+
+
 def test_format_artifact_count_summary_returns_readable_string():
     summary = format_artifact_count_summary({"requirements": 1, "checklists": 2})
 
@@ -94,3 +209,10 @@ def test_importing_ui_modules_does_not_import_mobile_dependencies():
     assert hasattr(streamlit_module, "main")
     assert "mobile_appium" not in sys.modules
     assert "appium" not in sys.modules
+
+
+def test_importing_ui_streamlit_does_not_execute_ui_flow_automatically():
+    module = importlib.import_module("orchestrator.manual_qa.ui_streamlit")
+
+    assert hasattr(module, "ManualQAStreamlitUI")
+    assert hasattr(module, "main")

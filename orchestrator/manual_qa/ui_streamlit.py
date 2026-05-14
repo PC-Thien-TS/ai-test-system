@@ -23,7 +23,15 @@ from orchestrator.manual_qa.suite_service import TestSuiteService
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
+    get_artifact_preview,
+    get_next_recommended_actions,
+    get_workspace_health,
     get_workspace_summary,
+    list_bug_files,
+    list_candidate_files,
+    list_report_files,
+    list_run_files,
+    list_suite_files,
     load_automation_candidates,
     load_bugs,
     load_checklist,
@@ -31,9 +39,12 @@ from orchestrator.manual_qa.ui_helpers import (
     load_project,
     load_requirements,
     load_runs,
-    load_suites,
     load_testcases,
     resolve_workspace,
+    safe_load_json_artifact,
+    summarize_bugs_for_ui,
+    summarize_candidates_for_ui,
+    summarize_run_for_ui,
     validate_workspace_for_ui,
 )
 from orchestrator.manual_qa.workspace_service import ManualQAWorkspaceService
@@ -63,32 +74,10 @@ class ManualQAStreamlitUI:
         st.set_page_config(page_title="Manual QA Workspace", layout="wide")
         st.title("Manual QA Workspace")
 
-        workspace_input = st.sidebar.text_input(
-            "Workspace path",
-            value="artifacts/manual_qa_demo",
-        )
+        workspace_input = st.sidebar.text_input("Workspace path", value="artifacts/manual_qa_demo")
         workspace = resolve_workspace(workspace_input)
 
-        if st.sidebar.button("Initialize workspace", use_container_width=True):
-            self.workspace_service.create_workspace(workspace)
-            st.sidebar.success(f"Workspace initialized at {workspace}")
-
-        if st.sidebar.button("Validate workspace", use_container_width=True):
-            validation = validate_workspace_for_ui(workspace)
-            if validation["is_valid"]:
-                st.sidebar.success(validation["message"])
-            else:
-                st.sidebar.warning(validation["message"])
-
-        if st.sidebar.button("Run demo workflow", use_container_width=True):
-            report = self.demo_service.run_demo_workflow(workspace)
-            st.sidebar.success(f"Demo workflow completed for {report['project_id']}")
-
-        summary = get_workspace_summary(workspace)
-        st.sidebar.markdown("### Workspace Summary")
-        st.sidebar.caption(str(workspace))
-        st.sidebar.write(summary["artifact_count_summary"])
-        st.sidebar.write(summary["validation"]["message"])
+        self._render_sidebar(st, workspace)
 
         tabs = st.tabs(
             [
@@ -114,54 +103,103 @@ class ManualQAStreamlitUI:
         self._render_automation_tab(st, tabs[7], workspace)
         self._render_reports_tab(st, tabs[8], workspace)
 
+    def _render_sidebar(self, st: Any, workspace: Path) -> None:
+        if st.sidebar.button("Initialize workspace", use_container_width=True):
+            self.workspace_service.create_workspace(workspace)
+            st.sidebar.success(f"Workspace initialized at {workspace}")
+
+        if st.sidebar.button("Validate workspace", use_container_width=True):
+            validation = validate_workspace_for_ui(workspace)
+            if validation["is_valid"]:
+                st.sidebar.success(validation["message"])
+            else:
+                st.sidebar.warning(validation["message"])
+
+        if st.sidebar.button("Run demo workflow", use_container_width=True):
+            report = self.demo_service.run_demo_workflow(workspace)
+            st.sidebar.success(f"Demo workflow completed for {report['project_id']}")
+
+        if st.sidebar.button("Refresh workspace", use_container_width=True):
+            st.rerun()
+
+        summary = get_workspace_summary(workspace)
+        health = get_workspace_health(workspace)
+        actions = get_next_recommended_actions(workspace)
+
+        st.sidebar.markdown("### Workspace")
+        st.sidebar.caption(str(workspace))
+        st.sidebar.write(f"Status: `{health['health_level']}`")
+        st.sidebar.write(health["message"])
+        st.sidebar.write(summary["artifact_count_summary"])
+
+        st.sidebar.markdown("### Next Actions")
+        for action in actions:
+            st.sidebar.write(f"- {action}")
+
     def _render_project_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Project")
-            project_name = st.text_input("Project name", value="Manual QA Demo")
-            product_type = st.selectbox(
-                "Product type",
-                options=sorted(SUPPORTED_PRODUCT_TYPES),
-                index=sorted(SUPPORTED_PRODUCT_TYPES).index("web"),
-            )
-            if st.button("Create project"):
-                self.workspace_service.create_workspace(workspace)
-                project = self.project_service.create_project_profile(
-                    name=project_name,
-                    product_type=product_type,
-                )
-                self.workspace_service.write_json(workspace / "project.json", project.to_dict())
-                self.workspace_service.update_workspace_manifest(workspace, project=project)
-                st.success("Project created.")
-
             project = load_project(workspace)
             if project:
-                st.json(project)
+                with st.container(border=True):
+                    st.write(f"Project ID: `{project.get('project_id', '')}`")
+                    st.write(f"Name: {project.get('name', 'N/A')}")
+                    st.write(f"Product Type: {project.get('product_type', 'N/A')}")
+                    st.write(f"Owner: {project.get('owner', 'N/A') or 'N/A'}")
             else:
-                st.info("No project.json found yet.")
+                st.info("No project profile found yet. Create one to anchor the workspace.")
+
+            with st.form("create_project_form"):
+                project_name = st.text_input("Project name", value=project.get("name", "Manual QA Demo"))
+                product_type_options = sorted(SUPPORTED_PRODUCT_TYPES)
+                default_index = product_type_options.index(project.get("product_type", "web")) if project.get("product_type", "web") in product_type_options else product_type_options.index("web")
+                product_type = st.selectbox("Product type", options=product_type_options, index=default_index)
+                submitted = st.form_submit_button("Create project")
+                if submitted:
+                    self.workspace_service.create_workspace(workspace)
+                    created = self.project_service.create_project_profile(
+                        name=project_name,
+                        product_type=product_type,
+                    )
+                    self.workspace_service.write_json(workspace / "project.json", created.to_dict())
+                    self.workspace_service.update_workspace_manifest(workspace, project=created)
+                    st.success(f"Project created: {created.project_id}")
+
+            if project:
+                st.expander("project.json preview").code(get_artifact_preview(workspace / "project.json"), language="json")
 
     def _render_requirements_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Requirements")
-            requirement_text = st.text_area("Requirement text", height=220)
-            uploaded_file = st.file_uploader("Optional requirements file", type=["txt", "md"])
-            if st.button("Import requirements"):
-                payload = requirement_text
-                if uploaded_file is not None:
-                    payload = uploaded_file.getvalue().decode("utf-8")
-                if not str(payload or "").strip():
-                    st.warning("Provide requirement text or upload a .txt/.md file.")
-                else:
-                    self.workspace_service.create_workspace(workspace)
-                    raw_records = self.importer.import_requirements(payload, source_ref="streamlit-ui")
-                    requirements = self.normalizer.normalize_requirements(raw_records)
-                    output_path = workspace / "requirements" / "normalized_requirements.json"
-                    self.workspace_service.write_json(output_path, [item.to_dict() for item in requirements])
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Imported {len(requirements)} normalized requirements.")
+            with st.form("import_requirements_form"):
+                requirement_text = st.text_area("Requirement input", height=220)
+                uploaded_file = st.file_uploader("Optional .txt or .md file", type=["txt", "md"])
+                submitted = st.form_submit_button("Import requirements")
+                if submitted:
+                    payload = requirement_text
+                    if uploaded_file is not None:
+                        payload = uploaded_file.getvalue().decode("utf-8")
+                    if not str(payload or "").strip():
+                        st.warning("Provide requirement text or upload a requirement file.")
+                    else:
+                        self.workspace_service.create_workspace(workspace)
+                        raw_records = self.importer.import_requirements(payload, source_ref="streamlit-ui")
+                        normalized = self.normalizer.normalize_requirements(raw_records)
+                        self.workspace_service.write_json(
+                            workspace / "requirements" / "normalized_requirements.json",
+                            [item.to_dict() for item in normalized],
+                        )
+                        self.workspace_service.update_workspace_manifest(workspace)
+                        st.success(f"Imported {len(normalized)} normalized requirements.")
 
             requirements = load_requirements(workspace)
+            st.caption(f"Normalized requirements: {len(requirements)}")
             if requirements:
-                st.write(requirements)
+                st.dataframe(requirements, use_container_width=True)
+                st.expander("normalized_requirements.json preview").code(
+                    get_artifact_preview(workspace / "requirements" / "normalized_requirements.json"),
+                    language="json",
+                )
             else:
                 st.info("No normalized requirements found yet.")
 
@@ -169,11 +207,11 @@ class ManualQAStreamlitUI:
         with tab:
             st.subheader("Checklist")
             if st.button("Generate checklist"):
-                requirements = load_requirements(workspace)
+                requirements = self._load_requirement_models(workspace)
                 if not requirements:
                     st.warning("Import requirements first.")
                 else:
-                    checklist = self.checklist_generator.generate(self._load_requirement_models(workspace))
+                    checklist = self.checklist_generator.generate(requirements)
                     self.workspace_service.write_json(
                         workspace / "checklists" / "checklist.json",
                         [item.to_dict() for item in checklist],
@@ -186,23 +224,25 @@ class ManualQAStreamlitUI:
                     st.success(f"Generated {len(checklist)} checklist items.")
 
             checklist = load_checklist(workspace)
+            st.caption(f"Checklist items: {len(checklist)}")
             if checklist:
-                st.write(checklist)
+                st.dataframe(checklist, use_container_width=True)
             else:
                 st.info("No checklist artifacts found yet.")
+
             markdown_path = workspace / "checklists" / "checklist.md"
             if markdown_path.exists():
-                st.code(self.workspace_service.read_text(markdown_path), language="markdown")
+                st.expander("Checklist Markdown preview").code(get_artifact_preview(markdown_path), language="markdown")
 
     def _render_testcases_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Test Cases")
             if st.button("Generate test cases"):
-                requirements = load_requirements(workspace)
+                requirements = self._load_requirement_models(workspace)
                 if not requirements:
                     st.warning("Import requirements first.")
                 else:
-                    test_cases = self.testcase_generator.generate(self._load_requirement_models(workspace))
+                    test_cases = self.testcase_generator.generate(requirements)
                     self.workspace_service.write_json(
                         workspace / "testcases" / "testcases.json",
                         [item.to_dict() for item in test_cases],
@@ -215,180 +255,266 @@ class ManualQAStreamlitUI:
                     st.success(f"Generated {len(test_cases)} manual test cases.")
 
             test_cases = load_testcases(workspace)
+            st.caption(f"Manual test cases: {len(test_cases)}")
             if test_cases:
-                st.write(test_cases)
+                st.dataframe(
+                    [
+                        {
+                            "test_case_id": item.get("test_case_id", ""),
+                            "module": item.get("module", ""),
+                            "title": item.get("title", ""),
+                            "priority": item.get("priority", ""),
+                            "test_type": item.get("test_type", ""),
+                            "status": item.get("status", ""),
+                        }
+                        for item in test_cases
+                    ],
+                    use_container_width=True,
+                )
             else:
-                st.info("No test case artifacts found yet.")
+                st.info("No test cases found yet.")
+
             markdown_path = workspace / "testcases" / "testcases.md"
             if markdown_path.exists():
-                st.code(self.workspace_service.read_text(markdown_path), language="markdown")
+                st.expander("Test case Markdown preview").code(get_artifact_preview(markdown_path), language="markdown")
 
     def _render_suites_runs_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Suites & Runs")
-            suite_name = st.text_input("Suite name", value="smoke")
-            if st.button("Create suite from all test cases"):
-                project_payload = load_project(workspace)
-                test_case_payloads = load_testcases(workspace)
-                if not project_payload or not test_case_payloads:
-                    st.warning("Create a project and generate test cases first.")
-                else:
-                    suite = self.suite_service.create_test_suite(
-                        project_id=project_payload["project_id"],
-                        name=suite_name,
-                        test_cases=[item["test_case_id"] for item in test_case_payloads],
-                    )
-                    slug = self._slug(suite_name) or suite.suite_id.lower()
-                    self.workspace_service.write_json(workspace / "suites" / f"{slug}.json", suite.to_dict())
-                    self.workspace_service.write_markdown(
-                        workspace / "suites" / f"{slug}.md",
-                        self.exporter.export_markdown_string(suite),
-                    )
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Created suite {suite.suite_id}.")
 
-            suite_files = self._artifact_options(workspace, "suites")
-            selected_suite = st.selectbox("Suite file", options=suite_files) if suite_files else None
-            if not suite_files:
-                st.info("No suite files found yet.")
-            environment = st.text_input("Environment", value="staging")
-            build = st.text_input("Build", value="v1.0.0")
-            tester = st.text_input("Tester", value="Manual QA")
-            if st.button("Create run"):
-                if not selected_suite:
-                    st.warning("Create or select a suite first.")
-                else:
+            suite_files = list_suite_files(workspace)
+            run_files = list_run_files(workspace)
+            col1, col2 = st.columns(2)
+            col1.write(f"Suite files: {len(suite_files)}")
+            col2.write(f"Run files: {len(run_files)}")
+
+            with st.form("create_suite_form"):
+                suite_name = st.text_input("Suite name", value="smoke")
+                create_suite = st.form_submit_button("Create suite from all test cases")
+                if create_suite:
                     project_payload = load_project(workspace)
-                    suite = self._load_suite_model(workspace / selected_suite)
-                    test_run = self.run_service.create_test_run(
-                        project_id=project_payload.get("project_id", ""),
-                        suite=suite,
-                        environment=environment,
-                        build=build,
-                        tester=tester,
-                    )
-                    self.workspace_service.write_json(workspace / "runs" / f"{test_run.run_id}.json", test_run.to_dict())
-                    self.workspace_service.write_markdown(
-                        workspace / "runs" / f"{test_run.run_id}.md",
-                        self.exporter.export_markdown_string(test_run),
-                    )
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Created run {test_run.run_id}.")
+                    test_case_payloads = load_testcases(workspace)
+                    if not project_payload:
+                        st.warning("Create a project first.")
+                    elif not test_case_payloads:
+                        st.warning("Generate test cases first.")
+                    else:
+                        suite = self.suite_service.create_test_suite(
+                            project_id=project_payload["project_id"],
+                            name=suite_name,
+                            test_cases=[item["test_case_id"] for item in test_case_payloads],
+                        )
+                        suite_slug = self._slug(suite_name) or suite.suite_id.lower()
+                        self.workspace_service.write_json(workspace / "suites" / f"{suite_slug}.json", suite.to_dict())
+                        self.workspace_service.write_markdown(
+                            workspace / "suites" / f"{suite_slug}.md",
+                            self.exporter.export_markdown_string(suite),
+                        )
+                        self.workspace_service.update_workspace_manifest(workspace)
+                        st.success(f"Created suite {suite.suite_id}.")
 
-            run_files = self._artifact_options(workspace, "runs", suffix=".json", exclude_suffix="-summary.json")
-            selected_run = st.selectbox("Run file", options=run_files) if run_files else None
-            selected_run_payload = self._load_run_payload(workspace / selected_run) if selected_run else {}
-            case_options = [item["test_case_id"] for item in selected_run_payload.get("results", [])]
-            selected_case = st.selectbox("Test case ID", options=case_options) if case_options else None
-            result_status = st.selectbox(
-                "Status",
-                options=["Not Run", "Pass", "Fail", "Blocked", "Skipped", "Retest"],
-            )
-            actual_result = st.text_area("Actual result", height=120)
-            if st.button("Update result"):
-                if not selected_run or not selected_case:
-                    st.warning("Create or select a run and test case first.")
-                else:
-                    run_model = self._load_run_model(workspace / selected_run)
-                    updated_run = self.result_service.update_test_result(
-                        run_model,
-                        selected_case,
-                        result_status,
-                        actual_result=actual_result,
-                    )
-                    summary = self.summary_service.summarize_test_run(updated_run)
-                    run_path = workspace / selected_run
-                    self.workspace_service.write_json(run_path, updated_run.to_dict())
-                    self.workspace_service.write_json(
-                        workspace / "runs" / f"{updated_run.run_id}-summary.json",
-                        summary.to_dict(),
-                    )
-                    self.workspace_service.write_markdown(
-                        workspace / "runs" / f"{updated_run.run_id}-summary.md",
-                        self.exporter.export_markdown_string(summary),
-                    )
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Updated {selected_case} in run {updated_run.run_id}.")
+            if suite_files:
+                selected_suite = st.selectbox("Available suite files", options=suite_files)
+                st.expander("Selected suite preview").code(
+                    get_artifact_preview(workspace / selected_suite),
+                    language="json",
+                )
+            else:
+                selected_suite = None
+                st.info("No suite files found yet.")
 
-            if selected_run:
-                run_model = self._load_run_model(workspace / selected_run)
-                summary = self.summary_service.summarize_test_run(run_model)
-                st.write(summary.to_dict())
+            with st.form("create_run_form"):
+                environment = st.text_input("Environment", value="staging")
+                build = st.text_input("Build", value="v1.0.0")
+                tester = st.text_input("Tester", value="Manual QA")
+                create_run = st.form_submit_button("Create run")
+                if create_run:
+                    if not selected_suite:
+                        st.warning("Create or select a suite first.")
+                    else:
+                        project_payload = load_project(workspace)
+                        suite = self._load_suite_model(workspace / selected_suite)
+                        test_run = self.run_service.create_test_run(
+                            project_id=project_payload.get("project_id", ""),
+                            suite=suite,
+                            environment=environment,
+                            build=build,
+                            tester=tester,
+                        )
+                        self.workspace_service.write_json(workspace / "runs" / f"{test_run.run_id}.json", test_run.to_dict())
+                        self.workspace_service.write_markdown(
+                            workspace / "runs" / f"{test_run.run_id}.md",
+                            self.exporter.export_markdown_string(test_run),
+                        )
+                        self.workspace_service.update_workspace_manifest(workspace)
+                        st.success(f"Created run {test_run.run_id}.")
+
+            runs = load_runs(workspace)
+            if runs:
+                selected_run_file = st.selectbox("Available run files", options=list_run_files(workspace))
+                selected_run_payload = safe_load_json_artifact(workspace / selected_run_file)
+                run_summary = summarize_run_for_ui(selected_run_payload)
+                with st.container(border=True):
+                    st.write(f"Run ID: `{run_summary['run_id']}`")
+                    st.write(f"Status: `{run_summary['status']}`")
+                    st.write(
+                        f"Results: total={run_summary['total']}, pass={run_summary['passed']}, "
+                        f"fail={run_summary['failed']}, blocked={run_summary['blocked']}, "
+                        f"skipped={run_summary['skipped']}, not_run={run_summary['not_run']}, "
+                        f"retest={run_summary['retest']}"
+                    )
+                    st.write(f"Pass rate: {run_summary['pass_rate']}%")
+
+                case_options = [
+                    item.get("test_case_id", "")
+                    for item in selected_run_payload.get("results", [])
+                    if isinstance(item, dict) and item.get("test_case_id")
+                ]
+                with st.form("update_result_form"):
+                    selected_case = st.selectbox("Test case ID", options=case_options) if case_options else None
+                    status = st.selectbox(
+                        "Status",
+                        options=["Not Run", "Pass", "Fail", "Blocked", "Skipped", "Retest"],
+                    )
+                    actual_result = st.text_area("Actual result", height=120)
+                    submitted = st.form_submit_button("Update result")
+                    if submitted:
+                        if not selected_case:
+                            st.warning("Select a test case first.")
+                        else:
+                            run_model = self._load_run_model(workspace / selected_run_file)
+                            updated_run = self.result_service.update_test_result(
+                                run_model,
+                                selected_case,
+                                status,
+                                actual_result=actual_result,
+                            )
+                            summary = self.summary_service.summarize_test_run(updated_run)
+                            self.workspace_service.write_json(workspace / selected_run_file, updated_run.to_dict())
+                            self.workspace_service.write_json(
+                                workspace / "runs" / f"{updated_run.run_id}-summary.json",
+                                summary.to_dict(),
+                            )
+                            self.workspace_service.write_markdown(
+                                workspace / "runs" / f"{updated_run.run_id}-summary.md",
+                                self.exporter.export_markdown_string(summary),
+                            )
+                            self.workspace_service.update_workspace_manifest(workspace)
+                            st.success(f"Updated {selected_case} in {updated_run.run_id}.")
+
+                st.expander("Selected run JSON preview").code(
+                    get_artifact_preview(workspace / selected_run_file),
+                    language="json",
+                )
+            else:
+                st.info("No runs found yet. Create a suite, then create a run.")
 
     def _render_evidence_bugs_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Evidence & Bugs")
-            run_files = self._artifact_options(workspace, "runs", suffix=".json", exclude_suffix="-summary.json")
-            selected_run = st.selectbox("Run file for evidence/bug", options=run_files) if run_files else None
-            selected_run_payload = self._load_run_payload(workspace / selected_run) if selected_run else {}
-            case_options = [item["test_case_id"] for item in selected_run_payload.get("results", [])]
-            selected_case = st.selectbox("Test case for evidence/bug", options=case_options) if case_options else None
-            evidence_type = st.selectbox(
-                "Evidence type",
-                options=["screenshot", "video", "log", "api_response", "note", "url", "file"],
-            )
-            evidence_path = st.text_input("Evidence path or URL", value="")
-            evidence_description = st.text_input("Evidence description", value="")
+            run_files = list_run_files(workspace)
+            if not run_files:
+                st.info("No run files are available yet. Create a run before attaching evidence or generating bugs.")
+            else:
+                selected_run_file = st.selectbox("Run file", options=run_files)
+                selected_run_payload = safe_load_json_artifact(workspace / selected_run_file)
+                case_options = [
+                    item.get("test_case_id", "")
+                    for item in selected_run_payload.get("results", [])
+                    if isinstance(item, dict) and item.get("test_case_id")
+                ]
+                selected_case = st.selectbox("Test case ID", options=case_options) if case_options else None
 
-            if st.button("Attach evidence"):
-                if not selected_run or not selected_case or not evidence_path.strip():
-                    st.warning("Select a run, case, and evidence reference.")
-                else:
-                    run_model = self._load_run_model(workspace / selected_run)
-                    evidence = self.evidence_service.attach_evidence(
-                        run_model,
-                        selected_case,
-                        evidence_type,
-                        evidence_path,
-                        description=evidence_description,
+                with st.form("attach_evidence_form"):
+                    evidence_type = st.selectbox(
+                        "Evidence type",
+                        options=["screenshot", "video", "log", "api_response", "note", "url", "file"],
                     )
-                    self.workspace_service.write_json(workspace / selected_run, run_model.to_dict())
-                    self.workspace_service.write_json(
-                        workspace / "evidence" / f"{evidence.evidence_id}.json",
-                        evidence.to_dict(),
-                    )
-                    self.workspace_service.write_markdown(
-                        workspace / "evidence" / f"{evidence.evidence_id}.md",
-                        self.exporter.export_markdown_string(evidence),
-                    )
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Attached evidence {evidence.evidence_id}.")
+                    evidence_path = st.text_input("Evidence path or URL")
+                    evidence_description = st.text_input("Description")
+                    attach = st.form_submit_button("Attach evidence")
+                    if attach:
+                        if not selected_case or not evidence_path.strip():
+                            st.warning("Select a test case and provide an evidence path or URL.")
+                        else:
+                            run_model = self._load_run_model(workspace / selected_run_file)
+                            evidence = self.evidence_service.attach_evidence(
+                                run_model,
+                                selected_case,
+                                evidence_type,
+                                evidence_path,
+                                description=evidence_description,
+                            )
+                            self.workspace_service.write_json(workspace / selected_run_file, run_model.to_dict())
+                            self.workspace_service.write_json(workspace / "evidence" / f"{evidence.evidence_id}.json", evidence.to_dict())
+                            self.workspace_service.write_markdown(
+                                workspace / "evidence" / f"{evidence.evidence_id}.md",
+                                self.exporter.export_markdown_string(evidence),
+                            )
+                            self.workspace_service.update_workspace_manifest(workspace)
+                            st.success(f"Attached evidence {evidence.evidence_id}.")
 
-            if st.button("Generate bug draft"):
-                if not selected_run or not selected_case:
-                    st.warning("Select a run and test case first.")
-                else:
-                    run_model = self._load_run_model(workspace / selected_run)
-                    test_case = self._find_test_case(workspace, selected_case)
-                    evidence_items = self._find_evidence_for_case(workspace, run_model.run_id, selected_case)
-                    bug = self.bug_service.generate_bug_draft(
-                        run_model,
-                        selected_case,
-                        test_case=test_case,
-                        evidence=evidence_items,
-                    )
-                    self.workspace_service.write_json(workspace / "bugs" / f"{bug.bug_id}.json", bug.to_dict())
-                    self.workspace_service.write_markdown(
-                        workspace / "bugs" / f"{bug.bug_id}.md",
-                        self.exporter.export_markdown_string(bug),
-                    )
-                    self.workspace_service.update_workspace_manifest(workspace)
-                    st.success(f"Generated bug draft {bug.bug_id}.")
+                if st.button("Generate bug draft"):
+                    if not selected_case:
+                        st.warning("Select a test case first.")
+                    else:
+                        run_model = self._load_run_model(workspace / selected_run_file)
+                        test_case = self._find_test_case(workspace, selected_case)
+                        evidence_items = self._find_evidence_for_case(workspace, run_model.run_id, selected_case)
+                        try:
+                            bug = self.bug_service.generate_bug_draft(
+                                run_model,
+                                selected_case,
+                                test_case=test_case,
+                                evidence=evidence_items,
+                            )
+                        except ValueError as exc:
+                            st.warning(str(exc))
+                        else:
+                            self.workspace_service.write_json(workspace / "bugs" / f"{bug.bug_id}.json", bug.to_dict())
+                            self.workspace_service.write_markdown(
+                                workspace / "bugs" / f"{bug.bug_id}.md",
+                                self.exporter.export_markdown_string(bug),
+                            )
+                            self.workspace_service.update_workspace_manifest(workspace)
+                            st.success(f"Generated bug draft {bug.bug_id}.")
 
             bugs = load_bugs(workspace)
+            bug_summary = summarize_bugs_for_ui(bugs)
+            st.caption(f"Bug drafts: {bug_summary['count']}")
             if bugs:
-                st.write(bugs)
+                st.dataframe(
+                    [
+                        {
+                            "bug_id": item.get("bug_id", ""),
+                            "test_case_id": item.get("test_case_id", ""),
+                            "severity": item.get("severity", ""),
+                            "priority": item.get("priority", ""),
+                            "status": item.get("status", ""),
+                            "title": item.get("title", ""),
+                        }
+                        for item in bugs
+                    ],
+                    use_container_width=True,
+                )
+                bug_files = list_bug_files(workspace)
+                selected_bug_file = st.selectbox("Bug file", options=bug_files)
+                st.expander("Bug Markdown preview").code(
+                    get_artifact_preview(workspace / selected_bug_file.replace(".json", ".md")),
+                    language="markdown",
+                )
             else:
                 st.info("No bug drafts found yet.")
 
     def _render_failure_memory_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Failure Memory")
+            st.caption("Phase 3B keeps failure memory local and file-based. This tab is read-only in the UI prototype.")
             records = load_failure_memory_records(workspace)
             if records:
-                st.write(records)
+                st.dataframe(records, use_container_width=True)
             else:
-                st.info("No failure memory artifacts found. This tab is read-only in Phase 6A.")
+                st.info("No failure memory artifacts found yet.")
 
     def _render_automation_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
@@ -398,10 +524,9 @@ class ManualQAStreamlitUI:
                 if not test_cases:
                     st.warning("Generate test cases first.")
                 else:
-                    failure_records = self._load_failure_record_models(workspace)
                     candidates = self.automation_service.score_automation_candidates(
                         test_cases,
-                        failure_records=failure_records,
+                        failure_records=self._load_failure_record_models(workspace),
                     )
                     self.workspace_service.write_json(
                         workspace / "automation_candidates" / "candidates.json",
@@ -415,18 +540,45 @@ class ManualQAStreamlitUI:
                     st.success(f"Scored {len(candidates)} automation candidates.")
 
             candidates = load_automation_candidates(workspace)
+            candidate_summary = summarize_candidates_for_ui(candidates)
+            st.caption(
+                f"Candidates: {candidate_summary['count']} | Average score: {candidate_summary['average_score']}"
+            )
             if candidates:
-                st.write(candidates)
+                st.dataframe(
+                    [
+                        {
+                            "candidate_id": item.get("candidate_id", ""),
+                            "test_case_id": item.get("test_case_id", ""),
+                            "score": item.get("score", 0),
+                            "recommendation": item.get("recommendation", ""),
+                            "suggested_automation_type": item.get("suggested_automation_type", ""),
+                            "reasons": "; ".join(item.get("reasons", [])),
+                            "blockers": "; ".join(item.get("blockers", [])),
+                        }
+                        for item in candidates
+                    ],
+                    use_container_width=True,
+                )
+                candidate_files = list_candidate_files(workspace)
+                selected_candidate_file = st.selectbox("Candidate artifact", options=candidate_files)
+                st.expander("Candidate artifact preview").code(
+                    get_artifact_preview(workspace / selected_candidate_file),
+                    language="json",
+                )
+                markdown_path = workspace / "automation_candidates" / "candidates.md"
+                if markdown_path.exists():
+                    st.expander("Candidate Markdown preview").code(
+                        get_artifact_preview(markdown_path),
+                        language="markdown",
+                    )
             else:
-                st.info("No automation candidate artifacts found yet.")
-            markdown_path = workspace / "automation_candidates" / "candidates.md"
-            if markdown_path.exists():
-                st.code(self.workspace_service.read_text(markdown_path), language="markdown")
+                st.info("No automation candidates found yet.")
 
     def _render_reports_tab(self, st: Any, tab: Any, workspace: Path) -> None:
         with tab:
             st.subheader("Reports")
-            if st.button("Workspace summary"):
+            if st.button("Write workspace summary report"):
                 summary = get_workspace_summary(workspace)
                 output = {
                     "workspace_path": summary["workspace_path"],
@@ -443,47 +595,20 @@ class ManualQAStreamlitUI:
                 self.workspace_service.update_workspace_manifest(workspace)
                 st.success("Workspace summary report written.")
 
-            summary = get_workspace_summary(workspace)
-            st.write(format_artifact_count_summary(summary["artifact_counts"]))
-            report_files = summary["reports"]
+            report_files = list_report_files(workspace)
             if report_files:
-                st.write(report_files)
+                selected_report = st.selectbox("Report file", options=report_files)
+                preview_path = workspace / selected_report
+                language = "markdown" if selected_report.endswith(".md") else "json"
+                st.code(get_artifact_preview(preview_path), language=language)
             else:
-                st.info("No report artifacts found yet.")
-
-            demo_report_path = workspace / "reports" / "demo_workflow_report.md"
-            if demo_report_path.exists():
-                st.code(self.workspace_service.read_text(demo_report_path), language="markdown")
-
-    def _artifact_options(
-        self,
-        workspace: Path,
-        folder: str,
-        *,
-        suffix: str = ".json",
-        exclude_suffix: str | None = None,
-    ) -> list[str]:
-        listing = self.workspace_service.list_workspace_artifacts(workspace)
-        options = []
-        for item in listing["artifacts"].get(folder, []):
-            if suffix and not item.endswith(suffix):
-                continue
-            if exclude_suffix and item.endswith(exclude_suffix):
-                continue
-            options.append(item)
-        return options
+                st.info("No reports found yet.")
 
     def _load_suite_model(self, path: Path) -> TestSuite:
         return TestSuite(**self.workspace_service.read_json(path))
 
     def _load_requirement_models(self, workspace: Path) -> list[NormalizedRequirement]:
         return [NormalizedRequirement(**payload) for payload in load_requirements(workspace)]
-
-    def _load_run_payload(self, path: Path | None) -> dict[str, Any]:
-        if path is None or not path.exists():
-            return {}
-        payload = self.workspace_service.read_json(path)
-        return payload if isinstance(payload, dict) else {}
 
     def _load_run_model(self, path: Path) -> TestRun:
         payload = self.workspace_service.read_json(path)
@@ -498,19 +623,19 @@ class ManualQAStreamlitUI:
                 return ManualTestCase(**payload)
         return None
 
-    def _find_evidence_for_case(self, workspace: Path, run_id: str, test_case_id: str) -> list[Any]:
+    def _find_evidence_for_case(self, workspace: Path, run_id: str, test_case_id: str) -> list[Evidence]:
         evidence_dir = workspace / "evidence"
         items: list[Evidence] = []
         if not evidence_dir.exists():
             return items
         for path in sorted(evidence_dir.glob("*.json")):
-            payload = self.workspace_service.read_json(path)
+            payload = safe_load_json_artifact(path)
             if payload.get("run_id") == run_id and payload.get("test_case_id") == test_case_id:
                 items.append(Evidence(**payload))
         return items
 
     def _load_failure_record_models(self, workspace: Path) -> list[FailureRecord]:
-        records = []
+        records: list[FailureRecord] = []
         for payload in load_failure_memory_records(workspace):
             if "record_id" not in payload or "signature" not in payload:
                 continue
@@ -527,10 +652,13 @@ class ManualQAStreamlitUI:
             "",
             f"- Workspace Path: {summary['workspace_path']}",
             f"- Exists: {summary['exists']}",
-            f"- Artifact Counts: {summary['artifact_count_summary']}",
+            f"- Artifact Counts: {format_artifact_count_summary(summary['artifact_counts'])}",
             f"- Validation: {validation['message']}",
             "",
+            "## Next Recommended Actions",
         ]
+        lines.extend(f"- {action}" for action in get_next_recommended_actions(summary["workspace_path"]))
+        lines.append("")
         return "\n".join(lines)
 
     def _render_checklist_markdown(self, checklist: list[Any]) -> str:

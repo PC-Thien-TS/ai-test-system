@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from orchestrator.manual_qa.workspace_service import (
 
 
 DEFAULT_UI_WORKSPACE = Path("artifacts/manual_qa_demo")
+_WORKSPACE_SERVICE = ManualQAWorkspaceService()
 
 
 def resolve_workspace(path: str | Path | None) -> Path:
@@ -21,17 +23,12 @@ def resolve_workspace(path: str | Path | None) -> Path:
 
 def get_workspace_summary(workspace_path: str | Path | None) -> dict[str, Any]:
     workspace = resolve_workspace(workspace_path)
-    service = ManualQAWorkspaceService()
     exists = workspace.exists()
+    listing = _WORKSPACE_SERVICE.list_workspace_artifacts(workspace) if exists else _empty_listing(workspace)
     validation = validate_workspace_for_ui(workspace)
-    listing = service.list_workspace_artifacts(workspace) if exists else {
-        "artifact_counts": {folder: 0 for folder in WORKSPACE_SUBFOLDERS},
-        "artifacts": {folder: [] for folder in WORKSPACE_SUBFOLDERS},
-        "root_files": [],
-    }
-    manifest = _safe_read_json(workspace / "workspace_manifest.json")
+    health = get_workspace_health(workspace)
+    manifest = safe_load_json_artifact(workspace / "workspace_manifest.json")
     project = load_project(workspace)
-
     return {
         "workspace_path": str(workspace),
         "exists": exists,
@@ -40,13 +37,130 @@ def get_workspace_summary(workspace_path: str | Path | None) -> dict[str, Any]:
         "artifact_counts": listing["artifact_counts"],
         "artifact_count_summary": format_artifact_count_summary(listing["artifact_counts"]),
         "validation": validation,
+        "health": health,
         "reports": listing["artifacts"].get("reports", []),
         "root_files": listing.get("root_files", []),
     }
 
 
+def get_workspace_health(workspace_path: str | Path | None) -> dict[str, Any]:
+    workspace = resolve_workspace(workspace_path)
+    summary = get_workspace_summary_core(workspace)
+    validation = summary["validation"]
+    counts = summary["artifact_counts"]
+    health_level = "healthy" if validation["is_valid"] else "attention"
+    if not summary["exists"]:
+        health_level = "missing"
+    return {
+        "workspace_path": str(workspace),
+        "exists": summary["exists"],
+        "health_level": health_level,
+        "is_valid": validation["is_valid"],
+        "message": validation["message"],
+        "artifact_counts": counts,
+        "artifact_count_summary": format_artifact_count_summary(counts),
+    }
+
+
+def get_next_recommended_actions(workspace_path: str | Path | None) -> list[str]:
+    workspace = resolve_workspace(workspace_path)
+    if not workspace.exists():
+        return [
+            "Initialize the workspace.",
+            "Create a project profile.",
+            "Import requirements or run the demo workflow.",
+        ]
+
+    project = load_project(workspace)
+    requirements = load_requirements(workspace)
+    checklist = load_checklist(workspace)
+    testcases = load_testcases(workspace)
+    suites = load_suites(workspace)
+    runs = load_runs(workspace)
+    bugs = load_bugs(workspace)
+    candidates = load_automation_candidates(workspace)
+
+    actions: list[str] = []
+    if not project:
+        actions.append("Create a project profile.")
+    if not requirements:
+        actions.append("Import and normalize requirements.")
+    if requirements and not checklist:
+        actions.append("Generate a checklist from the normalized requirements.")
+    if requirements and not testcases:
+        actions.append("Generate manual test cases.")
+    if testcases and not suites:
+        actions.append("Create a suite from the available test cases.")
+    if suites and not runs:
+        actions.append("Create a run for one of the suites.")
+    if runs:
+        run_summary = summarize_run_for_ui(runs[0])
+        if run_summary["not_run"] > 0:
+            actions.append("Update run results to capture pass, fail, or blocked outcomes.")
+        if run_summary["failed"] > 0 and not bugs:
+            actions.append("Attach evidence metadata and generate a bug draft for failed results.")
+    if testcases and not candidates:
+        actions.append("Score automation candidates for the current test cases.")
+    if bugs and candidates:
+        actions.append("Review bug drafts and automation recommendations.")
+
+    if not actions:
+        actions.append("Workspace is in a good state. Review reports or run the demo workflow again.")
+    return actions
+
+
+def get_artifact_preview(path: str | Path, max_chars: int = 4000) -> str:
+    artifact_path = Path(path)
+    if not artifact_path.exists():
+        return f"Artifact not found: {artifact_path}"
+
+    try:
+        text = artifact_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        return f"Unable to read artifact: {exc}"
+
+    preview = text[:max_chars]
+    if len(text) > max_chars:
+        preview += "\n\n... preview truncated ..."
+    return preview
+
+
+def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
+    artifact_path = Path(path)
+    try:
+        payload = _WORKSPACE_SERVICE.read_json(artifact_path)
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def list_report_files(workspace_path: str | Path | None) -> list[str]:
+    return _list_artifacts_by_folder(workspace_path, "reports")
+
+
+def list_run_files(workspace_path: str | Path | None) -> list[str]:
+    return [
+        item for item in _list_artifacts_by_folder(workspace_path, "runs")
+        if item.endswith(".json") and not item.endswith("-summary.json")
+    ]
+
+
+def list_suite_files(workspace_path: str | Path | None) -> list[str]:
+    return [item for item in _list_artifacts_by_folder(workspace_path, "suites") if item.endswith(".json")]
+
+
+def list_bug_files(workspace_path: str | Path | None) -> list[str]:
+    return [item for item in _list_artifacts_by_folder(workspace_path, "bugs") if item.endswith(".json")]
+
+
+def list_candidate_files(workspace_path: str | Path | None) -> list[str]:
+    return [item for item in _list_artifacts_by_folder(workspace_path, "automation_candidates") if item.endswith(".json")]
+
+
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:
-    return _safe_read_json(resolve_workspace(workspace_path) / "project.json")
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "project.json")
 
 
 def load_requirements(workspace_path: str | Path | None) -> list[dict[str, Any]]:
@@ -67,10 +181,9 @@ def load_suites(workspace_path: str | Path | None) -> list[dict[str, Any]]:
 
 def load_runs(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     directory = resolve_workspace(workspace_path) / "runs"
-    items = []
+    items: list[dict[str, Any]] = []
     for item in _load_directory_json_objects(directory):
-        run_id = str(item.get("run_id", ""))
-        if run_id:
+        if item.get("run_id"):
             items.append(item)
     return items
 
@@ -90,7 +203,10 @@ def load_failure_memory_records(workspace_path: str | Path | None) -> list[dict[
         return records
 
     for path in sorted(directory.glob("*.json")):
-        payload = _safe_read_json(path)
+        try:
+            payload = _WORKSPACE_SERVICE.read_json(path)
+        except Exception:
+            continue
         if isinstance(payload, list):
             records.extend(item for item in payload if isinstance(item, dict))
         elif isinstance(payload, dict):
@@ -107,35 +223,141 @@ def format_artifact_count_summary(artifact_counts: dict[str, int] | None) -> str
 
 def validate_workspace_for_ui(workspace_path: str | Path | None) -> dict[str, Any]:
     workspace = resolve_workspace(workspace_path)
-    result = ManualQAWorkspaceService().validate_workspace(workspace).to_dict()
+    result = _WORKSPACE_SERVICE.validate_workspace(workspace).to_dict()
     if not workspace.exists():
         message = "Workspace does not exist yet."
     elif result["is_valid"]:
         message = "Workspace is valid."
     else:
-        problems = []
+        problems: list[str] = []
         if result["missing_folders"]:
             problems.append(f"missing folders: {', '.join(result['missing_folders'])}")
         if result["missing_files"]:
             problems.append(f"missing files: {', '.join(result['missing_files'])}")
+        warnings = result.get("warnings") or []
+        if warnings:
+            problems.append(f"warnings: {', '.join(warnings)}")
         message = "Workspace has issues: " + "; ".join(problems or ["unknown validation issue"])
     result["message"] = message
     return result
 
 
-def _safe_read_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = ManualQAWorkspaceService().read_json(path)
-    except FileNotFoundError:
-        return {}
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+def summarize_run_for_ui(run_dict: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(run_dict, dict):
+        return {
+            "run_id": "",
+            "status": "Not Started",
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "blocked": 0,
+            "skipped": 0,
+            "not_run": 0,
+            "retest": 0,
+            "pass_rate": 0.0,
+            "tester": "",
+            "environment": "",
+            "build": "",
+        }
+
+    counts = {
+        "Pass": 0,
+        "Fail": 0,
+        "Blocked": 0,
+        "Skipped": 0,
+        "Not Run": 0,
+        "Retest": 0,
+    }
+    results = run_dict.get("results")
+    if not isinstance(results, list):
+        results = []
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status", "Not Run"))
+        counts[status] = counts.get(status, 0) + 1
+
+    total = len([item for item in results if isinstance(item, dict)])
+    pass_rate = round((counts["Pass"] / total * 100.0), 2) if total else 0.0
+    return {
+        "run_id": str(run_dict.get("run_id", "")),
+        "status": str(run_dict.get("status", "Not Started")),
+        "total": total,
+        "passed": counts.get("Pass", 0),
+        "failed": counts.get("Fail", 0),
+        "blocked": counts.get("Blocked", 0),
+        "skipped": counts.get("Skipped", 0),
+        "not_run": counts.get("Not Run", 0),
+        "retest": counts.get("Retest", 0),
+        "pass_rate": pass_rate,
+        "tester": str(run_dict.get("tester", "")),
+        "environment": str(run_dict.get("environment", "")),
+        "build": str(run_dict.get("build", "")),
+    }
+
+
+def summarize_candidates_for_ui(candidate_items: list[dict[str, Any]] | None) -> dict[str, Any]:
+    items = [item for item in (candidate_items or []) if isinstance(item, dict)]
+    recommendations: dict[str, int] = {}
+    for item in items:
+        recommendation = str(item.get("recommendation", "Unknown"))
+        recommendations[recommendation] = recommendations.get(recommendation, 0) + 1
+
+    avg_score = round(
+        sum(int(item.get("score", 0)) for item in items) / len(items),
+        2,
+    ) if items else 0.0
+    return {
+        "count": len(items),
+        "average_score": avg_score,
+        "recommendations": recommendations,
+        "top_candidate_id": str(items[0].get("candidate_id", "")) if items else "",
+    }
+
+
+def summarize_bugs_for_ui(bug_items: list[dict[str, Any]] | None) -> dict[str, Any]:
+    items = [item for item in (bug_items or []) if isinstance(item, dict)]
+    statuses: dict[str, int] = {}
+    severities: dict[str, int] = {}
+    for item in items:
+        status = str(item.get("status", "Unknown"))
+        severity = str(item.get("severity", "Unknown"))
+        statuses[status] = statuses.get(status, 0) + 1
+        severities[severity] = severities.get(severity, 0) + 1
+
+    return {
+        "count": len(items),
+        "statuses": statuses,
+        "severities": severities,
+        "top_bug_id": str(items[0].get("bug_id", "")) if items else "",
+    }
+
+
+def get_workspace_summary_core(workspace_path: str | Path | None) -> dict[str, Any]:
+    workspace = resolve_workspace(workspace_path)
+    exists = workspace.exists()
+    listing = _WORKSPACE_SERVICE.list_workspace_artifacts(workspace) if exists else _empty_listing(workspace)
+    validation = validate_workspace_for_ui(workspace)
+    return {
+        "workspace": workspace,
+        "exists": exists,
+        "artifact_counts": listing["artifact_counts"],
+        "listing": listing,
+        "validation": validation,
+    }
+
+
+def _list_artifacts_by_folder(workspace_path: str | Path | None, folder: str) -> list[str]:
+    workspace = resolve_workspace(workspace_path)
+    if not workspace.exists():
+        return []
+    listing = _WORKSPACE_SERVICE.list_workspace_artifacts(workspace)
+    return list(listing["artifacts"].get(folder, []))
 
 
 def _safe_read_list(path: Path) -> list[dict[str, Any]]:
     try:
-        payload = ManualQAWorkspaceService().read_json(path)
+        payload = _WORKSPACE_SERVICE.read_json(path)
     except FileNotFoundError:
         return []
     except Exception:
@@ -153,7 +375,17 @@ def _load_directory_json_objects(directory: Path) -> list[dict[str, Any]]:
     for path in sorted(directory.glob("*.json")):
         if path.name.endswith("-summary.json"):
             continue
-        payload = _safe_read_json(path)
+        payload = safe_load_json_artifact(path)
         if payload:
             items.append(payload)
     return items
+
+
+def _empty_listing(workspace: Path) -> dict[str, Any]:
+    return {
+        "workspace_path": str(workspace),
+        "folders": list(WORKSPACE_SUBFOLDERS),
+        "artifact_counts": {folder: 0 for folder in WORKSPACE_SUBFOLDERS},
+        "artifacts": {folder: [] for folder in WORKSPACE_SUBFOLDERS},
+        "root_files": [],
+    }
