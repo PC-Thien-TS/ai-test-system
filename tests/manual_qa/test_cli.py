@@ -377,6 +377,98 @@ def _write_api_execution_results(workspace: Path, *, status: str = "Failed") -> 
     (draft_dir / "api_execution_results.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _write_api_execution_summary_artifacts(workspace: Path, *, status: str = "Failed") -> None:
+    (workspace / "reports").mkdir(parents=True, exist_ok=True)
+    (workspace / "evidence").mkdir(parents=True, exist_ok=True)
+    (workspace / "failure_memory").mkdir(parents=True, exist_ok=True)
+    summary_payload = {
+        "summary_id": "API-EXEC-SUM-001",
+        "total": 2,
+        "passed": 1 if status == "Passed" else 0,
+        "failed": 1 if status == "Failed" else 0,
+        "blocked": 0,
+        "dry_run": 2 if status == "All Dry Run" else 0,
+        "error": 1 if status == "Failed" else 0,
+        "not_run": 0,
+        "pass_rate": 50.0 if status == "Passed" else 0.0,
+        "failure_rate": 50.0 if status == "Failed" else 0.0,
+        "evidence_ids": ["API-EVD-001", "API-EVD-002"],
+        "bug_suggestion_ids": ["BUG-APIEXEC-001"] if status == "Failed" else [],
+        "failure_signature_ids": ["FSIG-001"] if status == "Failed" else [],
+        "status": status,
+        "recommended_next_step": "Review mixed execution outcomes",
+        "metadata": {"sandbox_only": True},
+        "created_at": "2024-01-20T00:00:00Z",
+    }
+    evidence_payload = [
+        {
+            "evidence_id": "API-EVD-001",
+            "execution_id": "API-EXEC-001",
+            "draft_id": "API-DRAFT-001",
+            "test_case_id": "TC-900",
+            "evidence_type": "api_execution_result",
+            "title": "TC-900 evidence",
+            "summary": "Sandbox evidence",
+            "status": "Failed",
+            "method": "GET",
+            "base_url": "http://localhost:8000",
+            "endpoint": "/api/orders",
+            "http_status_code": 500,
+            "assertion_passed": False,
+            "response_excerpt": "error",
+            "error_type": "",
+            "error_message": "",
+            "log_refs": ["LOG-001"],
+            "metadata": {"sandbox_only": True},
+            "created_at": "2024-01-20T00:10:00Z",
+        },
+        {
+            "evidence_id": "API-EVD-002",
+            "execution_id": "API-EXEC-002",
+            "draft_id": "API-DRAFT-001",
+            "test_case_id": "TC-900",
+            "evidence_type": "api_execution_result",
+            "title": "TC-900 evidence",
+            "summary": "Sandbox evidence",
+            "status": "Passed",
+            "method": "GET",
+            "base_url": "http://localhost:8000",
+            "endpoint": "/api/orders",
+            "http_status_code": 200,
+            "assertion_passed": True,
+            "response_excerpt": "ok",
+            "error_type": "",
+            "error_message": "",
+            "log_refs": ["LOG-002"],
+            "metadata": {"sandbox_only": True},
+            "created_at": "2024-01-20T00:11:00Z",
+        },
+    ]
+    failure_signature_payload = [
+        {
+            "signature_id": "FSIG-001",
+            "fingerprint": "FP-ABC",
+            "module": "Order API",
+            "test_case_id": "TC-900",
+            "title": "Failure",
+            "symptom": "GET /api/orders failed",
+            "expected_result": "",
+            "actual_result": "",
+            "environment": "",
+            "build": "",
+            "severity": "",
+            "priority": "",
+            "source_bug_id": "",
+            "tags": [],
+            "created_at": "2024-01-20T00:12:00Z",
+            "metadata": {"method": "GET", "endpoint": "/api/orders", "error_type": "TimeoutError"},
+        }
+    ]
+    (workspace / "reports" / "api_execution_summary.json").write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+    (workspace / "evidence" / "api_execution_evidence.json").write_text(json.dumps(evidence_payload, indent=2), encoding="utf-8")
+    (workspace / "failure_memory" / "api_execution_failure_signatures.json").write_text(json.dumps(failure_signature_payload, indent=2), encoding="utf-8")
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -1121,6 +1213,63 @@ def test_api_execution_evidence_command_does_not_execute_scripts(tmp_path, monke
     monkeypatch.setattr(Path, "read_text", _guarded_read_text)
 
     exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+
+
+def test_api_execution_history_writes_history_json_and_markdown(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_summary_artifacts(workspace, status="Failed")
+
+    exit_code = main(["api-execution-history", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "history" / "api_execution" / "api_execution_history.json").exists()
+    assert (workspace / "history" / "api_execution" / "api_execution_history.md").exists()
+    assert "API execution history:" in captured.out
+
+
+def test_api_execution_history_writes_trend_summary_json_and_markdown(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_summary_artifacts(workspace, status="Failed")
+
+    exit_code = main(["api-execution-history", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "api_execution_trend_summary.json").exists()
+    assert (workspace / "reports" / "api_execution_trend_summary.md").exists()
+
+
+def test_api_execution_history_missing_execution_summary_handled_clearly(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["api-execution-history", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "trend_status=No History" in captured.out
+    assert (workspace / "reports" / "api_execution_trend_summary.json").exists()
+
+
+def test_api_execution_history_command_does_not_execute_scripts(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_summary_artifacts(workspace, status="Failed")
+
+    original_read_text = Path.read_text
+
+    def _guarded_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".py":
+            raise AssertionError("History command must not read or execute draft script files.")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _guarded_read_text)
+
+    exit_code = main(["api-execution-history", "--workspace", str(workspace)])
 
     assert exit_code == 0
 

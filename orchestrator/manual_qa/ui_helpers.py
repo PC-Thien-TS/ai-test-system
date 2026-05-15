@@ -239,6 +239,32 @@ def get_api_execution_evidence_preview(workspace_path: str | Path | None) -> str
     return "\n".join(lines)
 
 
+def get_api_execution_history_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "history" / "api_execution" / "api_execution_history.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    trend = load_api_execution_trend_summary(workspace)
+    history_entries = load_api_execution_history(workspace)
+    if not trend and not history_entries:
+        return "No API execution history report generated yet."
+
+    lines = [
+        "# API Execution History Report",
+        "",
+        f"- Trend Status: {trend.get('trend_status', 'No History') if trend else 'No History'}",
+        f"- Total Runs: {trend.get('total_runs', len(history_entries)) if trend else len(history_entries)}",
+        f"- Total Executions: {trend.get('total_executions', 0) if trend else 0}",
+        f"- Average Pass Rate: {trend.get('average_pass_rate', 0.0) if trend else 0.0}",
+        f"- Average Failure Rate: {trend.get('average_failure_rate', 0.0) if trend else 0.0}",
+        f"- Repeated Failure Count: {trend.get('repeated_failure_count', 0) if trend else 0}",
+        f"- Flaky Candidate Count: {trend.get('flaky_candidate_count', 0) if trend else 0}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -365,6 +391,14 @@ def load_api_execution_evidence(workspace_path: str | Path | None) -> list[dict[
 
 def load_api_execution_summary(workspace_path: str | Path | None) -> dict[str, Any]:
     return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "api_execution_summary.json")
+
+
+def load_api_execution_history(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "history" / "api_execution" / "api_execution_history.json")
+
+
+def load_api_execution_trend_summary(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "api_execution_trend_summary.json")
 
 
 def load_web_playwright_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:

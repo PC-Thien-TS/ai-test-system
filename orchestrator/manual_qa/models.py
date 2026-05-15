@@ -959,6 +959,86 @@ class APIExecutionSummary:
         return asdict(self)
 
 
+@dataclass
+class APIExecutionHistoryEntry:
+    """Historical snapshot derived from one saved API execution summary."""
+
+    history_id: str
+    source_file: str
+    run_label: str
+    summary_id: str
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+    blocked: int = 0
+    dry_run: int = 0
+    error: int = 0
+    not_run: int = 0
+    pass_rate: float = 0.0
+    failure_rate: float = 0.0
+    status: str = "No Results"
+    evidence_ids: List[str] = field(default_factory=list)
+    bug_suggestion_ids: List[str] = field(default_factory=list)
+    failure_signature_ids: List[str] = field(default_factory=list)
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class APIExecutionTrendSummary:
+    """Aggregate trend summary over multiple API execution history entries."""
+
+    trend_id: str
+    total_runs: int = 0
+    total_executions: int = 0
+    total_passed: int = 0
+    total_failed: int = 0
+    total_blocked: int = 0
+    total_dry_run: int = 0
+    total_error: int = 0
+    total_not_run: int = 0
+    average_pass_rate: float = 0.0
+    average_failure_rate: float = 0.0
+    latest_status: str = "No Results"
+    trend_status: str = "No History"
+    repeated_failure_count: int = 0
+    flaky_candidate_count: int = 0
+    repeated_failure_keys: List[str] = field(default_factory=list)
+    flaky_candidate_keys: List[str] = field(default_factory=list)
+    entries: List[APIExecutionHistoryEntry] = field(default_factory=list)
+    recommended_next_step: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "trend_id": self.trend_id,
+            "total_runs": self.total_runs,
+            "total_executions": self.total_executions,
+            "total_passed": self.total_passed,
+            "total_failed": self.total_failed,
+            "total_blocked": self.total_blocked,
+            "total_dry_run": self.total_dry_run,
+            "total_error": self.total_error,
+            "total_not_run": self.total_not_run,
+            "average_pass_rate": self.average_pass_rate,
+            "average_failure_rate": self.average_failure_rate,
+            "latest_status": self.latest_status,
+            "trend_status": self.trend_status,
+            "repeated_failure_count": self.repeated_failure_count,
+            "flaky_candidate_count": self.flaky_candidate_count,
+            "repeated_failure_keys": list(self.repeated_failure_keys),
+            "flaky_candidate_keys": list(self.flaky_candidate_keys),
+            "entries": [item.to_dict() for item in self.entries],
+            "recommended_next_step": self.recommended_next_step,
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

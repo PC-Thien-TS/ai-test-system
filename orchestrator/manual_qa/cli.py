@@ -14,6 +14,9 @@ from orchestrator.manual_qa.api_execution_sandbox_service import (
 from orchestrator.manual_qa.api_execution_evidence_service import (
     APIExecutionEvidenceService,
 )
+from orchestrator.manual_qa.api_execution_history_service import (
+    APIExecutionHistoryService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -102,6 +105,7 @@ class ManualQACLI:
         self.execution_preflight_service = ExecutionPreflightService()
         self.api_execution_sandbox_service = APIExecutionSandboxService()
         self.api_execution_evidence_service = APIExecutionEvidenceService()
+        self.api_execution_history_service = APIExecutionHistoryService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -246,6 +250,10 @@ class ManualQACLI:
         api_execution_evidence_parser = subparsers.add_parser("api-execution-evidence")
         api_execution_evidence_parser.add_argument("--workspace", required=True)
         api_execution_evidence_parser.set_defaults(handler=self._handle_api_execution_evidence)
+
+        api_execution_history_parser = subparsers.add_parser("api-execution-history")
+        api_execution_history_parser.add_argument("--workspace", required=True)
+        api_execution_history_parser.set_defaults(handler=self._handle_api_execution_history)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -783,6 +791,22 @@ class ManualQACLI:
             f" status={summary.status}"
             f" bug_suggestions={len(bug_suggestions)}"
             f" failure_signatures={len(failure_signatures)}"
+        )
+        return 0
+
+    def _handle_api_execution_history(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        report = self.api_execution_history_service.build_api_execution_history_report_from_workspace(workspace)
+        trend_summary = report["trend_summary"]
+        print(
+            "API execution history:"
+            f" total_runs={trend_summary.total_runs}"
+            f" total_executions={trend_summary.total_executions}"
+            f" average_pass_rate={trend_summary.average_pass_rate}"
+            f" average_failure_rate={trend_summary.average_failure_rate}"
+            f" trend_status={trend_summary.trend_status}"
+            f" repeated_failure_count={trend_summary.repeated_failure_count}"
+            f" flaky_candidate_count={trend_summary.flaky_candidate_count}"
         )
         return 0
 

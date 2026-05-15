@@ -8,10 +8,12 @@ from typing import Optional
 
 from orchestrator.manual_qa.models import (
     APIExecutionEvidence,
+    APIExecutionHistoryEntry,
     APIExecutionLogEntry,
     APIExecutionRequest,
     APIExecutionResult,
     APIExecutionSummary,
+    APIExecutionTrendSummary,
     APIScriptPackageManifest,
     APIScriptValidationIssue,
     APIScriptValidationResult,
@@ -70,12 +72,16 @@ class ManualQAExporter:
     ) -> str:
         if isinstance(payload, dict) and self._is_api_execution_evidence_report(payload):
             return self._export_api_execution_evidence_report_markdown(payload, title=title)
+        if isinstance(payload, dict) and self._is_api_execution_history_report(payload):
+            return self._export_api_execution_history_report_markdown(payload, title=title)
         if isinstance(payload, list):
             if not payload:
                 return f"# {title or 'Export'}\n"
             first_item = payload[0]
             if isinstance(first_item, APIExecutionEvidence):
                 return self._export_api_execution_evidence_list_markdown(payload, title=title)
+            if isinstance(first_item, APIExecutionHistoryEntry):
+                return self._export_api_execution_history_entry_list_markdown(payload, title=title)
             if isinstance(first_item, BugDraft):
                 return self._export_bug_draft_list_markdown(payload, title=title)
             if isinstance(first_item, FailureSignature):
@@ -123,6 +129,8 @@ class ManualQAExporter:
             return self._export_script_readiness_markdown(payload, title=title)
         if isinstance(payload, APIExecutionEvidence):
             return self._export_api_execution_evidence_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionHistoryEntry):
+            return self._export_api_execution_history_entry_markdown(payload, title=title)
         if isinstance(payload, APIExecutionRequest):
             return self._export_api_execution_request_markdown(payload, title=title)
         if isinstance(payload, APIExecutionLogEntry):
@@ -131,6 +139,8 @@ class ManualQAExporter:
             return self._export_api_execution_result_markdown(payload, title=title)
         if isinstance(payload, APIExecutionSummary):
             return self._export_api_execution_summary_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionTrendSummary):
+            return self._export_api_execution_trend_summary_markdown(payload, title=title)
         if isinstance(payload, APITestScriptDraft):
             return self._export_api_script_draft_markdown(payload, title=title)
         if isinstance(payload, APIScriptValidationIssue):
@@ -181,6 +191,10 @@ class ManualQAExporter:
     def _is_api_execution_evidence_report(self, payload: dict[object, object]) -> bool:
         keys = {str(key) for key in payload.keys()}
         return {"evidence_items", "summary", "bug_suggestions", "failure_signatures"}.issubset(keys)
+
+    def _is_api_execution_history_report(self, payload: dict[object, object]) -> bool:
+        keys = {str(key) for key in payload.keys()}
+        return {"history_entries", "trend_summary", "repeated_failures", "flaky_candidates"}.issubset(keys)
 
     def _export_bundle_markdown(
         self,
@@ -836,6 +850,112 @@ class ManualQAExporter:
         ]
         return "\n".join(lines)
 
+    def _export_api_execution_history_entry_markdown(
+        self,
+        entry: APIExecutionHistoryEntry,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution History Entry - {entry.history_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Warning",
+            "This history entry is metadata-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Entry",
+            f"- History ID: {entry.history_id}",
+            f"- Run Label: {entry.run_label or 'N/A'}",
+            f"- Source File: {entry.source_file or 'N/A'}",
+            f"- Summary ID: {entry.summary_id or 'N/A'}",
+            f"- Status: {entry.status}",
+            f"- Total: {entry.total}",
+            f"- Passed: {entry.passed}",
+            f"- Failed: {entry.failed}",
+            f"- Blocked: {entry.blocked}",
+            f"- Dry Run: {entry.dry_run}",
+            f"- Error: {entry.error}",
+            f"- Not Run: {entry.not_run}",
+            f"- Pass Rate: {entry.pass_rate}",
+            f"- Failure Rate: {entry.failure_rate}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_api_execution_history_entry_list_markdown(
+        self,
+        entries: list[APIExecutionHistoryEntry],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "API Execution History"
+        lines = [f"# {heading}", "", "This history is metadata-only and does not overwrite Manual QA TestResult state.", ""]
+        for entry in entries:
+            lines.extend(
+                [
+                    f"## {entry.history_id}",
+                    f"- Run Label: {entry.run_label or 'N/A'}",
+                    f"- Status: {entry.status}",
+                    f"- Total: {entry.total}",
+                    f"- Passed: {entry.passed}",
+                    f"- Failed: {entry.failed}",
+                    f"- Blocked: {entry.blocked}",
+                    f"- Dry Run: {entry.dry_run}",
+                    f"- Error: {entry.error}",
+                    f"- Pass Rate: {entry.pass_rate}",
+                    f"- Failure Rate: {entry.failure_rate}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_api_execution_trend_summary_markdown(
+        self,
+        summary: APIExecutionTrendSummary,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Trend Summary - {summary.trend_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Warning",
+            "This trend summary is metadata-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Trend",
+            f"- Trend ID: {summary.trend_id}",
+            f"- Trend Status: {summary.trend_status}",
+            f"- Latest Status: {summary.latest_status}",
+            f"- Total Runs: {summary.total_runs}",
+            f"- Total Executions: {summary.total_executions}",
+            f"- Average Pass Rate: {summary.average_pass_rate}",
+            f"- Average Failure Rate: {summary.average_failure_rate}",
+            f"- Repeated Failure Count: {summary.repeated_failure_count}",
+            f"- Flaky Candidate Count: {summary.flaky_candidate_count}",
+            f"- Recommended Next Step: {summary.recommended_next_step or 'N/A'}",
+            "",
+            "## Repeated Failures",
+        ]
+        for key in summary.repeated_failure_keys:
+            lines.append(f"- {key}")
+        if not summary.repeated_failure_keys:
+            lines.append("- None")
+        lines.extend(["", "## Flaky Candidates"])
+        for key in summary.flaky_candidate_keys:
+            lines.append(f"- {key}")
+        if not summary.flaky_candidate_keys:
+            lines.append("- None")
+        lines.extend(["", "## History Entries"])
+        for entry in summary.entries:
+            lines.append(
+                f"- {entry.history_id} [{entry.status}] {entry.run_label or entry.summary_id}: "
+                f"pass_rate={entry.pass_rate}, failure_rate={entry.failure_rate}"
+            )
+        if not summary.entries:
+            lines.append("- None")
+        lines.append("")
+        return "\n".join(lines)
+
     def _export_bug_draft_list_markdown(
         self,
         bugs: list[BugDraft],
@@ -955,6 +1075,63 @@ class ManualQAExporter:
             for signature in failure_signatures:
                 if isinstance(signature, FailureSignature):
                     lines.append(f"- {signature.signature_id}: {signature.fingerprint}")
+        else:
+            lines.append("- None")
+
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_api_execution_history_report_markdown(
+        self,
+        report: dict[str, object],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        trend_summary = report.get("trend_summary")
+        history_entries = report.get("history_entries")
+        repeated_failures = report.get("repeated_failures")
+        flaky_candidates = report.get("flaky_candidates")
+
+        if not isinstance(trend_summary, APIExecutionTrendSummary):
+            return f"# {title or 'API Execution History Report'}\n"
+
+        lines = [
+            f"# {title or 'API Execution History Report'}",
+            "",
+            "This history is metadata-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Trend Summary",
+            f"- Trend Status: {trend_summary.trend_status}",
+            f"- Total Runs: {trend_summary.total_runs}",
+            f"- Total Executions: {trend_summary.total_executions}",
+            f"- Average Pass Rate: {trend_summary.average_pass_rate}",
+            f"- Average Failure Rate: {trend_summary.average_failure_rate}",
+            f"- Latest Status: {trend_summary.latest_status}",
+            f"- Recommended Next Step: {trend_summary.recommended_next_step or 'N/A'}",
+            "",
+            "## Repeated Failures",
+        ]
+        if isinstance(repeated_failures, list) and repeated_failures:
+            for key in repeated_failures:
+                lines.append(f"- {key}")
+        else:
+            lines.append("- None")
+
+        lines.extend(["", "## Flaky Candidates"])
+        if isinstance(flaky_candidates, list) and flaky_candidates:
+            for key in flaky_candidates:
+                lines.append(f"- {key}")
+        else:
+            lines.append("- None")
+
+        lines.extend(["", "## History Entries"])
+        if isinstance(history_entries, list) and history_entries:
+            for entry in history_entries:
+                if isinstance(entry, APIExecutionHistoryEntry):
+                    lines.append(
+                        f"- {entry.history_id} [{entry.status}] {entry.run_label or entry.summary_id}: "
+                        f"total={entry.total}, pass_rate={entry.pass_rate}, failure_rate={entry.failure_rate}"
+                    )
         else:
             lines.append("- None")
 
@@ -2809,6 +2986,107 @@ def export_api_execution_evidence_report_to_markdown_string(
 
 
 def export_api_execution_evidence_report_to_markdown_file(
+    report: dict[str, object],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(report, path, title=title)
+
+
+def export_api_execution_history_entry_to_json_string(entry: APIExecutionHistoryEntry) -> str:
+    return ManualQAExporter().export_json_string(entry)
+
+
+def export_api_execution_history_entry_to_json_file(
+    entry: APIExecutionHistoryEntry,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(entry, path)
+
+
+def export_api_execution_history_entry_to_markdown_string(
+    entry: APIExecutionHistoryEntry,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(entry, title=title)
+
+
+def export_api_execution_history_entry_to_markdown_file(
+    entry: APIExecutionHistoryEntry,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(entry, path, title=title)
+
+
+def export_api_execution_history_entries_to_json_string(entries: list[APIExecutionHistoryEntry]) -> str:
+    return ManualQAExporter().export_json_string(entries)
+
+
+def export_api_execution_history_entries_to_json_file(
+    entries: list[APIExecutionHistoryEntry],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(entries, path)
+
+
+def export_api_execution_history_entries_to_markdown_string(
+    entries: list[APIExecutionHistoryEntry],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(entries, title=title)
+
+
+def export_api_execution_history_entries_to_markdown_file(
+    entries: list[APIExecutionHistoryEntry],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(entries, path, title=title)
+
+
+def export_api_execution_trend_summary_to_json_string(summary: APIExecutionTrendSummary) -> str:
+    return ManualQAExporter().export_json_string(summary)
+
+
+def export_api_execution_trend_summary_to_json_file(
+    summary: APIExecutionTrendSummary,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(summary, path)
+
+
+def export_api_execution_trend_summary_to_markdown_string(
+    summary: APIExecutionTrendSummary,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(summary, title=title)
+
+
+def export_api_execution_trend_summary_to_markdown_file(
+    summary: APIExecutionTrendSummary,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(summary, path, title=title)
+
+
+def export_api_execution_history_report_to_markdown_string(
+    report: dict[str, object],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(report, title=title)
+
+
+def export_api_execution_history_report_to_markdown_file(
     report: dict[str, object],
     path: Path | str,
     *,

@@ -11,6 +11,9 @@ from orchestrator.manual_qa.api_execution_sandbox_service import (
 from orchestrator.manual_qa.api_execution_evidence_service import (
     APIExecutionEvidenceService,
 )
+from orchestrator.manual_qa.api_execution_history_service import (
+    APIExecutionHistoryService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -60,6 +63,7 @@ from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
     get_api_execution_evidence_preview,
+    get_api_execution_history_preview,
     get_api_execution_results_preview,
     get_draft_package_summary_preview,
     get_execution_preflight_preview,
@@ -77,8 +81,10 @@ from orchestrator.manual_qa.ui_helpers import (
     list_web_playwright_validation_files,
     load_automation_candidates,
     load_api_execution_evidence,
+    load_api_execution_history,
     load_api_execution_results,
     load_api_execution_summary,
+    load_api_execution_trend_summary,
     load_bugs,
     load_checklist,
     load_draft_package_summary,
@@ -126,6 +132,7 @@ class ManualQAStreamlitUI:
         self.automation_service = AutomationCandidateService()
         self.api_execution_sandbox_service = APIExecutionSandboxService()
         self.api_execution_evidence_service = APIExecutionEvidenceService()
+        self.api_execution_history_service = APIExecutionHistoryService()
         self.api_script_generator = APITestScriptGenerator()
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
@@ -834,6 +841,35 @@ class ManualQAStreamlitUI:
                 )
             else:
                 st.info("No API execution evidence report found yet.")
+
+            api_execution_trend_summary = load_api_execution_trend_summary(workspace)
+            api_execution_history = load_api_execution_history(workspace)
+            if st.button("Build API execution history report"):
+                report = self.api_execution_history_service.build_api_execution_history_report_from_workspace(workspace)
+                api_execution_trend_summary = report["trend_summary"].to_dict()
+                api_execution_history = [item.to_dict() for item in report["history_entries"]]
+                st.success(
+                    "Built API execution history report "
+                    f"for {api_execution_trend_summary.get('total_runs', 0)} run snapshot(s)."
+                )
+
+            if api_execution_trend_summary or api_execution_history:
+                with st.container(border=True):
+                    st.write(
+                        "API execution history: "
+                        f"{api_execution_trend_summary.get('trend_status', 'No History')} / "
+                        f"{api_execution_trend_summary.get('total_runs', len(api_execution_history))} runs / "
+                        f"{api_execution_trend_summary.get('total_executions', 0)} executions / "
+                        f"{api_execution_trend_summary.get('repeated_failure_count', 0)} repeated failures / "
+                        f"{api_execution_trend_summary.get('flaky_candidate_count', 0)} flaky candidates"
+                    )
+                    st.caption("History is metadata-only. Manual QA run status remains unchanged.")
+                st.expander("API execution history preview").code(
+                    get_api_execution_history_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No API execution history report found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:

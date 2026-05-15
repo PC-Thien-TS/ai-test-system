@@ -11,6 +11,15 @@ from orchestrator.manual_qa.exporters import (
     export_api_execution_evidence_list_to_json_string,
     export_api_execution_evidence_list_to_markdown_file,
     export_api_execution_evidence_list_to_markdown_string,
+    export_api_execution_history_entries_to_json_file,
+    export_api_execution_history_entries_to_json_string,
+    export_api_execution_history_entries_to_markdown_file,
+    export_api_execution_history_entries_to_markdown_string,
+    export_api_execution_history_entry_to_json_file,
+    export_api_execution_history_entry_to_json_string,
+    export_api_execution_history_entry_to_markdown_file,
+    export_api_execution_history_entry_to_markdown_string,
+    export_api_execution_history_report_to_markdown_string,
     export_api_execution_evidence_report_to_markdown_string,
     export_api_execution_evidence_to_json_file,
     export_api_execution_evidence_to_json_string,
@@ -32,6 +41,10 @@ from orchestrator.manual_qa.exporters import (
     export_api_execution_summary_to_json_string,
     export_api_execution_summary_to_markdown_file,
     export_api_execution_summary_to_markdown_string,
+    export_api_execution_trend_summary_to_json_file,
+    export_api_execution_trend_summary_to_json_string,
+    export_api_execution_trend_summary_to_markdown_file,
+    export_api_execution_trend_summary_to_markdown_string,
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
     export_automation_candidate_to_markdown_file,
@@ -160,10 +173,12 @@ from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
     APIExecutionEvidence,
+    APIExecutionHistoryEntry,
     APIExecutionLogEntry,
     APIExecutionRequest,
     APIExecutionResult,
     APIExecutionSummary,
+    APIExecutionTrendSummary,
     ChecklistItem,
     DraftPackageGroupSummary,
     ExecutionPlan,
@@ -1477,6 +1492,56 @@ def _build_api_execution_summary(status: str = "Passed") -> APIExecutionSummary:
     )
 
 
+def _build_api_execution_history_entry(status: str = "Passed") -> APIExecutionHistoryEntry:
+    return APIExecutionHistoryEntry(
+        history_id="API-HIST-001",
+        source_file="reports/api_execution_summary.json",
+        run_label="current",
+        summary_id="API-EXEC-SUM-001",
+        total=2,
+        passed=1 if status == "Passed" else 0,
+        failed=1 if status == "Failed" else 0,
+        blocked=1 if status == "Blocked" else 0,
+        dry_run=2 if status == "All Dry Run" else 0,
+        error=1 if status == "Failed" else 0,
+        not_run=0,
+        pass_rate=50.0 if status == "Passed" else 0.0,
+        failure_rate=50.0 if status == "Failed" else 0.0,
+        status=status,
+        evidence_ids=["API-EVD-001"],
+        bug_suggestion_ids=["BUG-APIEXEC-001"] if status == "Failed" else [],
+        failure_signature_ids=["FSIG-001"] if status == "Failed" else [],
+        created_at="2024-01-21T00:00:00Z",
+        metadata={"sandbox_only": True},
+    )
+
+
+def _build_api_execution_trend_summary(status: str = "Stable") -> APIExecutionTrendSummary:
+    return APIExecutionTrendSummary(
+        trend_id="API-TREND-001",
+        total_runs=2,
+        total_executions=4,
+        total_passed=2,
+        total_failed=1,
+        total_blocked=0,
+        total_dry_run=0,
+        total_error=1,
+        total_not_run=0,
+        average_pass_rate=50.0,
+        average_failure_rate=50.0,
+        latest_status="Failed" if status == "Regressing" else "Passed",
+        trend_status=status,
+        repeated_failure_count=1,
+        flaky_candidate_count=1,
+        repeated_failure_keys=["endpoint:GET /api/orders"],
+        flaky_candidate_keys=["TC-900"],
+        entries=[_build_api_execution_history_entry(status="Failed"), _build_api_execution_history_entry(status="Passed")],
+        recommended_next_step="Review mixed history and failure patterns",
+        metadata={"sandbox_only": True},
+        created_at="2024-01-21T00:05:00Z",
+    )
+
+
 def test_exports_api_execution_request_json_and_markdown(tmp_path):
     request = _build_api_execution_request()
     payload = json.loads(export_api_execution_request_to_json_string(request))
@@ -1611,3 +1676,72 @@ def test_exports_api_execution_evidence_report_markdown():
     assert "Summary Status: Failed" in markdown
     assert "Bug Suggestions" in markdown
     assert "Failure Signatures" in markdown
+
+
+def test_exports_api_execution_history_entry_json_and_markdown(tmp_path):
+    entry = _build_api_execution_history_entry(status="Failed")
+    payload = json.loads(export_api_execution_history_entry_to_json_string(entry))
+    markdown = export_api_execution_history_entry_to_markdown_string(entry)
+
+    assert payload["history_id"] == "API-HIST-001"
+    assert payload["status"] == "Failed"
+    assert "API Execution History Entry" in markdown
+    assert "History ID: API-HIST-001" in markdown
+
+    json_path = tmp_path / "api_execution_history_entry.json"
+    md_path = tmp_path / "api_execution_history_entry.md"
+    export_api_execution_history_entry_to_json_file(entry, json_path)
+    export_api_execution_history_entry_to_markdown_file(entry, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["summary_id"] == "API-EXEC-SUM-001"
+    assert "does not overwrite Manual QA TestResult state" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_trend_summary_json_and_markdown(tmp_path):
+    summary = _build_api_execution_trend_summary(status="Regressing")
+    payload = json.loads(export_api_execution_trend_summary_to_json_string(summary))
+    markdown = export_api_execution_trend_summary_to_markdown_string(summary)
+
+    assert payload["trend_id"] == "API-TREND-001"
+    assert payload["trend_status"] == "Regressing"
+    assert "Trend Status: Regressing" in markdown
+    assert "Repeated Failure Count: 1" in markdown
+
+    json_path = tmp_path / "api_execution_trend_summary.json"
+    md_path = tmp_path / "api_execution_trend_summary.md"
+    export_api_execution_trend_summary_to_json_file(summary, json_path)
+    export_api_execution_trend_summary_to_markdown_file(summary, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["total_runs"] == 2
+    assert "Flaky Candidate Count: 1" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_history_entries_json_and_markdown(tmp_path):
+    entries = [_build_api_execution_history_entry(status="Passed"), _build_api_execution_history_entry(status="Failed")]
+    payload = json.loads(export_api_execution_history_entries_to_json_string(entries))
+    markdown = export_api_execution_history_entries_to_markdown_string(entries)
+
+    assert len(payload) == 2
+    assert "API Execution History" in markdown
+    assert "Run Label: current" in markdown
+
+    json_path = tmp_path / "api_execution_history_entries.json"
+    md_path = tmp_path / "api_execution_history_entries.md"
+    export_api_execution_history_entries_to_json_file(entries, json_path)
+    export_api_execution_history_entries_to_markdown_file(entries, md_path)
+    assert len(json.loads(json_path.read_text(encoding="utf-8"))) == 2
+    assert "metadata-only" in md_path.read_text(encoding="utf-8").lower()
+
+
+def test_exports_api_execution_history_report_markdown():
+    report = {
+        "history_entries": [_build_api_execution_history_entry(status="Failed")],
+        "trend_summary": _build_api_execution_trend_summary(status="Needs Review"),
+        "repeated_failures": ["endpoint:GET /api/orders"],
+        "flaky_candidates": ["TC-900"],
+        "metadata": {"sandbox_only": True},
+    }
+
+    markdown = export_api_execution_history_report_to_markdown_string(report)
+
+    assert "Trend Summary" in markdown
+    assert "Repeated Failures" in markdown
+    assert "Flaky Candidates" in markdown
