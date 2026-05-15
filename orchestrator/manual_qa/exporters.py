@@ -13,6 +13,7 @@ from orchestrator.manual_qa.models import (
     APITestScriptDraft,
     AutomationCandidate,
     BugDraft,
+    DraftPackageGroupSummary,
     Evidence,
     ExportBundle,
     FailureRecord,
@@ -22,6 +23,7 @@ from orchestrator.manual_qa.models import (
     ScriptGenerationReadiness,
     TestRun,
     TestSuite,
+    UnifiedDraftPackageSummary,
     WebPlaywrightGap,
     WebPlaywrightPackageManifest,
     WebPlaywrightReadiness,
@@ -70,6 +72,8 @@ class ManualQAExporter:
                 return self._export_api_script_draft_list_markdown(payload, title=title)
             if isinstance(first_item, APIScriptValidationResult):
                 return self._export_api_script_validation_result_list_markdown(payload, title=title)
+            if isinstance(first_item, DraftPackageGroupSummary):
+                return self._export_draft_package_group_summary_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightReadiness):
                 return self._export_web_playwright_readiness_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightScriptDraft):
@@ -103,6 +107,10 @@ class ManualQAExporter:
             return self._export_api_script_validation_result_markdown(payload, title=title)
         if isinstance(payload, APIScriptPackageManifest):
             return self._export_api_script_package_manifest_markdown(payload, title=title)
+        if isinstance(payload, DraftPackageGroupSummary):
+            return self._export_draft_package_group_summary_markdown(payload, title=title)
+        if isinstance(payload, UnifiedDraftPackageSummary):
+            return self._export_unified_draft_package_summary_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightGap):
             return self._export_web_playwright_gap_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightReadiness):
@@ -991,6 +999,135 @@ class ManualQAExporter:
         lines.append("")
         return "\n".join(lines)
 
+    def _export_draft_package_group_summary_markdown(
+        self,
+        group: DraftPackageGroupSummary,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Draft Package Group Summary - {group.group_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Group",
+            f"- Group ID: {group.group_id}",
+            f"- Group Type: {group.group_type}",
+            f"- Status: {group.status}",
+            f"- Missing: {group.missing}",
+            f"- Manifest Path: {group.manifest_path}",
+            f"- Validation Path: {group.validation_path}",
+            f"- Draft Count: {group.draft_count}",
+            f"- Valid Count: {group.valid_count}",
+            f"- Invalid Count: {group.invalid_count}",
+            f"- Warning Count: {group.warning_count}",
+            f"- Ready for Review Count: {group.ready_for_review_count}",
+            f"- Needs Attention Count: {group.needs_attention_count}",
+            f"- Invalid Item Count: {group.invalid_item_count}",
+            "",
+            "## Notes",
+        ]
+        for note in group.notes or ["None"]:
+            lines.append(f"- {note}")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_draft_package_group_summary_list_markdown(
+        self,
+        groups: list[DraftPackageGroupSummary],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Draft Package Group Summaries"
+        lines = [f"# {heading}", ""]
+        for group in groups:
+            lines.extend(
+                [
+                    f"## {group.group_type}",
+                    f"- Status: {group.status}",
+                    f"- Draft Count: {group.draft_count}",
+                    f"- Valid Count: {group.valid_count}",
+                    f"- Invalid Count: {group.invalid_count}",
+                    f"- Warning Count: {group.warning_count}",
+                    f"- Missing: {group.missing}",
+                    f"- Notes: {', '.join(group.notes) if group.notes else 'None'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_unified_draft_package_summary_markdown(
+        self,
+        summary: UnifiedDraftPackageSummary,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Unified Draft Package Summary"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Overview",
+            f"- Summary ID: {summary.summary_id}",
+            f"- Workspace Path: {summary.workspace_path}",
+            f"- Overall Status: {summary.overall_status}",
+            f"- Recommended Next Step: {summary.recommended_next_step}",
+            f"- Total Drafts: {summary.total_drafts}",
+            f"- Total Valid: {summary.total_valid}",
+            f"- Total Invalid: {summary.total_invalid}",
+            f"- Total Warnings: {summary.total_warnings}",
+            f"- Ready Groups: {summary.ready_groups}",
+            f"- Needs Attention Groups: {summary.needs_attention_groups}",
+            f"- Invalid Groups: {summary.invalid_groups}",
+            f"- Missing Groups: {summary.missing_groups}",
+            "",
+        ]
+
+        group_by_type = {group.group_type: group for group in summary.groups}
+        for section_title, group_key in (
+            ("API Group Summary", "api"),
+            ("Web Playwright Group Summary", "web_playwright"),
+        ):
+            group = group_by_type.get(group_key)
+            lines.append(f"## {section_title}")
+            if group is None:
+                lines.extend(["- Status: Missing", "- Notes: Group was not summarized.", ""])
+                continue
+            lines.extend(
+                [
+                    f"- Status: {group.status}",
+                    f"- Manifest Path: {group.manifest_path}",
+                    f"- Validation Path: {group.validation_path}",
+                    f"- Draft Count: {group.draft_count}",
+                    f"- Valid Count: {group.valid_count}",
+                    f"- Invalid Count: {group.invalid_count}",
+                    f"- Warning Count: {group.warning_count}",
+                    f"- Ready for Review Count: {group.ready_for_review_count}",
+                    f"- Needs Attention Count: {group.needs_attention_count}",
+                    f"- Invalid Item Count: {group.invalid_item_count}",
+                    f"- Missing: {group.missing}",
+                ]
+            )
+            lines.append("- Notes:")
+            for note in group.notes or ["None"]:
+                lines.append(f"  - {note}")
+            lines.append("")
+
+        missing_group_names = [group.group_type for group in summary.groups if group.missing]
+        lines.append("## Missing Groups")
+        for group_name in missing_group_names or ["None"]:
+            lines.append(f"- {group_name}")
+        lines.append("")
+
+        all_notes = [
+            f"{group.group_type}: {note}"
+            for group in summary.groups
+            for note in group.notes
+        ]
+        lines.append("## Notes")
+        for note in all_notes or ["None"]:
+            lines.append(f"- {note}")
+        lines.append("")
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
         payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
@@ -1768,3 +1905,61 @@ def export_web_playwright_package_manifest_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(manifest, path, title=title)
+
+
+def export_draft_package_group_summary_to_json_string(group: DraftPackageGroupSummary) -> str:
+    return ManualQAExporter().export_json_string(group)
+
+
+def export_draft_package_group_summary_to_json_file(
+    group: DraftPackageGroupSummary,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(group, path)
+
+
+def export_draft_package_group_summary_to_markdown_string(
+    group: DraftPackageGroupSummary,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(group, title=title)
+
+
+def export_draft_package_group_summary_to_markdown_file(
+    group: DraftPackageGroupSummary,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(group, path, title=title)
+
+
+def export_unified_draft_package_summary_to_json_string(
+    summary: UnifiedDraftPackageSummary,
+) -> str:
+    return ManualQAExporter().export_json_string(summary)
+
+
+def export_unified_draft_package_summary_to_json_file(
+    summary: UnifiedDraftPackageSummary,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(summary, path)
+
+
+def export_unified_draft_package_summary_to_markdown_string(
+    summary: UnifiedDraftPackageSummary,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(summary, title=title)
+
+
+def export_unified_draft_package_summary_to_markdown_file(
+    summary: UnifiedDraftPackageSummary,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(summary, path, title=title)

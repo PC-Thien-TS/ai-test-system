@@ -10,6 +10,7 @@ from orchestrator.manual_qa.script_readiness_service import ScriptReadinessServi
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
+    get_draft_package_summary_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -17,6 +18,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_api_validation_files,
     list_web_playwright_draft_files,
     list_web_playwright_validation_files,
+    load_draft_package_summary,
     list_report_files,
     load_api_script_drafts,
     load_api_script_package_manifest,
@@ -306,6 +308,38 @@ def test_load_web_playwright_validation_and_package_manifest_artifacts(tmp_path)
     assert manifest["package_id"] == "WPPKG-001"
     assert "script_drafts/web_playwright/web_playwright_validation.json" in files
     assert "script_drafts/web_playwright/web_playwright_package_manifest.md" in files
+
+
+def test_load_draft_package_summary_handles_missing_summary(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    assert load_draft_package_summary(workspace) == {}
+
+
+def test_load_draft_package_summary_loads_existing_summary(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+    summary_path = workspace / "reports" / "draft_package_summary.json"
+    summary_path.write_text(
+        '{"summary_id":"DRAFT-SUM-001","workspace_path":"demo","total_groups":2,"total_drafts":1,'
+        '"total_valid":1,"total_invalid":0,"total_warnings":0,"ready_groups":1,'
+        '"needs_attention_groups":1,"invalid_groups":0,"missing_groups":1,"groups":[],'
+        '"overall_status":"Needs Attention","recommended_next_step":"Resolve warnings and TODOs before execution planning",'
+        '"created_at":"2024-01-15T00:00:00Z","metadata":{}}',
+        encoding="utf-8",
+    )
+
+    loaded = load_draft_package_summary(workspace)
+
+    assert loaded["summary_id"] == "DRAFT-SUM-001"
+    assert loaded["overall_status"] == "Needs Attention"
+
+
+def test_get_draft_package_summary_preview_returns_friendly_empty_state(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    preview = get_draft_package_summary_preview(workspace)
+
+    assert "no draft package summary generated yet" in preview.lower()
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

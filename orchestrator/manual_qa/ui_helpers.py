@@ -139,6 +139,30 @@ def get_artifact_preview(path: str | Path, max_chars: int = 4000) -> str:
     return preview
 
 
+def get_draft_package_summary_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "reports" / "draft_package_summary.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    summary = load_draft_package_summary(workspace)
+    if not summary:
+        return "No draft package summary generated yet."
+
+    lines = [
+        "# Unified Draft Package Summary",
+        "",
+        f"- Overall Status: {summary.get('overall_status', 'Missing')}",
+        f"- Recommended Next Step: {summary.get('recommended_next_step', '') or 'N/A'}",
+        f"- Total Drafts: {summary.get('total_drafts', 0)}",
+        f"- Total Valid: {summary.get('total_valid', 0)}",
+        f"- Total Invalid: {summary.get('total_invalid', 0)}",
+        f"- Total Warnings: {summary.get('total_warnings', 0)}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -274,6 +298,10 @@ def load_web_playwright_package_manifest(workspace_path: str | Path | None) -> d
         / "web_playwright"
         / "web_playwright_package_manifest.json"
     )
+
+
+def load_draft_package_summary(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "draft_package_summary.json")
 
 
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:

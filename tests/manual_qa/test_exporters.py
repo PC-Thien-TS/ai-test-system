@@ -44,6 +44,10 @@ from orchestrator.manual_qa.exporters import (
     export_bundle_to_json_string,
     export_bundle_to_markdown_file,
     export_bundle_to_markdown_string,
+    export_draft_package_group_summary_to_json_file,
+    export_draft_package_group_summary_to_json_string,
+    export_draft_package_group_summary_to_markdown_file,
+    export_draft_package_group_summary_to_markdown_string,
     export_evidence_to_json_file,
     export_evidence_to_json_string,
     export_evidence_to_markdown_file,
@@ -80,6 +84,10 @@ from orchestrator.manual_qa.exporters import (
     export_summary_to_json_string,
     export_summary_to_markdown_file,
     export_summary_to_markdown_string,
+    export_unified_draft_package_summary_to_json_file,
+    export_unified_draft_package_summary_to_json_string,
+    export_unified_draft_package_summary_to_markdown_file,
+    export_unified_draft_package_summary_to_markdown_string,
     export_web_playwright_readiness_list_to_json_file,
     export_web_playwright_readiness_list_to_json_string,
     export_web_playwright_readiness_list_to_markdown_file,
@@ -115,10 +123,12 @@ from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
     ChecklistItem,
+    DraftPackageGroupSummary,
     ExportBundle,
     ManualTestCase,
     NormalizedRequirement,
     ProjectProfile,
+    UnifiedDraftPackageSummary,
 )
 from orchestrator.manual_qa.result_service import TestResultService
 from orchestrator.manual_qa.run_service import TestRunService
@@ -1069,3 +1079,117 @@ def test_writes_web_playwright_validation_result_and_package_markdown_files(tmp_
     assert "WPVAL-001" in result_path.read_text(encoding="utf-8")
     assert "WPVAL-002" in results_path.read_text(encoding="utf-8")
     assert "WPPKG-001" in manifest_path.read_text(encoding="utf-8")
+
+
+def _build_draft_package_group_summary() -> DraftPackageGroupSummary:
+    return DraftPackageGroupSummary(
+        group_id="DRAFT-GROUP-API",
+        group_type="api",
+        manifest_path="script_drafts/api/api_script_package_manifest.json",
+        validation_path="script_drafts/api/api_script_validation.json",
+        status="Needs Attention",
+        draft_count=2,
+        valid_count=2,
+        invalid_count=0,
+        warning_count=1,
+        ready_for_review_count=1,
+        needs_attention_count=1,
+        invalid_item_count=0,
+        missing=False,
+        notes=["Validation metadata includes 1 warning issue(s)."],
+        metadata={"package_id": "APIPKG-001"},
+        created_at="2024-01-15T00:00:00Z",
+    )
+
+
+def _build_unified_draft_package_summary() -> UnifiedDraftPackageSummary:
+    api_group = _build_draft_package_group_summary()
+    web_group = DraftPackageGroupSummary(
+        group_id="DRAFT-GROUP-WEB-PLAYWRIGHT",
+        group_type="web_playwright",
+        manifest_path="script_drafts/web_playwright/web_playwright_package_manifest.json",
+        validation_path="script_drafts/web_playwright/web_playwright_validation.json",
+        status="Missing",
+        draft_count=0,
+        valid_count=0,
+        invalid_count=0,
+        warning_count=0,
+        ready_for_review_count=0,
+        needs_attention_count=0,
+        invalid_item_count=0,
+        missing=True,
+        notes=["Draft package manifest is missing."],
+        metadata={"manifest_exists": False},
+        created_at="2024-01-15T00:01:00Z",
+    )
+    return UnifiedDraftPackageSummary(
+        summary_id="DRAFT-SUM-001",
+        workspace_path="artifacts/manual_qa_demo",
+        total_groups=2,
+        total_drafts=2,
+        total_valid=2,
+        total_invalid=0,
+        total_warnings=1,
+        ready_groups=0,
+        needs_attention_groups=1,
+        invalid_groups=0,
+        missing_groups=1,
+        groups=[api_group, web_group],
+        overall_status="Needs Attention",
+        recommended_next_step="Resolve warnings and TODOs before execution planning",
+        created_at="2024-01-15T00:02:00Z",
+        metadata={"available_group_types": ["api"]},
+    )
+
+
+def test_exports_draft_package_group_summary_json(tmp_path):
+    group = _build_draft_package_group_summary()
+    payload = json.loads(export_draft_package_group_summary_to_json_string(group))
+
+    assert payload["group_id"] == "DRAFT-GROUP-API"
+    assert payload["status"] == "Needs Attention"
+
+    output_path = tmp_path / "draft_group_summary.json"
+    export_draft_package_group_summary_to_json_file(group, output_path)
+    assert json.loads(output_path.read_text(encoding="utf-8"))["warning_count"] == 1
+
+
+def test_exports_draft_package_group_summary_markdown(tmp_path):
+    group = _build_draft_package_group_summary()
+    markdown = export_draft_package_group_summary_to_markdown_string(group)
+
+    assert "DRAFT-GROUP-API" in markdown
+    assert "Needs Attention" in markdown
+    assert "Warning Count: 1" in markdown
+
+    output_path = tmp_path / "draft_group_summary.md"
+    export_draft_package_group_summary_to_markdown_file(group, output_path)
+    assert "Manifest Path" in output_path.read_text(encoding="utf-8")
+
+
+def test_exports_unified_draft_package_summary_json(tmp_path):
+    summary = _build_unified_draft_package_summary()
+    payload = json.loads(export_unified_draft_package_summary_to_json_string(summary))
+
+    assert payload["summary_id"] == "DRAFT-SUM-001"
+    assert payload["overall_status"] == "Needs Attention"
+    assert payload["groups"][1]["group_type"] == "web_playwright"
+
+    output_path = tmp_path / "draft_package_summary.json"
+    export_unified_draft_package_summary_to_json_file(summary, output_path)
+    assert json.loads(output_path.read_text(encoding="utf-8"))["missing_groups"] == 1
+
+
+def test_exports_unified_draft_package_summary_markdown(tmp_path):
+    summary = _build_unified_draft_package_summary()
+    markdown = export_unified_draft_package_summary_to_markdown_string(summary)
+
+    assert "Overall Status: Needs Attention" in markdown
+    assert "Recommended Next Step: Resolve warnings and TODOs before execution planning" in markdown
+    assert "API Group Summary" in markdown
+    assert "Web Playwright Group Summary" in markdown
+    assert "Missing Groups" in markdown
+
+    output_path = tmp_path / "draft_package_summary.md"
+    export_unified_draft_package_summary_to_markdown_file(summary, output_path)
+    assert "Total Drafts: 2" in output_path.read_text(encoding="utf-8")

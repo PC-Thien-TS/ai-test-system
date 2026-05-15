@@ -130,6 +130,108 @@ def _write_web_ui_testcases(workspace: Path) -> None:
     )
 
 
+def _write_api_package_manifest(workspace: Path, *, status: str = "Ready for Review") -> None:
+    draft_dir = workspace / "script_drafts" / "api"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "api_script_package_manifest.json").write_text(
+        json.dumps(
+            {
+                "package_id": "APIPKG-001",
+                "package_name": "api-script-drafts",
+                "draft_count": 1,
+                "valid_count": 1,
+                "invalid_count": 0,
+                "warning_count": 0,
+                "draft_files": ["test_api_tc_001.py"],
+                "validation_report_files": ["script_drafts/api/api_script_validation.json"],
+                "generated_at": "2024-01-10T00:00:00Z",
+                "status": status,
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_validation.json").write_text(
+        json.dumps(
+            [
+                {
+                    "validation_id": "APIVAL-001",
+                    "draft_id": "API-DRAFT-001",
+                    "test_case_id": "TC-900",
+                    "file_name": "test_api_tc_001.py",
+                    "is_valid": True,
+                    "syntax_valid": True,
+                    "has_draft_warning": True,
+                    "has_no_execution_marker": True,
+                    "has_status_assertion": True,
+                    "has_todo_endpoint": False,
+                    "has_todo_payload": False,
+                    "issues": [],
+                    "metadata": {},
+                    "created_at": "2024-01-09T00:00:00Z",
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_web_package_manifest(workspace: Path, *, status: str = "Ready for Review") -> None:
+    draft_dir = workspace / "script_drafts" / "web_playwright"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    (draft_dir / "web_playwright_package_manifest.json").write_text(
+        json.dumps(
+            {
+                "package_id": "WPPKG-001",
+                "package_name": "web-playwright-script-drafts",
+                "draft_count": 1,
+                "valid_count": 1,
+                "invalid_count": 0,
+                "warning_count": 0,
+                "draft_files": ["test_web_tc_001.py"],
+                "validation_report_files": ["script_drafts/web_playwright/web_playwright_validation.json"],
+                "generated_at": "2024-01-14T00:00:00Z",
+                "status": status,
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (draft_dir / "web_playwright_validation.json").write_text(
+        json.dumps(
+            [
+                {
+                    "validation_id": "WPVAL-001",
+                    "draft_id": "WEB-DRAFT-001",
+                    "test_case_id": "TC-901",
+                    "file_name": "test_web_tc_001.py",
+                    "is_valid": True,
+                    "syntax_valid": True,
+                    "has_draft_warning": True,
+                    "has_no_execution_marker": True,
+                    "has_playwright_import": True,
+                    "has_test_function": True,
+                    "has_page_goto": True,
+                    "has_locator_or_todo": True,
+                    "has_action_or_todo": True,
+                    "has_assertion_or_todo": True,
+                    "has_todo_page_url": False,
+                    "has_todo_selector": False,
+                    "has_todo_assertion": False,
+                    "issues": [],
+                    "metadata": {},
+                    "created_at": "2024-01-13T00:00:00Z",
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -613,6 +715,75 @@ def test_validate_web_playwright_drafts_handles_missing_drafts_file_clearly(tmp_
     exit_code = main(["validate-web-playwright-drafts", "--workspace", str(workspace)])
 
     assert exit_code == 1
+
+
+def test_draft_package_summary_writes_reports(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_package_manifest(workspace)
+    _write_web_package_manifest(workspace)
+
+    exit_code = main(["draft-package-summary", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "draft_package_summary.json").exists()
+    assert (workspace / "reports" / "draft_package_summary.md").exists()
+    assert "Draft package summary:" in captured.out
+    assert "overall_status=Ready for Review" in captured.out
+
+
+def test_draft_package_summary_handles_missing_manifests_with_missing_status(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["draft-package-summary", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "draft_package_summary.json").exists()
+    assert (workspace / "reports" / "draft_package_summary.md").exists()
+    payload = json.loads((workspace / "reports" / "draft_package_summary.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "Missing"
+    assert "Generate and validate draft packages first" in captured.out
+
+
+def test_draft_package_summary_prints_concise_summary(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_package_manifest(workspace)
+
+    exit_code = main(["draft-package-summary", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "overall_status=Needs Attention" in captured.out
+    assert "total_drafts=1" in captured.out
+    assert "total_valid=1" in captured.out
+    assert "total_invalid=0" in captured.out
+    assert "total_warnings=0" in captured.out
+    assert "recommended_next_step=Resolve warnings and TODOs before execution planning" in captured.out
+
+
+def test_draft_package_summary_does_not_execute_drafts(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_package_manifest(workspace)
+    api_script_path = workspace / "script_drafts" / "api" / "test_api_tc_001.py"
+    api_script_path.write_text("raise RuntimeError('should never be executed')", encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def _guarded_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".py":
+            raise AssertionError("Draft script files must not be read by the summary command.")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _guarded_read_text)
+
+    exit_code = main(["draft-package-summary", "--workspace", str(workspace)])
+
+    assert exit_code == 0
 
 
 def test_invalid_missing_file_returns_non_zero(tmp_path):

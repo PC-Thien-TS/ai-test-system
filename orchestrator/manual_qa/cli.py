@@ -14,6 +14,9 @@ from orchestrator.manual_qa.automation_candidate_service import AutomationCandid
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
 from orchestrator.manual_qa.demo_service import DemoWorkflowService
+from orchestrator.manual_qa.draft_package_dashboard_service import (
+    UnifiedDraftPackageDashboardService,
+)
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
@@ -81,6 +84,7 @@ class ManualQACLI:
         self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.web_playwright_validation_service = WebPlaywrightValidationService()
         self.web_playwright_packaging_service = WebPlaywrightPackagingService()
+        self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -200,6 +204,10 @@ class ManualQACLI:
         summary_parser = subparsers.add_parser("workspace-summary")
         summary_parser.add_argument("--workspace", required=True)
         summary_parser.set_defaults(handler=self._handle_workspace_summary)
+
+        draft_package_summary_parser = subparsers.add_parser("draft-package-summary")
+        draft_package_summary_parser.add_argument("--workspace", required=True)
+        draft_package_summary_parser.set_defaults(handler=self._handle_draft_package_summary)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -614,6 +622,27 @@ class ManualQACLI:
         self.workspace_service.write_markdown(md_path, self._render_workspace_summary(summary))
         self.workspace_service.update_workspace_manifest(workspace)
         print(f"Workspace summary written to {json_path}")
+        return 0
+
+    def _handle_draft_package_summary(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        summary = self.draft_package_dashboard_service.summarize_draft_packages(workspace)
+        json_path = workspace / "reports" / "draft_package_summary.json"
+        md_path = workspace / "reports" / "draft_package_summary.md"
+        self.exporter.export_json_file(summary, json_path)
+        self.exporter.export_markdown_file(summary, md_path)
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "Draft package summary:"
+            f" overall_status={summary.overall_status}"
+            f" total_drafts={summary.total_drafts}"
+            f" total_valid={summary.total_valid}"
+            f" total_invalid={summary.total_invalid}"
+            f" total_warnings={summary.total_warnings}"
+            f" recommended_next_step={summary.recommended_next_step}"
+        )
+        if summary.overall_status == "Missing":
+            print("No API or Web draft package manifests were found. Generate and validate draft packages first.")
         return 0
 
     def _handle_demo_workflow(self, args: argparse.Namespace) -> int:

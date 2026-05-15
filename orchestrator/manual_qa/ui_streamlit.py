@@ -12,6 +12,9 @@ from orchestrator.manual_qa.automation_candidate_service import AutomationCandid
 from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.checklist_generator import ChecklistGenerator
 from orchestrator.manual_qa.demo_service import DemoWorkflowService
+from orchestrator.manual_qa.draft_package_dashboard_service import (
+    UnifiedDraftPackageDashboardService,
+)
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
@@ -44,6 +47,7 @@ from orchestrator.manual_qa.web_playwright_validation_service import WebPlaywrig
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
+    get_draft_package_summary_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -59,6 +63,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_automation_candidates,
     load_bugs,
     load_checklist,
+    load_draft_package_summary,
     load_failure_memory_records,
     load_api_script_drafts,
     load_api_script_package_manifest,
@@ -103,6 +108,7 @@ class ManualQAStreamlitUI:
         self.api_script_generator = APITestScriptGenerator()
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
+        self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.web_playwright_validation_service = WebPlaywrightValidationService()
@@ -634,6 +640,55 @@ class ManualQAStreamlitUI:
                 )
                 self.workspace_service.update_workspace_manifest(workspace)
                 st.success("Workspace summary report written.")
+
+            draft_package_summary = load_draft_package_summary(workspace)
+            if st.button("Generate draft package summary"):
+                draft_summary_model = self.draft_package_dashboard_service.summarize_draft_packages(workspace)
+                self.exporter.export_json_file(
+                    draft_summary_model,
+                    workspace / "reports" / "draft_package_summary.json",
+                )
+                self.exporter.export_markdown_file(
+                    draft_summary_model,
+                    workspace / "reports" / "draft_package_summary.md",
+                )
+                self.workspace_service.update_workspace_manifest(workspace)
+                draft_package_summary = draft_summary_model.to_dict()
+                st.success(f"Draft package summary status: {draft_summary_model.overall_status}")
+
+            if draft_package_summary:
+                group_by_type = {
+                    str(item.get("group_type", "")): item
+                    for item in draft_package_summary.get("groups", [])
+                    if isinstance(item, dict)
+                }
+                api_group = group_by_type.get("api", {})
+                web_group = group_by_type.get("web_playwright", {})
+                with st.container(border=True):
+                    st.write(
+                        "Unified draft package status: "
+                        f"`{draft_package_summary.get('overall_status', 'Missing')}`"
+                    )
+                    st.write(
+                        "API group: "
+                        f"`{api_group.get('status', 'Missing')}` | "
+                        "Web Playwright group: "
+                        f"`{web_group.get('status', 'Missing')}`"
+                    )
+                    st.write(
+                        "Draft totals: "
+                        f"{draft_package_summary.get('total_drafts', 0)} drafts / "
+                        f"{draft_package_summary.get('total_valid', 0)} valid / "
+                        f"{draft_package_summary.get('total_invalid', 0)} invalid / "
+                        f"{draft_package_summary.get('total_warnings', 0)} warnings"
+                    )
+                    st.caption(draft_package_summary.get("recommended_next_step", ""))
+                st.expander("Draft package summary preview").code(
+                    get_draft_package_summary_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No unified draft package summary found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:

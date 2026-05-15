@@ -650,6 +650,56 @@ class WebPlaywrightPackageManifest:
         return asdict(self)
 
 
+@dataclass
+class DraftPackageGroupSummary:
+    """Deterministic summary for one offline draft package group."""
+
+    group_id: str
+    group_type: str
+    manifest_path: str
+    validation_path: str
+    status: str
+    draft_count: int = 0
+    valid_count: int = 0
+    invalid_count: int = 0
+    warning_count: int = 0
+    ready_for_review_count: int = 0
+    needs_attention_count: int = 0
+    invalid_item_count: int = 0
+    missing: bool = False
+    notes: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class UnifiedDraftPackageSummary:
+    """Deterministic offline dashboard summary over API and Web draft packages."""
+
+    summary_id: str
+    workspace_path: str
+    total_groups: int
+    total_drafts: int
+    total_valid: int
+    total_invalid: int
+    total_warnings: int
+    ready_groups: int
+    needs_attention_groups: int
+    invalid_groups: int
+    missing_groups: int
+    groups: List[DraftPackageGroupSummary] = field(default_factory=list)
+    overall_status: str = "Missing"
+    recommended_next_step: str = ""
+    created_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 
