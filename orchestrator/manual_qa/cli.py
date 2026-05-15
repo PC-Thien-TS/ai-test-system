@@ -18,6 +18,12 @@ from orchestrator.manual_qa.draft_package_dashboard_service import (
     UnifiedDraftPackageDashboardService,
 )
 from orchestrator.manual_qa.evidence_service import EvidenceService
+from orchestrator.manual_qa.execution_preflight_service import (
+    ExecutionPreflightService,
+)
+from orchestrator.manual_qa.execution_safety_service import (
+    ExecutionSafetyService,
+)
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
@@ -85,6 +91,8 @@ class ManualQACLI:
         self.web_playwright_validation_service = WebPlaywrightValidationService()
         self.web_playwright_packaging_service = WebPlaywrightPackagingService()
         self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
+        self.execution_safety_service = ExecutionSafetyService()
+        self.execution_preflight_service = ExecutionPreflightService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -208,6 +216,13 @@ class ManualQACLI:
         draft_package_summary_parser = subparsers.add_parser("draft-package-summary")
         draft_package_summary_parser.add_argument("--workspace", required=True)
         draft_package_summary_parser.set_defaults(handler=self._handle_draft_package_summary)
+
+        execution_preflight_parser = subparsers.add_parser("execution-preflight")
+        execution_preflight_parser.add_argument("--workspace", required=True)
+        execution_preflight_parser.add_argument("--policy", choices=["default", "strict"], default="default")
+        execution_preflight_parser.add_argument("--allow-localhost-only", action="store_true")
+        execution_preflight_parser.add_argument("--dry-run-only", action="store_true")
+        execution_preflight_parser.set_defaults(handler=self._handle_execution_preflight)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -643,6 +658,42 @@ class ManualQACLI:
         )
         if summary.overall_status == "Missing":
             print("No API or Web draft package manifests were found. Generate and validate draft packages first.")
+        return 0
+
+    def _handle_execution_preflight(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        if args.policy == "strict":
+            policy = self.execution_safety_service.create_strict_execution_safety_policy(
+                dry_run_only=bool(args.dry_run_only or True),
+                metadata={"allow_localhost_only": True},
+            )
+        else:
+            policy = self.execution_safety_service.create_default_execution_safety_policy(
+                allow_localhost_only=bool(args.allow_localhost_only),
+                dry_run_only=bool(args.dry_run_only or True),
+            )
+
+        plan = self.execution_preflight_service.build_execution_plan_from_workspace(
+            workspace,
+            policy=policy,
+        )
+        json_path = workspace / "reports" / "execution_preflight_plan.json"
+        md_path = workspace / "reports" / "execution_preflight_plan.md"
+        self.exporter.export_json_file(plan, json_path)
+        self.exporter.export_markdown_file(plan, md_path)
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "Execution preflight:"
+            f" overall_decision={plan.overall_decision}"
+            f" total_targets={plan.total_targets}"
+            f" allowed_count={plan.allowed_count}"
+            f" blocked_count={plan.blocked_count}"
+            f" needs_approval_count={plan.needs_approval_count}"
+            f" dry_run_only={plan.dry_run_only}"
+            f" recommended_next_step={plan.recommended_next_step}"
+        )
+        if plan.overall_decision == "Missing Draft Packages":
+            print("No draft packages were found. Generate and validate API/Web draft packages first.")
         return 0
 
     def _handle_demo_workflow(self, args: argparse.Namespace) -> int:

@@ -11,6 +11,7 @@ from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
     get_draft_package_summary_preview,
+    get_execution_preflight_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -19,6 +20,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_web_playwright_draft_files,
     list_web_playwright_validation_files,
     load_draft_package_summary,
+    load_execution_preflight_plan,
     list_report_files,
     load_api_script_drafts,
     load_api_script_package_manifest,
@@ -340,6 +342,20 @@ def test_get_draft_package_summary_preview_returns_friendly_empty_state(tmp_path
     preview = get_draft_package_summary_preview(workspace)
 
     assert "no draft package summary generated yet" in preview.lower()
+
+
+def test_load_execution_preflight_plan_handles_missing_file(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    assert load_execution_preflight_plan(workspace) == {}
+
+
+def test_get_execution_preflight_preview_returns_friendly_state(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    preview = get_execution_preflight_preview(workspace)
+
+    assert "no execution preflight plan generated yet" in preview.lower()
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

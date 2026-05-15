@@ -163,6 +163,31 @@ def get_draft_package_summary_preview(workspace_path: str | Path | None) -> str:
     return "\n".join(lines)
 
 
+def get_execution_preflight_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "reports" / "execution_preflight_plan.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    plan = load_execution_preflight_plan(workspace)
+    if not plan:
+        return "No execution preflight plan generated yet."
+
+    lines = [
+        "# Execution Preflight Plan",
+        "",
+        f"- Overall Decision: {plan.get('overall_decision', 'Missing Draft Packages')}",
+        f"- Recommended Next Step: {plan.get('recommended_next_step', '') or 'N/A'}",
+        f"- Total Targets: {plan.get('total_targets', 0)}",
+        f"- Allowed Count: {plan.get('allowed_count', 0)}",
+        f"- Blocked Count: {plan.get('blocked_count', 0)}",
+        f"- Needs Approval Count: {plan.get('needs_approval_count', 0)}",
+        f"- Dry Run Only: {plan.get('dry_run_only', True)}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -302,6 +327,10 @@ def load_web_playwright_package_manifest(workspace_path: str | Path | None) -> d
 
 def load_draft_package_summary(workspace_path: str | Path | None) -> dict[str, Any]:
     return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "draft_package_summary.json")
+
+
+def load_execution_preflight_plan(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "execution_preflight_plan.json")
 
 
 def load_project(workspace_path: str | Path | None) -> dict[str, Any]:

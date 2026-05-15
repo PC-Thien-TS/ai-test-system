@@ -15,6 +15,11 @@ from orchestrator.manual_qa.models import (
     BugDraft,
     DraftPackageGroupSummary,
     Evidence,
+    ExecutionPlan,
+    ExecutionPreflightIssue,
+    ExecutionPreflightResult,
+    ExecutionSafetyPolicy,
+    ExecutionTarget,
     ExportBundle,
     FailureRecord,
     FailureSignature,
@@ -74,6 +79,10 @@ class ManualQAExporter:
                 return self._export_api_script_validation_result_list_markdown(payload, title=title)
             if isinstance(first_item, DraftPackageGroupSummary):
                 return self._export_draft_package_group_summary_list_markdown(payload, title=title)
+            if isinstance(first_item, ExecutionTarget):
+                return self._export_execution_target_list_markdown(payload, title=title)
+            if isinstance(first_item, ExecutionPreflightResult):
+                return self._export_execution_preflight_result_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightReadiness):
                 return self._export_web_playwright_readiness_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightScriptDraft):
@@ -111,6 +120,16 @@ class ManualQAExporter:
             return self._export_draft_package_group_summary_markdown(payload, title=title)
         if isinstance(payload, UnifiedDraftPackageSummary):
             return self._export_unified_draft_package_summary_markdown(payload, title=title)
+        if isinstance(payload, ExecutionSafetyPolicy):
+            return self._export_execution_safety_policy_markdown(payload, title=title)
+        if isinstance(payload, ExecutionTarget):
+            return self._export_execution_target_markdown(payload, title=title)
+        if isinstance(payload, ExecutionPreflightIssue):
+            return self._export_execution_preflight_issue_markdown(payload, title=title)
+        if isinstance(payload, ExecutionPreflightResult):
+            return self._export_execution_preflight_result_markdown(payload, title=title)
+        if isinstance(payload, ExecutionPlan):
+            return self._export_execution_plan_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightGap):
             return self._export_web_playwright_gap_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightReadiness):
@@ -1128,6 +1147,229 @@ class ManualQAExporter:
         lines.append("")
         return "\n".join(lines)
 
+    def _export_execution_safety_policy_markdown(
+        self,
+        policy: ExecutionSafetyPolicy,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Execution Safety Policy - {policy.name}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Policy Summary",
+            f"- Policy ID: {policy.policy_id}",
+            f"- Name: {policy.name}",
+            f"- Allow Execution: {policy.allow_execution}",
+            f"- Dry Run Only: {policy.dry_run_only}",
+            f"- Require Human Approval: {policy.require_human_approval}",
+            f"- Require Valid Package: {policy.require_valid_package}",
+            f"- Require No Critical TODOs: {policy.require_no_critical_todos}",
+            f"- Allow Write Methods: {policy.allow_write_methods}",
+            f"- Allow Delete Methods: {policy.allow_delete_methods}",
+            f"- Timeout Seconds: {policy.timeout_seconds}",
+            f"- Max Scripts Per Run: {policy.max_scripts_per_run}",
+            "",
+            "## Allowed Base URLs",
+        ]
+        for item in policy.allowed_base_urls or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Blocked Base URLs"])
+        for item in policy.blocked_base_urls or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Allowed Script Types"])
+        for item in policy.allowed_script_types or ["None"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Blocked Script Types"])
+        for item in policy.blocked_script_types or ["None"]:
+            lines.append(f"- {item}")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_execution_target_markdown(
+        self,
+        target: ExecutionTarget,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Execution Target - {target.target_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Target",
+            f"- Target ID: {target.target_id}",
+            f"- Script Type: {target.script_type}",
+            f"- Draft ID: {target.draft_id}",
+            f"- File Name: {target.file_name}",
+            f"- Package Status: {target.package_status}",
+            f"- Validation Status: {target.validation_status}",
+            f"- Base URL: {target.base_url or 'N/A'}",
+            f"- Method: {target.method or 'N/A'}",
+            f"- Endpoint Or Page: {target.endpoint_or_page or 'N/A'}",
+            f"- Has TODOs: {target.has_todos}",
+            f"- Has Critical TODOs: {target.has_critical_todos}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_execution_target_list_markdown(
+        self,
+        targets: list[ExecutionTarget],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Execution Targets"
+        lines = [f"# {heading}", ""]
+        for target in targets:
+            lines.extend(
+                [
+                    f"## {target.target_id}",
+                    f"- Script Type: {target.script_type}",
+                    f"- Package Status: {target.package_status}",
+                    f"- Validation Status: {target.validation_status}",
+                    f"- Base URL: {target.base_url or 'N/A'}",
+                    f"- Method: {target.method or 'N/A'}",
+                    f"- Endpoint Or Page: {target.endpoint_or_page or 'N/A'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_execution_preflight_issue_markdown(
+        self,
+        issue: ExecutionPreflightIssue,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Execution Preflight Issue - {issue.issue_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Issue",
+            f"- Issue ID: {issue.issue_id}",
+            f"- Target ID: {issue.target_id}",
+            f"- Severity: {issue.severity}",
+            f"- Issue Type: {issue.issue_type}",
+            f"- Message: {issue.message}",
+            f"- Recommendation: {issue.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_execution_preflight_result_markdown(
+        self,
+        result: ExecutionPreflightResult,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Execution Preflight Result - {result.preflight_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Result",
+            f"- Preflight ID: {result.preflight_id}",
+            f"- Target ID: {result.target_id}",
+            f"- Script Type: {result.script_type}",
+            f"- Decision: {result.decision}",
+            f"- Is Allowed: {result.is_allowed}",
+            f"- Risk Level: {result.risk_level}",
+            f"- Recommended Action: {result.recommended_action}",
+            "",
+            "## Issues",
+        ]
+        for issue in result.issues or []:
+            lines.append(
+                f"- {issue.issue_id} [{issue.severity}] {issue.issue_type}: {issue.message} | Recommendation: {issue.recommendation}"
+            )
+        if not result.issues:
+            lines.append("- None")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_execution_preflight_result_list_markdown(
+        self,
+        results: list[ExecutionPreflightResult],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Execution Preflight Results"
+        lines = [f"# {heading}", ""]
+        for result in results:
+            issue_types = ", ".join(issue.issue_type for issue in result.issues) if result.issues else "None"
+            lines.extend(
+                [
+                    f"## {result.preflight_id}",
+                    f"- Target ID: {result.target_id}",
+                    f"- Script Type: {result.script_type}",
+                    f"- Decision: {result.decision}",
+                    f"- Risk Level: {result.risk_level}",
+                    f"- Issue List: {issue_types}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_execution_plan_markdown(
+        self,
+        plan: ExecutionPlan,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Execution Preflight Plan"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Policy Summary",
+            f"- Policy Name: {plan.policy.name}",
+            f"- Allow Execution: {plan.policy.allow_execution}",
+            f"- Dry Run Only: {plan.policy.dry_run_only}",
+            f"- Require Human Approval: {plan.policy.require_human_approval}",
+            "",
+            "## Overview",
+            f"- Overall Decision: {plan.overall_decision}",
+            f"- Recommended Next Step: {plan.recommended_next_step}",
+            f"- Total Targets: {plan.total_targets}",
+            f"- Allowed Count: {plan.allowed_count}",
+            f"- Blocked Count: {plan.blocked_count}",
+            f"- Needs Approval Count: {plan.needs_approval_count}",
+            f"- Dry Run Only: {plan.dry_run_only}",
+            "",
+            "## Targets",
+        ]
+        for target in plan.targets or []:
+            lines.append(
+                f"- {target.target_id} [{target.script_type}] {target.file_name} | "
+                f"package={target.package_status} validation={target.validation_status} "
+                f"base_url={target.base_url or 'N/A'} method={target.method or 'N/A'}"
+            )
+        if not plan.targets:
+            lines.append("- None")
+        lines.extend(["", "## Preflight Results"])
+        for result in plan.preflight_results or []:
+            lines.append(
+                f"- {result.target_id}: decision={result.decision} risk={result.risk_level} "
+                f"issues={len(result.issues)}"
+            )
+        if not plan.preflight_results:
+            lines.append("- None")
+        lines.extend(["", "## Issues"])
+        issue_lines = [
+            f"- {result.target_id} [{issue.severity}] {issue.issue_type}: {issue.message}"
+            for result in plan.preflight_results
+            for issue in result.issues
+        ]
+        for item in issue_lines or ["- None"]:
+            lines.append(item)
+        lines.extend(["", "## Risk Levels"])
+        risk_lines = [
+            f"- {result.target_id}: {result.risk_level}"
+            for result in plan.preflight_results
+        ]
+        for item in risk_lines or ["- None"]:
+            lines.append(item)
+        lines.append("")
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
         payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
@@ -1963,3 +2205,137 @@ def export_unified_draft_package_summary_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(summary, path, title=title)
+
+
+def export_execution_safety_policy_to_json_string(policy: ExecutionSafetyPolicy) -> str:
+    return ManualQAExporter().export_json_string(policy)
+
+
+def export_execution_safety_policy_to_json_file(
+    policy: ExecutionSafetyPolicy,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(policy, path)
+
+
+def export_execution_safety_policy_to_markdown_string(
+    policy: ExecutionSafetyPolicy,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(policy, title=title)
+
+
+def export_execution_safety_policy_to_markdown_file(
+    policy: ExecutionSafetyPolicy,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(policy, path, title=title)
+
+
+def export_execution_target_to_json_string(target: ExecutionTarget) -> str:
+    return ManualQAExporter().export_json_string(target)
+
+
+def export_execution_target_to_json_file(target: ExecutionTarget, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(target, path)
+
+
+def export_execution_target_to_markdown_string(
+    target: ExecutionTarget,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(target, title=title)
+
+
+def export_execution_target_to_markdown_file(
+    target: ExecutionTarget,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(target, path, title=title)
+
+
+def export_execution_preflight_issue_to_json_string(issue: ExecutionPreflightIssue) -> str:
+    return ManualQAExporter().export_json_string(issue)
+
+
+def export_execution_preflight_issue_to_json_file(
+    issue: ExecutionPreflightIssue,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(issue, path)
+
+
+def export_execution_preflight_issue_to_markdown_string(
+    issue: ExecutionPreflightIssue,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(issue, title=title)
+
+
+def export_execution_preflight_issue_to_markdown_file(
+    issue: ExecutionPreflightIssue,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(issue, path, title=title)
+
+
+def export_execution_preflight_result_to_json_string(result: ExecutionPreflightResult) -> str:
+    return ManualQAExporter().export_json_string(result)
+
+
+def export_execution_preflight_result_to_json_file(
+    result: ExecutionPreflightResult,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(result, path)
+
+
+def export_execution_preflight_result_to_markdown_string(
+    result: ExecutionPreflightResult,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(result, title=title)
+
+
+def export_execution_preflight_result_to_markdown_file(
+    result: ExecutionPreflightResult,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(result, path, title=title)
+
+
+def export_execution_plan_to_json_string(plan: ExecutionPlan) -> str:
+    return ManualQAExporter().export_json_string(plan)
+
+
+def export_execution_plan_to_json_file(plan: ExecutionPlan, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(plan, path)
+
+
+def export_execution_plan_to_markdown_string(
+    plan: ExecutionPlan,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(plan, title=title)
+
+
+def export_execution_plan_to_markdown_file(
+    plan: ExecutionPlan,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(plan, path, title=title)

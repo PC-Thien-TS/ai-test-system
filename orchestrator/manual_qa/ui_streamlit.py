@@ -16,6 +16,12 @@ from orchestrator.manual_qa.draft_package_dashboard_service import (
     UnifiedDraftPackageDashboardService,
 )
 from orchestrator.manual_qa.evidence_service import EvidenceService
+from orchestrator.manual_qa.execution_preflight_service import (
+    ExecutionPreflightService,
+)
+from orchestrator.manual_qa.execution_safety_service import (
+    ExecutionSafetyService,
+)
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
@@ -48,6 +54,7 @@ from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
     get_draft_package_summary_preview,
+    get_execution_preflight_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -64,6 +71,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_bugs,
     load_checklist,
     load_draft_package_summary,
+    load_execution_preflight_plan,
     load_failure_memory_records,
     load_api_script_drafts,
     load_api_script_package_manifest,
@@ -109,6 +117,8 @@ class ManualQAStreamlitUI:
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
         self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
+        self.execution_safety_service = ExecutionSafetyService()
+        self.execution_preflight_service = ExecutionPreflightService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.web_playwright_validation_service = WebPlaywrightValidationService()
@@ -689,6 +699,54 @@ class ManualQAStreamlitUI:
                 )
             else:
                 st.info("No unified draft package summary found yet.")
+
+            execution_preflight_plan = load_execution_preflight_plan(workspace)
+            if st.button("Generate execution preflight plan"):
+                policy = self.execution_safety_service.create_default_execution_safety_policy()
+                preflight_plan_model = self.execution_preflight_service.build_execution_plan_from_workspace(
+                    workspace,
+                    policy=policy,
+                )
+                self.exporter.export_json_file(
+                    preflight_plan_model,
+                    workspace / "reports" / "execution_preflight_plan.json",
+                )
+                self.exporter.export_markdown_file(
+                    preflight_plan_model,
+                    workspace / "reports" / "execution_preflight_plan.md",
+                )
+                self.workspace_service.update_workspace_manifest(workspace)
+                execution_preflight_plan = preflight_plan_model.to_dict()
+                st.success(f"Execution preflight decision: {preflight_plan_model.overall_decision}")
+
+            if execution_preflight_plan:
+                risk_levels = [
+                    str(item.get("risk_level", ""))
+                    for item in execution_preflight_plan.get("preflight_results", [])
+                    if isinstance(item, dict)
+                ]
+                with st.container(border=True):
+                    st.write(
+                        "Execution preflight decision: "
+                        f"`{execution_preflight_plan.get('overall_decision', 'Missing Draft Packages')}`"
+                    )
+                    st.write(
+                        "Counts: "
+                        f"{execution_preflight_plan.get('allowed_count', 0)} allowed / "
+                        f"{execution_preflight_plan.get('blocked_count', 0)} blocked / "
+                        f"{execution_preflight_plan.get('needs_approval_count', 0)} needs approval"
+                    )
+                    st.write(
+                        "Risk levels: "
+                        f"{', '.join(risk_levels) if risk_levels else 'None'}"
+                    )
+                    st.caption(execution_preflight_plan.get("recommended_next_step", ""))
+                st.expander("Execution preflight preview").code(
+                    get_execution_preflight_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No execution preflight plan found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:

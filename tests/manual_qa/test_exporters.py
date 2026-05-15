@@ -52,6 +52,18 @@ from orchestrator.manual_qa.exporters import (
     export_evidence_to_json_string,
     export_evidence_to_markdown_file,
     export_evidence_to_markdown_string,
+    export_execution_plan_to_json_file,
+    export_execution_plan_to_json_string,
+    export_execution_plan_to_markdown_file,
+    export_execution_plan_to_markdown_string,
+    export_execution_preflight_result_to_json_file,
+    export_execution_preflight_result_to_json_string,
+    export_execution_preflight_result_to_markdown_file,
+    export_execution_preflight_result_to_markdown_string,
+    export_execution_safety_policy_to_json_file,
+    export_execution_safety_policy_to_json_string,
+    export_execution_safety_policy_to_markdown_file,
+    export_execution_safety_policy_to_markdown_string,
     export_failure_record_to_json_file,
     export_failure_record_to_json_string,
     export_failure_record_to_markdown_file,
@@ -124,6 +136,11 @@ from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
     ChecklistItem,
     DraftPackageGroupSummary,
+    ExecutionPlan,
+    ExecutionPreflightIssue,
+    ExecutionPreflightResult,
+    ExecutionSafetyPolicy,
+    ExecutionTarget,
     ExportBundle,
     ManualTestCase,
     NormalizedRequirement,
@@ -1193,3 +1210,144 @@ def test_exports_unified_draft_package_summary_markdown(tmp_path):
     output_path = tmp_path / "draft_package_summary.md"
     export_unified_draft_package_summary_to_markdown_file(summary, output_path)
     assert "Total Drafts: 2" in output_path.read_text(encoding="utf-8")
+
+
+def _build_execution_safety_policy() -> ExecutionSafetyPolicy:
+    return ExecutionSafetyPolicy(
+        policy_id="EXEC-POLICY-DEFAULT",
+        name="default",
+        allow_execution=False,
+        allowed_base_urls=["http://localhost", "http://127.0.0.1"],
+        blocked_base_urls=["production", "prod", "live", "payment-live", "real-bank"],
+        allowed_script_types=["api", "web_playwright"],
+        blocked_script_types=["mobile_appium"],
+        allow_write_methods=False,
+        allow_delete_methods=False,
+        require_human_approval=True,
+        require_valid_package=True,
+        require_no_critical_todos=True,
+        timeout_seconds=30,
+        max_scripts_per_run=5,
+        dry_run_only=True,
+        metadata={},
+        created_at="2024-01-16T00:00:00Z",
+    )
+
+
+def _build_execution_target() -> ExecutionTarget:
+    return ExecutionTarget(
+        target_id="EXEC-TARGET-001",
+        script_type="api",
+        draft_id="API-DRAFT-001",
+        file_name="test_api_tc_001.py",
+        package_status="Ready for Review",
+        validation_status="Valid",
+        base_url="http://localhost:8000",
+        method="GET",
+        endpoint_or_page="/api/orders",
+        has_todos=False,
+        has_critical_todos=False,
+        metadata={},
+    )
+
+
+def _build_execution_preflight_result() -> ExecutionPreflightResult:
+    issue = ExecutionPreflightIssue(
+        issue_id="EXEC-ISSUE-001",
+        target_id="EXEC-TARGET-001",
+        severity="High",
+        issue_type="execution_disabled_by_policy",
+        message="Execution is disabled by the current safety policy.",
+        recommendation="Keep this plan static until a later sandbox phase enables execution safely.",
+        metadata={},
+    )
+    return ExecutionPreflightResult(
+        preflight_id="EXEC-PREFLIGHT-001",
+        target_id="EXEC-TARGET-001",
+        script_type="api",
+        decision="Dry Run Only",
+        is_allowed=False,
+        issues=[issue],
+        risk_level="High",
+        recommended_action="Keep this target in dry-run planning mode only.",
+        metadata={"package_status": "Ready for Review"},
+        created_at="2024-01-17T00:00:00Z",
+    )
+
+
+def _build_execution_plan() -> ExecutionPlan:
+    policy = _build_execution_safety_policy()
+    target = _build_execution_target()
+    result = _build_execution_preflight_result()
+    return ExecutionPlan(
+        plan_id="EXEC-PLAN-001",
+        workspace_path="artifacts/manual_qa_demo",
+        policy=policy,
+        targets=[target],
+        preflight_results=[result],
+        total_targets=1,
+        allowed_count=0,
+        blocked_count=0,
+        needs_approval_count=1,
+        dry_run_only=True,
+        overall_decision="Needs Attention",
+        recommended_next_step="Review policy issues, TODOs, and approval requirements before sandbox prototyping",
+        metadata={"missing_group_types": ["web_playwright"]},
+        created_at="2024-01-17T00:01:00Z",
+    )
+
+
+def test_exports_execution_safety_policy_json_and_markdown(tmp_path):
+    policy = _build_execution_safety_policy()
+    payload = json.loads(export_execution_safety_policy_to_json_string(policy))
+    markdown = export_execution_safety_policy_to_markdown_string(policy)
+
+    assert payload["policy_id"] == "EXEC-POLICY-DEFAULT"
+    assert payload["dry_run_only"] is True
+    assert "Policy Summary" in markdown
+    assert "Dry Run Only: True" in markdown
+
+    json_path = tmp_path / "execution_policy.json"
+    md_path = tmp_path / "execution_policy.md"
+    export_execution_safety_policy_to_json_file(policy, json_path)
+    export_execution_safety_policy_to_markdown_file(policy, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["name"] == "default"
+    assert "Allowed Base URLs" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_execution_preflight_result_json_and_markdown(tmp_path):
+    result = _build_execution_preflight_result()
+    payload = json.loads(export_execution_preflight_result_to_json_string(result))
+    markdown = export_execution_preflight_result_to_markdown_string(result)
+
+    assert payload["preflight_id"] == "EXEC-PREFLIGHT-001"
+    assert payload["issues"][0]["issue_type"] == "execution_disabled_by_policy"
+    assert "Decision: Dry Run Only" in markdown
+    assert "Risk Level: High" in markdown
+
+    json_path = tmp_path / "execution_preflight_result.json"
+    md_path = tmp_path / "execution_preflight_result.md"
+    export_execution_preflight_result_to_json_file(result, json_path)
+    export_execution_preflight_result_to_markdown_file(result, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["target_id"] == "EXEC-TARGET-001"
+    assert "EXEC-ISSUE-001" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_execution_plan_json_and_markdown(tmp_path):
+    plan = _build_execution_plan()
+    payload = json.loads(export_execution_plan_to_json_string(plan))
+    markdown = export_execution_plan_to_markdown_string(plan)
+
+    assert payload["plan_id"] == "EXEC-PLAN-001"
+    assert payload["policy"]["policy_id"] == "EXEC-POLICY-DEFAULT"
+    assert payload["preflight_results"][0]["decision"] == "Dry Run Only"
+    assert "Overall Decision: Needs Attention" in markdown
+    assert "Needs Approval Count: 1" in markdown
+    assert "Risk Levels" in markdown
+
+    json_path = tmp_path / "execution_plan.json"
+    md_path = tmp_path / "execution_plan.md"
+    export_execution_plan_to_json_file(plan, json_path)
+    export_execution_plan_to_markdown_file(plan, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["total_targets"] == 1
+    assert "Execution Preflight Plan" in md_path.read_text(encoding="utf-8")

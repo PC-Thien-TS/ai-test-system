@@ -232,6 +232,104 @@ def _write_web_package_manifest(workspace: Path, *, status: str = "Ready for Rev
     )
 
 
+def _write_execution_api_draft_package(
+    workspace: Path,
+    *,
+    base_url: str = "http://localhost:8000",
+    method: str = "GET",
+    endpoint: str = "/api/orders",
+    package_status: str = "Ready for Review",
+) -> None:
+    draft_dir = workspace / "script_drafts" / "api"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    script_content = "\n".join(
+        [
+            "import os",
+            "import requests",
+            "",
+            f'BASE_URL = os.getenv("API_BASE_URL", "{base_url}")',
+            "",
+            "def test_api_draft():",
+            f'    response = requests.{method.lower()}(BASE_URL + "{endpoint}", headers={{}})',
+            "    assert response.status_code == 200",
+            "",
+        ]
+    )
+    (draft_dir / "api_script_drafts.json").write_text(
+        json.dumps(
+            [
+                {
+                    "draft_id": "API-DRAFT-001",
+                    "test_case_id": "TC-900",
+                    "requirement_ids": ["REQ-900"],
+                    "module": "Order API",
+                    "title": "Order API draft",
+                    "readiness_id": "READ-900",
+                    "target_type": "api",
+                    "framework": "pytest-requests",
+                    "language": "python",
+                    "file_name": "test_api_tc_001.py",
+                    "script_content": script_content,
+                    "status": "Draft",
+                    "warnings": [],
+                    "assumptions": [],
+                    "metadata": {
+                        "http_method": method,
+                        "endpoint": endpoint,
+                        "base_url_env_var": "API_BASE_URL",
+                    },
+                    "created_at": "2024-01-08T00:00:00Z",
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_package_manifest.json").write_text(
+        json.dumps(
+            {
+                "package_id": "APIPKG-001",
+                "package_name": "api-script-drafts",
+                "draft_count": 1,
+                "valid_count": 1,
+                "invalid_count": 0,
+                "warning_count": 0,
+                "draft_files": ["test_api_tc_001.py"],
+                "validation_report_files": ["script_drafts/api/api_script_validation.json"],
+                "generated_at": "2024-01-10T00:00:00Z",
+                "status": package_status,
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (draft_dir / "api_script_validation.json").write_text(
+        json.dumps(
+            [
+                {
+                    "validation_id": "APIVAL-001",
+                    "draft_id": "API-DRAFT-001",
+                    "test_case_id": "TC-900",
+                    "file_name": "test_api_tc_001.py",
+                    "is_valid": True,
+                    "syntax_valid": True,
+                    "has_draft_warning": True,
+                    "has_no_execution_marker": True,
+                    "has_status_assertion": True,
+                    "has_todo_endpoint": False,
+                    "has_todo_payload": False,
+                    "issues": [],
+                    "metadata": {},
+                    "created_at": "2024-01-09T00:00:00Z",
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -782,6 +880,71 @@ def test_draft_package_summary_does_not_execute_drafts(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "read_text", _guarded_read_text)
 
     exit_code = main(["draft-package-summary", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+
+
+def test_execution_preflight_writes_reports(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+
+    exit_code = main(["execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "execution_preflight_plan.json").exists()
+    assert (workspace / "reports" / "execution_preflight_plan.md").exists()
+    assert "Execution preflight:" in captured.out
+
+
+def test_execution_preflight_handles_missing_packages(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    payload = json.loads((workspace / "reports" / "execution_preflight_plan.json").read_text(encoding="utf-8"))
+    assert payload["overall_decision"] == "Missing Draft Packages"
+    assert "Generate and validate API/Web draft packages first" in captured.out
+
+
+def test_execution_preflight_prints_summary(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+
+    exit_code = main(["execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "overall_decision=Needs Attention" in captured.out
+    assert "total_targets=1" in captured.out
+    assert "allowed_count=0" in captured.out
+    assert "blocked_count=0" in captured.out
+    assert "needs_approval_count=1" in captured.out
+    assert "dry_run_only=True" in captured.out
+
+
+def test_execution_preflight_does_not_execute_drafts(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+    api_script_path = workspace / "script_drafts" / "api" / "test_api_tc_001.py"
+    api_script_path.write_text("raise RuntimeError('should never be executed')", encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def _guarded_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".py":
+            raise AssertionError("Draft script files must not be read by the preflight command.")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _guarded_read_text)
+
+    exit_code = main(["execution-preflight", "--workspace", str(workspace)])
 
     assert exit_code == 0
 
