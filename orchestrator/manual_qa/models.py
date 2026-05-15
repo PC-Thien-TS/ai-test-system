@@ -905,6 +905,60 @@ class APIExecutionResult:
         }
 
 
+@dataclass
+class APIExecutionEvidence:
+    """Metadata-only evidence derived from an API sandbox execution result."""
+
+    evidence_id: str
+    execution_id: str
+    draft_id: str
+    test_case_id: str
+    evidence_type: str
+    title: str
+    summary: str
+    status: str
+    method: str
+    base_url: str
+    endpoint: str
+    http_status_code: int | None = None
+    assertion_passed: bool | None = None
+    response_excerpt: str = ""
+    error_type: str = ""
+    error_message: str = ""
+    log_refs: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class APIExecutionSummary:
+    """Aggregate summary over API sandbox execution results."""
+
+    summary_id: str
+    total: int
+    passed: int = 0
+    failed: int = 0
+    blocked: int = 0
+    dry_run: int = 0
+    error: int = 0
+    not_run: int = 0
+    pass_rate: float = 0.0
+    failure_rate: float = 0.0
+    evidence_ids: List[str] = field(default_factory=list)
+    bug_suggestion_ids: List[str] = field(default_factory=list)
+    failure_signature_ids: List[str] = field(default_factory=list)
+    status: str = "No Results"
+    recommended_next_step: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

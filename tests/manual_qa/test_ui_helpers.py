@@ -8,6 +8,7 @@ from orchestrator.manual_qa.demo_service import run_demo_workflow
 from orchestrator.manual_qa.models import ManualTestCase
 from orchestrator.manual_qa.script_readiness_service import ScriptReadinessService
 from orchestrator.manual_qa.ui_helpers import (
+    get_api_execution_evidence_preview,
     get_api_execution_results_preview,
     format_artifact_count_summary,
     get_artifact_preview,
@@ -20,7 +21,9 @@ from orchestrator.manual_qa.ui_helpers import (
     list_api_validation_files,
     list_web_playwright_draft_files,
     list_web_playwright_validation_files,
+    load_api_execution_evidence,
     load_api_execution_results,
+    load_api_execution_summary,
     load_draft_package_summary,
     load_execution_preflight_plan,
     list_report_files,
@@ -372,6 +375,26 @@ def test_get_api_execution_results_preview_returns_friendly_state(tmp_path):
     preview = get_api_execution_results_preview(workspace)
 
     assert "no api sandbox execution results generated yet" in preview.lower()
+
+
+def test_load_api_execution_evidence_handles_missing_file(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    assert load_api_execution_evidence(workspace) == []
+
+
+def test_load_api_execution_summary_handles_missing_file(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    assert load_api_execution_summary(workspace) == {}
+
+
+def test_get_api_execution_evidence_preview_returns_friendly_state(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    preview = get_api_execution_evidence_preview(workspace)
+
+    assert "no api execution evidence report generated yet" in preview.lower()
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

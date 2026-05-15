@@ -212,6 +212,33 @@ def get_api_execution_results_preview(workspace_path: str | Path | None) -> str:
     return "\n".join(lines)
 
 
+def get_api_execution_evidence_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "evidence" / "api_execution_evidence.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    summary = load_api_execution_summary(workspace)
+    evidence_items = load_api_execution_evidence(workspace)
+    if not summary and not evidence_items:
+        return "No API execution evidence report generated yet."
+
+    lines = [
+        "# API Execution Evidence Report",
+        "",
+        f"- Summary Status: {summary.get('status', 'No Results') if summary else 'No Results'}",
+        f"- Total: {summary.get('total', 0) if summary else 0}",
+        f"- Passed: {summary.get('passed', 0) if summary else 0}",
+        f"- Failed: {summary.get('failed', 0) if summary else 0}",
+        f"- Blocked: {summary.get('blocked', 0) if summary else 0}",
+        f"- Dry Run: {summary.get('dry_run', 0) if summary else 0}",
+        f"- Error: {summary.get('error', 0) if summary else 0}",
+        f"- Evidence Items: {len(evidence_items)}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -330,6 +357,14 @@ def load_api_script_package_manifest(workspace_path: str | Path | None) -> dict[
 
 def load_api_execution_results(workspace_path: str | Path | None) -> list[dict[str, Any]]:
     return _safe_read_list(resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_execution_results.json")
+
+
+def load_api_execution_evidence(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "evidence" / "api_execution_evidence.json")
+
+
+def load_api_execution_summary(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "api_execution_summary.json")
 
 
 def load_web_playwright_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:

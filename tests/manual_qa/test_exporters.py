@@ -7,6 +7,15 @@ from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
 from orchestrator.manual_qa.exporters import (
+    export_api_execution_evidence_list_to_json_file,
+    export_api_execution_evidence_list_to_json_string,
+    export_api_execution_evidence_list_to_markdown_file,
+    export_api_execution_evidence_list_to_markdown_string,
+    export_api_execution_evidence_report_to_markdown_string,
+    export_api_execution_evidence_to_json_file,
+    export_api_execution_evidence_to_json_string,
+    export_api_execution_evidence_to_markdown_file,
+    export_api_execution_evidence_to_markdown_string,
     export_api_execution_request_to_json_file,
     export_api_execution_request_to_json_string,
     export_api_execution_request_to_markdown_file,
@@ -19,6 +28,10 @@ from orchestrator.manual_qa.exporters import (
     export_api_execution_results_to_json_string,
     export_api_execution_results_to_markdown_file,
     export_api_execution_results_to_markdown_string,
+    export_api_execution_summary_to_json_file,
+    export_api_execution_summary_to_json_string,
+    export_api_execution_summary_to_markdown_file,
+    export_api_execution_summary_to_markdown_string,
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
     export_automation_candidate_to_markdown_file,
@@ -146,9 +159,11 @@ from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
+    APIExecutionEvidence,
     APIExecutionLogEntry,
     APIExecutionRequest,
     APIExecutionResult,
+    APIExecutionSummary,
     ChecklistItem,
     DraftPackageGroupSummary,
     ExecutionPlan,
@@ -1416,6 +1431,52 @@ def _build_api_execution_result(status: str = "Dry Run") -> APIExecutionResult:
     )
 
 
+def _build_api_execution_evidence(status: str = "Passed") -> APIExecutionEvidence:
+    return APIExecutionEvidence(
+        evidence_id="API-EVD-001",
+        execution_id="API-EXEC-RESULT-001",
+        draft_id="API-DRAFT-001",
+        test_case_id="TC-900",
+        evidence_type="api_execution_result",
+        title="Order API draft - API sandbox Passed",
+        summary="Sandbox request GET /api/orders passed with HTTP 200.",
+        status=status,
+        method="GET",
+        base_url="http://localhost:8000",
+        endpoint="/api/orders",
+        http_status_code=200 if status == "Passed" else 500,
+        assertion_passed=True if status == "Passed" else False,
+        response_excerpt="ok",
+        error_type="",
+        error_message="",
+        log_refs=["API-EXEC-LOG-001"],
+        metadata={"sandbox_only": True},
+        created_at="2024-01-20T00:00:00Z",
+    )
+
+
+def _build_api_execution_summary(status: str = "Passed") -> APIExecutionSummary:
+    return APIExecutionSummary(
+        summary_id="API-EXEC-SUM-001",
+        total=2,
+        passed=1 if status == "Passed" else 0,
+        failed=1 if status == "Failed" else 0,
+        blocked=1 if status == "Blocked" else 0,
+        dry_run=2 if status == "All Dry Run" else 0,
+        error=1 if status == "Failed" else 0,
+        not_run=0,
+        pass_rate=50.0 if status == "Passed" else 0.0,
+        failure_rate=50.0 if status == "Failed" else 0.0,
+        evidence_ids=["API-EVD-001"],
+        bug_suggestion_ids=["BUG-APIEXEC-001"] if status == "Failed" else [],
+        failure_signature_ids=["FSIG-001"] if status == "Failed" else [],
+        status=status,
+        recommended_next_step="Review mixed execution outcomes",
+        metadata={"sandbox_only": True},
+        created_at="2024-01-20T00:01:00Z",
+    )
+
+
 def test_exports_api_execution_request_json_and_markdown(tmp_path):
     request = _build_api_execution_request()
     payload = json.loads(export_api_execution_request_to_json_string(request))
@@ -1469,3 +1530,84 @@ def test_exports_api_execution_result_list_json_and_markdown(tmp_path):
     export_api_execution_results_to_markdown_file(results, md_path)
     assert len(json.loads(json_path.read_text(encoding="utf-8"))) == 2
     assert "sandbox-only" in md_path.read_text(encoding="utf-8").lower()
+
+
+def test_exports_api_execution_evidence_json_and_markdown(tmp_path):
+    evidence = _build_api_execution_evidence()
+    payload = json.loads(export_api_execution_evidence_to_json_string(evidence))
+    markdown = export_api_execution_evidence_to_markdown_string(evidence)
+
+    assert payload["evidence_id"] == "API-EVD-001"
+    assert payload["status"] == "Passed"
+    assert "API Execution Evidence" in markdown
+    assert "does not overwrite Manual QA TestResult state" in markdown
+
+    json_path = tmp_path / "api_execution_evidence.json"
+    md_path = tmp_path / "api_execution_evidence.md"
+    export_api_execution_evidence_to_json_file(evidence, json_path)
+    export_api_execution_evidence_to_markdown_file(evidence, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["execution_id"] == "API-EXEC-RESULT-001"
+    assert "Evidence ID: API-EVD-001" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_summary_json_and_markdown(tmp_path):
+    summary = _build_api_execution_summary(status="Failed")
+    payload = json.loads(export_api_execution_summary_to_json_string(summary))
+    markdown = export_api_execution_summary_to_markdown_string(summary)
+
+    assert payload["summary_id"] == "API-EXEC-SUM-001"
+    assert payload["status"] == "Failed"
+    assert "Failure Rate: 50.0" in markdown
+    assert "Bug Suggestion IDs: BUG-APIEXEC-001" in markdown
+
+    json_path = tmp_path / "api_execution_summary.json"
+    md_path = tmp_path / "api_execution_summary.md"
+    export_api_execution_summary_to_json_file(summary, json_path)
+    export_api_execution_summary_to_markdown_file(summary, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["failed"] == 1
+    assert "Status: Failed" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_evidence_list_json_and_markdown(tmp_path):
+    evidence_items = [_build_api_execution_evidence(status="Passed"), _build_api_execution_evidence(status="Failed")]
+    payload = json.loads(export_api_execution_evidence_list_to_json_string(evidence_items))
+    markdown = export_api_execution_evidence_list_to_markdown_string(evidence_items)
+
+    assert len(payload) == 2
+    assert "API Execution Evidence" in markdown
+    assert "Summary: Sandbox request GET /api/orders passed with HTTP 200." in markdown
+
+    json_path = tmp_path / "api_execution_evidence_list.json"
+    md_path = tmp_path / "api_execution_evidence_list.md"
+    export_api_execution_evidence_list_to_json_file(evidence_items, json_path)
+    export_api_execution_evidence_list_to_markdown_file(evidence_items, md_path)
+    assert len(json.loads(json_path.read_text(encoding="utf-8"))) == 2
+    assert "does not overwrite Manual QA TestResult state" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_evidence_report_markdown():
+    bug_service = BugDraftService()
+    suite = TestSuiteService().create_test_suite(project_id="checkout-web", name="API", test_cases=["TC-900"])
+    test_run = TestRunService().create_test_run(
+        project_id="checkout-web",
+        suite=suite,
+        environment="sandbox",
+        build="api-execution-sandbox",
+        tester="qa-user",
+    )
+    TestResultService().update_test_result(test_run, "TC-900", "Fail", actual_result="Expected 200 but received 500.")
+    report = {
+        "evidence_items": [_build_api_execution_evidence(status="Failed")],
+        "summary": _build_api_execution_summary(status="Failed"),
+        "bug_suggestions": [bug_service.generate_bug_draft(test_run, "TC-900")],
+        "failure_signatures": [
+            FailureMemoryService().create_failure_signature(title="Sandbox failure", symptom="GET /api/orders failed")
+        ],
+        "metadata": {"sandbox_only": True},
+    }
+
+    markdown = export_api_execution_evidence_report_to_markdown_string(report)
+
+    assert "Summary Status: Failed" in markdown
+    assert "Bug Suggestions" in markdown
+    assert "Failure Signatures" in markdown

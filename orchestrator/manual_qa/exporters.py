@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Optional
 
 from orchestrator.manual_qa.models import (
+    APIExecutionEvidence,
     APIExecutionLogEntry,
     APIExecutionRequest,
     APIExecutionResult,
+    APIExecutionSummary,
     APIScriptPackageManifest,
     APIScriptValidationIssue,
     APIScriptValidationResult,
@@ -46,15 +48,13 @@ class ManualQAExporter:
 
     def export_json_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
+        payload: object,
     ) -> str:
-        if isinstance(payload, list):
-            return json.dumps([item.to_dict() for item in payload], indent=2, ensure_ascii=False, sort_keys=True)
-        return json.dumps(payload.to_dict(), indent=2, ensure_ascii=False, sort_keys=True)
+        return json.dumps(self._json_ready(payload), indent=2, ensure_ascii=False, sort_keys=True)
 
     def export_json_file(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
+        payload: object,
         path: Path | str,
     ) -> Path:
         output_path = Path(path)
@@ -64,14 +64,22 @@ class ManualQAExporter:
 
     def export_markdown_string(
         self,
-        payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
+        payload: object,
         *,
         title: Optional[str] = None,
     ) -> str:
+        if isinstance(payload, dict) and self._is_api_execution_evidence_report(payload):
+            return self._export_api_execution_evidence_report_markdown(payload, title=title)
         if isinstance(payload, list):
             if not payload:
                 return f"# {title or 'Export'}\n"
             first_item = payload[0]
+            if isinstance(first_item, APIExecutionEvidence):
+                return self._export_api_execution_evidence_list_markdown(payload, title=title)
+            if isinstance(first_item, BugDraft):
+                return self._export_bug_draft_list_markdown(payload, title=title)
+            if isinstance(first_item, FailureSignature):
+                return self._export_failure_signature_list_markdown(payload, title=title)
             if isinstance(first_item, FailureRecord):
                 return self._export_failure_record_list_markdown(payload, title=title)
             if isinstance(first_item, ScriptGenerationReadiness):
@@ -113,12 +121,16 @@ class ManualQAExporter:
             return self._export_script_gap_markdown(payload, title=title)
         if isinstance(payload, ScriptGenerationReadiness):
             return self._export_script_readiness_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionEvidence):
+            return self._export_api_execution_evidence_markdown(payload, title=title)
         if isinstance(payload, APIExecutionRequest):
             return self._export_api_execution_request_markdown(payload, title=title)
         if isinstance(payload, APIExecutionLogEntry):
             return self._export_api_execution_log_entry_markdown(payload, title=title)
         if isinstance(payload, APIExecutionResult):
             return self._export_api_execution_result_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionSummary):
+            return self._export_api_execution_summary_markdown(payload, title=title)
         if isinstance(payload, APITestScriptDraft):
             return self._export_api_script_draft_markdown(payload, title=title)
         if isinstance(payload, APIScriptValidationIssue):
@@ -156,6 +168,19 @@ class ManualQAExporter:
         if isinstance(payload, AutomationCandidate):
             return self._export_automation_candidate_markdown(payload, title=title)
         return self._export_summary_markdown(payload, title=title)
+
+    def _json_ready(self, payload: object) -> object:
+        if isinstance(payload, list):
+            return [self._json_ready(item) for item in payload]
+        if isinstance(payload, dict):
+            return {str(key): self._json_ready(value) for key, value in payload.items()}
+        if hasattr(payload, "to_dict"):
+            return payload.to_dict()  # type: ignore[no-any-return]
+        return payload
+
+    def _is_api_execution_evidence_report(self, payload: dict[object, object]) -> bool:
+        keys = {str(key) for key in payload.keys()}
+        return {"evidence_items", "summary", "bug_suggestions", "failure_signatures"}.issubset(keys)
 
     def _export_bundle_markdown(
         self,
@@ -706,6 +731,234 @@ class ManualQAExporter:
                     "",
                 ]
             )
+        return "\n".join(lines)
+
+    def _export_api_execution_evidence_markdown(
+        self,
+        evidence: APIExecutionEvidence,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Evidence - {evidence.evidence_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Warning",
+            "This evidence is sandbox-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Evidence",
+            f"- Evidence ID: {evidence.evidence_id}",
+            f"- Execution ID: {evidence.execution_id}",
+            f"- Draft ID: {evidence.draft_id}",
+            f"- Test Case ID: {evidence.test_case_id}",
+            f"- Status: {evidence.status}",
+            f"- Method: {evidence.method}",
+            f"- Base URL: {evidence.base_url or 'N/A'}",
+            f"- Endpoint: {evidence.endpoint or 'N/A'}",
+            f"- HTTP Status Code: {evidence.http_status_code if evidence.http_status_code is not None else 'N/A'}",
+            f"- Assertion Passed: {evidence.assertion_passed if evidence.assertion_passed is not None else 'N/A'}",
+            f"- Error Type: {evidence.error_type or 'N/A'}",
+            f"- Error Message: {evidence.error_message or 'N/A'}",
+            "",
+            "## Summary",
+            evidence.summary or "N/A",
+            "",
+            "## Response Excerpt",
+            evidence.response_excerpt or "N/A",
+            "",
+            "## Log Refs",
+        ]
+        for log_ref in evidence.log_refs:
+            lines.append(f"- {log_ref}")
+        if not evidence.log_refs:
+            lines.append("- None")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_api_execution_evidence_list_markdown(
+        self,
+        evidence_items: list[APIExecutionEvidence],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "API Execution Evidence"
+        lines = [f"# {heading}", "", "This evidence is sandbox-only and does not overwrite Manual QA TestResult state.", ""]
+        for evidence in evidence_items:
+            lines.extend(
+                [
+                    f"## {evidence.evidence_id}",
+                    f"- Execution ID: {evidence.execution_id}",
+                    f"- Draft ID: {evidence.draft_id}",
+                    f"- Test Case ID: {evidence.test_case_id}",
+                    f"- Status: {evidence.status}",
+                    f"- Method: {evidence.method}",
+                    f"- Endpoint: {evidence.endpoint or 'N/A'}",
+                    f"- HTTP Status Code: {evidence.http_status_code if evidence.http_status_code is not None else 'N/A'}",
+                    f"- Assertion Passed: {evidence.assertion_passed if evidence.assertion_passed is not None else 'N/A'}",
+                    f"- Summary: {evidence.summary or 'N/A'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_api_execution_summary_markdown(
+        self,
+        summary: APIExecutionSummary,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Summary - {summary.summary_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Warning",
+            "This summary is sandbox-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Summary",
+            f"- Summary ID: {summary.summary_id}",
+            f"- Status: {summary.status}",
+            f"- Total: {summary.total}",
+            f"- Passed: {summary.passed}",
+            f"- Failed: {summary.failed}",
+            f"- Blocked: {summary.blocked}",
+            f"- Dry Run: {summary.dry_run}",
+            f"- Error: {summary.error}",
+            f"- Not Run: {summary.not_run}",
+            f"- Pass Rate: {summary.pass_rate}",
+            f"- Failure Rate: {summary.failure_rate}",
+            f"- Recommended Next Step: {summary.recommended_next_step or 'N/A'}",
+            "",
+            "## Related IDs",
+            f"- Evidence IDs: {', '.join(summary.evidence_ids) if summary.evidence_ids else 'None'}",
+            f"- Bug Suggestion IDs: {', '.join(summary.bug_suggestion_ids) if summary.bug_suggestion_ids else 'None'}",
+            f"- Failure Signature IDs: {', '.join(summary.failure_signature_ids) if summary.failure_signature_ids else 'None'}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_bug_draft_list_markdown(
+        self,
+        bugs: list[BugDraft],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Bug Draft Suggestions"
+        lines = [f"# {heading}", ""]
+        for bug in bugs:
+            lines.extend(
+                [
+                    f"## {bug.bug_id}",
+                    f"- Test Case ID: {bug.test_case_id}",
+                    f"- Title: {bug.title}",
+                    f"- Severity: {bug.severity}",
+                    f"- Priority: {bug.priority}",
+                    f"- Status: {bug.status}",
+                    f"- Actual Result: {bug.actual_result or 'N/A'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_failure_signature_list_markdown(
+        self,
+        signatures: list[FailureSignature],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Failure Signatures"
+        lines = [f"# {heading}", ""]
+        for signature in signatures:
+            lines.extend(
+                [
+                    f"## {signature.signature_id}",
+                    f"- Fingerprint: {signature.fingerprint}",
+                    f"- Test Case ID: {signature.test_case_id or 'N/A'}",
+                    f"- Title: {signature.title or 'N/A'}",
+                    f"- Symptom: {signature.symptom or 'N/A'}",
+                    f"- Actual Result: {signature.actual_result or 'N/A'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_api_execution_evidence_report_markdown(
+        self,
+        report: dict[str, object],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        summary = report.get("summary")
+        evidence_items = report.get("evidence_items")
+        bug_suggestions = report.get("bug_suggestions")
+        failure_signatures = report.get("failure_signatures")
+
+        if not isinstance(summary, APIExecutionSummary):
+            return f"# {title or 'API Execution Evidence Report'}\n"
+
+        lines = [
+            f"# {title or 'API Execution Evidence Report'}",
+            "",
+            "This report is sandbox-only and does not overwrite Manual QA TestResult state.",
+            "",
+            "## Summary",
+            f"- Summary Status: {summary.status}",
+            f"- Total: {summary.total}",
+            f"- Passed: {summary.passed}",
+            f"- Failed: {summary.failed}",
+            f"- Blocked: {summary.blocked}",
+            f"- Dry Run: {summary.dry_run}",
+            f"- Error: {summary.error}",
+            f"- Pass Rate: {summary.pass_rate}",
+            f"- Failure Rate: {summary.failure_rate}",
+            f"- Recommended Next Step: {summary.recommended_next_step or 'N/A'}",
+            "",
+            "## Evidence",
+        ]
+        if isinstance(evidence_items, list) and evidence_items:
+            for evidence in evidence_items:
+                if not isinstance(evidence, APIExecutionEvidence):
+                    continue
+                lines.append(
+                    f"- {evidence.evidence_id} [{evidence.status}] {evidence.test_case_id} "
+                    f"{evidence.method} {evidence.endpoint}"
+                )
+        else:
+            lines.append("- None")
+
+        lines.extend(["", "## Failed Or Error Details"])
+        if isinstance(evidence_items, list):
+            failed_items = [
+                item for item in evidence_items
+                if isinstance(item, APIExecutionEvidence) and item.status in {"Failed", "Error"}
+            ]
+            if failed_items:
+                for item in failed_items:
+                    lines.append(
+                        f"- {item.evidence_id}: HTTP {item.http_status_code if item.http_status_code is not None else 'N/A'} "
+                        f"| Error: {item.error_message or item.error_type or 'N/A'}"
+                    )
+            else:
+                lines.append("- None")
+        else:
+            lines.append("- None")
+
+        lines.extend(["", "## Bug Suggestions"])
+        if isinstance(bug_suggestions, list) and bug_suggestions:
+            for bug in bug_suggestions:
+                if isinstance(bug, BugDraft):
+                    lines.append(f"- {bug.bug_id}: {bug.title}")
+        else:
+            lines.append("- None")
+
+        lines.extend(["", "## Failure Signatures"])
+        if isinstance(failure_signatures, list) and failure_signatures:
+            for signature in failure_signatures:
+                if isinstance(signature, FailureSignature):
+                    lines.append(f"- {signature.signature_id}: {signature.fingerprint}")
+        else:
+            lines.append("- None")
+
+        lines.append("")
         return "\n".join(lines)
 
     def _export_api_script_draft_markdown(
@@ -2461,6 +2714,107 @@ def export_execution_plan_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(plan, path, title=title)
+
+
+def export_api_execution_evidence_to_json_string(evidence: APIExecutionEvidence) -> str:
+    return ManualQAExporter().export_json_string(evidence)
+
+
+def export_api_execution_evidence_to_json_file(
+    evidence: APIExecutionEvidence,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(evidence, path)
+
+
+def export_api_execution_evidence_to_markdown_string(
+    evidence: APIExecutionEvidence,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(evidence, title=title)
+
+
+def export_api_execution_evidence_to_markdown_file(
+    evidence: APIExecutionEvidence,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(evidence, path, title=title)
+
+
+def export_api_execution_evidence_list_to_json_string(evidence_items: list[APIExecutionEvidence]) -> str:
+    return ManualQAExporter().export_json_string(evidence_items)
+
+
+def export_api_execution_evidence_list_to_json_file(
+    evidence_items: list[APIExecutionEvidence],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(evidence_items, path)
+
+
+def export_api_execution_evidence_list_to_markdown_string(
+    evidence_items: list[APIExecutionEvidence],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(evidence_items, title=title)
+
+
+def export_api_execution_evidence_list_to_markdown_file(
+    evidence_items: list[APIExecutionEvidence],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(evidence_items, path, title=title)
+
+
+def export_api_execution_summary_to_json_string(summary: APIExecutionSummary) -> str:
+    return ManualQAExporter().export_json_string(summary)
+
+
+def export_api_execution_summary_to_json_file(
+    summary: APIExecutionSummary,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(summary, path)
+
+
+def export_api_execution_summary_to_markdown_string(
+    summary: APIExecutionSummary,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(summary, title=title)
+
+
+def export_api_execution_summary_to_markdown_file(
+    summary: APIExecutionSummary,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(summary, path, title=title)
+
+
+def export_api_execution_evidence_report_to_markdown_string(
+    report: dict[str, object],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(report, title=title)
+
+
+def export_api_execution_evidence_report_to_markdown_file(
+    report: dict[str, object],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(report, path, title=title)
 
 
 def export_api_execution_request_to_json_string(request: APIExecutionRequest) -> str:

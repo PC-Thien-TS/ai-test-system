@@ -330,6 +330,53 @@ def _write_execution_api_draft_package(
     )
 
 
+def _write_api_execution_results(workspace: Path, *, status: str = "Failed") -> None:
+    draft_dir = workspace / "script_drafts" / "api"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    payload = [
+        {
+            "execution_id": "API-EXEC-RESULT-001",
+            "request": {
+                "request_id": "API-EXEC-REQ-001",
+                "draft_id": "API-DRAFT-001",
+                "test_case_id": "TC-900",
+                "file_name": "test_api_tc_001.py",
+                "method": "GET",
+                "base_url": "http://localhost:8000",
+                "endpoint": "/api/orders",
+                "headers": {},
+                "payload": {},
+                "timeout_seconds": 30,
+                "policy_id": "EXEC-POLICY-DEFAULT",
+                "preflight_id": "EXEC-PREFLIGHT-001",
+                "dry_run": status == "Dry Run",
+                "metadata": {"approved": True},
+                "created_at": "2024-01-18T00:00:00Z",
+            },
+            "status": status,
+            "http_status_code": 200 if status == "Passed" else 500 if status == "Failed" else None,
+            "duration_ms": 15,
+            "response_excerpt": "ok" if status == "Passed" else "server error",
+            "error_type": "RequestException" if status == "Error" else "",
+            "error_message": "connection reset" if status == "Error" else "",
+            "assertion_expected_status": 200,
+            "assertion_passed": True if status == "Passed" else False if status == "Failed" else None,
+            "logs": [
+                {
+                    "log_id": "API-EXEC-LOG-001",
+                    "level": "Info",
+                    "message": "Sandbox-only log",
+                    "metadata": {},
+                    "created_at": "2024-01-18T00:01:00Z",
+                }
+            ],
+            "executed_at": "2024-01-18T00:02:00Z",
+            "metadata": {"sandbox_only": True},
+        }
+    ]
+    (draft_dir / "api_execution_results.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def test_init_workspace_creates_folders(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
 
@@ -1005,6 +1052,77 @@ def test_execute_api_sandbox_summary_includes_status_counts(tmp_path, capsys):
     assert "passed=0" in captured.out
     assert "failed=0" in captured.out
     assert "error=0" in captured.out
+
+
+def test_api_execution_evidence_writes_evidence_json_and_markdown(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_results(workspace, status="Passed")
+
+    exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "evidence" / "api_execution_evidence.json").exists()
+    assert (workspace / "evidence" / "api_execution_evidence.md").exists()
+    assert "API execution evidence:" in captured.out
+
+
+def test_api_execution_evidence_writes_summary_json_and_markdown(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_results(workspace, status="Dry Run")
+
+    exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "api_execution_summary.json").exists()
+    assert (workspace / "reports" / "api_execution_summary.md").exists()
+
+
+def test_failed_api_execution_writes_bug_suggestion_files(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_results(workspace, status="Failed")
+
+    exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+    assert (workspace / "bugs" / "api_execution_bug_suggestions.json").exists()
+    assert (workspace / "bugs" / "api_execution_bug_suggestions.md").exists()
+    assert (workspace / "failure_memory" / "api_execution_failure_signatures.json").exists()
+    assert (workspace / "failure_memory" / "api_execution_failure_signatures.md").exists()
+
+
+def test_api_execution_evidence_missing_results_handled_clearly(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "status=No Results" in captured.out
+    assert (workspace / "reports" / "api_execution_summary.json").exists()
+
+
+def test_api_execution_evidence_command_does_not_execute_scripts(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_api_execution_results(workspace, status="Failed")
+
+    original_read_text = Path.read_text
+
+    def _guarded_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".py":
+            raise AssertionError("Evidence command must not read or execute draft script files.")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _guarded_read_text)
+
+    exit_code = main(["api-execution-evidence", "--workspace", str(workspace)])
+
+    assert exit_code == 0
 
 
 def test_invalid_missing_file_returns_non_zero(tmp_path):

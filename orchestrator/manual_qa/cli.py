@@ -11,6 +11,9 @@ from typing import Any
 from orchestrator.manual_qa.api_execution_sandbox_service import (
     APIExecutionSandboxService,
 )
+from orchestrator.manual_qa.api_execution_evidence_service import (
+    APIExecutionEvidenceService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -98,6 +101,7 @@ class ManualQACLI:
         self.execution_safety_service = ExecutionSafetyService()
         self.execution_preflight_service = ExecutionPreflightService()
         self.api_execution_sandbox_service = APIExecutionSandboxService()
+        self.api_execution_evidence_service = APIExecutionEvidenceService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -238,6 +242,10 @@ class ManualQACLI:
         execute_api_sandbox_parser.add_argument("--override-base-url", default="")
         execute_api_sandbox_parser.add_argument("--approve", action="store_true")
         execute_api_sandbox_parser.set_defaults(handler=self._handle_execute_api_sandbox)
+
+        api_execution_evidence_parser = subparsers.add_parser("api-execution-evidence")
+        api_execution_evidence_parser.add_argument("--workspace", required=True)
+        api_execution_evidence_parser.set_defaults(handler=self._handle_api_execution_evidence)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -755,6 +763,26 @@ class ManualQACLI:
             f" passed={len([item for item in results if item.status == 'Passed'])}"
             f" failed={len([item for item in results if item.status == 'Failed'])}"
             f" error={len([item for item in results if item.status == 'Error'])}"
+        )
+        return 0
+
+    def _handle_api_execution_evidence(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        report = self.api_execution_evidence_service.build_api_execution_evidence_report_from_workspace(workspace)
+        summary = report["summary"]
+        bug_suggestions = report["bug_suggestions"]
+        failure_signatures = report["failure_signatures"]
+        print(
+            "API execution evidence:"
+            f" total={summary.total}"
+            f" passed={summary.passed}"
+            f" failed={summary.failed}"
+            f" blocked={summary.blocked}"
+            f" dry_run={summary.dry_run}"
+            f" error={summary.error}"
+            f" status={summary.status}"
+            f" bug_suggestions={len(bug_suggestions)}"
+            f" failure_signatures={len(failure_signatures)}"
         )
         return 0
 

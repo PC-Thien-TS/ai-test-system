@@ -8,6 +8,9 @@ from typing import Any
 from orchestrator.manual_qa.api_execution_sandbox_service import (
     APIExecutionSandboxService,
 )
+from orchestrator.manual_qa.api_execution_evidence_service import (
+    APIExecutionEvidenceService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -56,6 +59,7 @@ from orchestrator.manual_qa.web_playwright_validation_service import WebPlaywrig
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
+    get_api_execution_evidence_preview,
     get_api_execution_results_preview,
     get_draft_package_summary_preview,
     get_execution_preflight_preview,
@@ -72,7 +76,9 @@ from orchestrator.manual_qa.ui_helpers import (
     list_web_playwright_draft_files,
     list_web_playwright_validation_files,
     load_automation_candidates,
+    load_api_execution_evidence,
     load_api_execution_results,
+    load_api_execution_summary,
     load_bugs,
     load_checklist,
     load_draft_package_summary,
@@ -119,6 +125,7 @@ class ManualQAStreamlitUI:
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
         self.api_execution_sandbox_service = APIExecutionSandboxService()
+        self.api_execution_evidence_service = APIExecutionEvidenceService()
         self.api_script_generator = APITestScriptGenerator()
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
@@ -796,6 +803,37 @@ class ManualQAStreamlitUI:
                 )
             else:
                 st.info("No API sandbox execution results found yet.")
+
+            api_execution_summary = load_api_execution_summary(workspace)
+            api_execution_evidence = load_api_execution_evidence(workspace)
+            if st.button("Build API execution evidence report"):
+                report = self.api_execution_evidence_service.build_api_execution_evidence_report_from_workspace(workspace)
+                api_execution_summary = report["summary"].to_dict()
+                api_execution_evidence = [item.to_dict() for item in report["evidence_items"]]
+                st.success(
+                    "Built API execution evidence report "
+                    f"for {api_execution_summary.get('total', 0)} sandbox result(s)."
+                )
+
+            if api_execution_summary or api_execution_evidence:
+                with st.container(border=True):
+                    st.write(
+                        "API execution evidence: "
+                        f"{api_execution_summary.get('status', 'No Results')} / "
+                        f"{api_execution_summary.get('total', len(api_execution_evidence))} total / "
+                        f"{api_execution_summary.get('passed', 0)} passed / "
+                        f"{api_execution_summary.get('failed', 0)} failed / "
+                        f"{api_execution_summary.get('blocked', 0)} blocked / "
+                        f"{api_execution_summary.get('dry_run', 0)} dry-run / "
+                        f"{api_execution_summary.get('error', 0)} error"
+                    )
+                    st.caption("Evidence is metadata-only. Manual QA run status remains unchanged.")
+                st.expander("API execution evidence preview").code(
+                    get_api_execution_evidence_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No API execution evidence report found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:
