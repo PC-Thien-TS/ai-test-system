@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Optional
 
 from orchestrator.manual_qa.models import (
+    APIExecutionLogEntry,
+    APIExecutionRequest,
+    APIExecutionResult,
     APIScriptPackageManifest,
     APIScriptValidationIssue,
     APIScriptValidationResult,
@@ -73,6 +76,8 @@ class ManualQAExporter:
                 return self._export_failure_record_list_markdown(payload, title=title)
             if isinstance(first_item, ScriptGenerationReadiness):
                 return self._export_script_readiness_list_markdown(payload, title=title)
+            if isinstance(first_item, APIExecutionResult):
+                return self._export_api_execution_result_list_markdown(payload, title=title)
             if isinstance(first_item, APITestScriptDraft):
                 return self._export_api_script_draft_list_markdown(payload, title=title)
             if isinstance(first_item, APIScriptValidationResult):
@@ -108,6 +113,12 @@ class ManualQAExporter:
             return self._export_script_gap_markdown(payload, title=title)
         if isinstance(payload, ScriptGenerationReadiness):
             return self._export_script_readiness_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionRequest):
+            return self._export_api_execution_request_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionLogEntry):
+            return self._export_api_execution_log_entry_markdown(payload, title=title)
+        if isinstance(payload, APIExecutionResult):
+            return self._export_api_execution_result_markdown(payload, title=title)
         if isinstance(payload, APITestScriptDraft):
             return self._export_api_script_draft_markdown(payload, title=title)
         if isinstance(payload, APIScriptValidationIssue):
@@ -581,6 +592,117 @@ class ManualQAExporter:
                     f"- Strengths: {', '.join(item.strengths) if item.strengths else 'None'}",
                     f"- Gaps: {', '.join(gap.gap_type for gap in item.gaps) if item.gaps else 'None'}",
                     f"- Suggested Next Step: {item.suggested_next_step}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_api_execution_request_markdown(
+        self,
+        request: APIExecutionRequest,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Request - {request.request_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Request",
+            f"- Request ID: {request.request_id}",
+            f"- Draft ID: {request.draft_id}",
+            f"- Test Case ID: {request.test_case_id}",
+            f"- File Name: {request.file_name}",
+            f"- Method: {request.method}",
+            f"- Base URL: {request.base_url or 'N/A'}",
+            f"- Endpoint: {request.endpoint or 'N/A'}",
+            f"- Timeout Seconds: {request.timeout_seconds}",
+            f"- Policy ID: {request.policy_id or 'N/A'}",
+            f"- Preflight ID: {request.preflight_id or 'N/A'}",
+            f"- Dry Run: {request.dry_run}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_api_execution_log_entry_markdown(
+        self,
+        entry: APIExecutionLogEntry,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Log Entry - {entry.log_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Log",
+            f"- Log ID: {entry.log_id}",
+            f"- Level: {entry.level}",
+            f"- Message: {entry.message}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_api_execution_result_markdown(
+        self,
+        result: APIExecutionResult,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"API Execution Result - {result.execution_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Sandbox Warning",
+            "This result is sandbox-only and does not update Manual QA run or result state.",
+            "",
+            "## Execution",
+            f"- Execution ID: {result.execution_id}",
+            f"- Status: {result.status}",
+            f"- Draft ID: {result.request.draft_id}",
+            f"- Test Case ID: {result.request.test_case_id}",
+            f"- Method: {result.request.method}",
+            f"- Base URL: {result.request.base_url or 'N/A'}",
+            f"- Endpoint: {result.request.endpoint or 'N/A'}",
+            f"- HTTP Status Code: {result.http_status_code if result.http_status_code is not None else 'N/A'}",
+            f"- Assertion Expected Status: {result.assertion_expected_status if result.assertion_expected_status is not None else 'N/A'}",
+            f"- Assertion Passed: {result.assertion_passed if result.assertion_passed is not None else 'N/A'}",
+            f"- Duration Ms: {result.duration_ms}",
+            f"- Dry Run Request: {result.request.dry_run}",
+            f"- Error Type: {result.error_type or 'N/A'}",
+            f"- Error Message: {result.error_message or 'N/A'}",
+            "",
+            "## Response Excerpt",
+            result.response_excerpt or "N/A",
+            "",
+            "## Logs",
+        ]
+        for entry in result.logs or []:
+            lines.append(f"- {entry.log_id} [{entry.level}] {entry.message}")
+        if not result.logs:
+            lines.append("- None")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_api_execution_result_list_markdown(
+        self,
+        results: list[APIExecutionResult],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "API Sandbox Execution Results"
+        lines = [f"# {heading}", "", "This report is sandbox-only and does not update Manual QA result state.", ""]
+        for result in results:
+            lines.extend(
+                [
+                    f"## {result.execution_id}",
+                    f"- Status: {result.status}",
+                    f"- Draft ID: {result.request.draft_id}",
+                    f"- Test Case ID: {result.request.test_case_id}",
+                    f"- Method: {result.request.method}",
+                    f"- Base URL: {result.request.base_url or 'N/A'}",
+                    f"- Endpoint: {result.request.endpoint or 'N/A'}",
+                    f"- HTTP Status Code: {result.http_status_code if result.http_status_code is not None else 'N/A'}",
+                    f"- Assertion Passed: {result.assertion_passed if result.assertion_passed is not None else 'N/A'}",
+                    f"- Duration Ms: {result.duration_ms}",
                     "",
                 ]
             )
@@ -2339,3 +2461,87 @@ def export_execution_plan_to_markdown_file(
     title: Optional[str] = None,
 ) -> Path:
     return ManualQAExporter().export_markdown_file(plan, path, title=title)
+
+
+def export_api_execution_request_to_json_string(request: APIExecutionRequest) -> str:
+    return ManualQAExporter().export_json_string(request)
+
+
+def export_api_execution_request_to_json_file(
+    request: APIExecutionRequest,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(request, path)
+
+
+def export_api_execution_request_to_markdown_string(
+    request: APIExecutionRequest,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(request, title=title)
+
+
+def export_api_execution_request_to_markdown_file(
+    request: APIExecutionRequest,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(request, path, title=title)
+
+
+def export_api_execution_result_to_json_string(result: APIExecutionResult) -> str:
+    return ManualQAExporter().export_json_string(result)
+
+
+def export_api_execution_result_to_json_file(
+    result: APIExecutionResult,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(result, path)
+
+
+def export_api_execution_result_to_markdown_string(
+    result: APIExecutionResult,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(result, title=title)
+
+
+def export_api_execution_result_to_markdown_file(
+    result: APIExecutionResult,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(result, path, title=title)
+
+
+def export_api_execution_results_to_json_string(results: list[APIExecutionResult]) -> str:
+    return ManualQAExporter().export_json_string(results)
+
+
+def export_api_execution_results_to_json_file(
+    results: list[APIExecutionResult],
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(results, path)
+
+
+def export_api_execution_results_to_markdown_string(
+    results: list[APIExecutionResult],
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(results, title=title)
+
+
+def export_api_execution_results_to_markdown_file(
+    results: list[APIExecutionResult],
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(results, path, title=title)

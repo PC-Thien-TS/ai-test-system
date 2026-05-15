@@ -831,6 +831,80 @@ class ExecutionPlan:
         }
 
 
+@dataclass
+class APIExecutionRequest:
+    """Static request built for a gated API sandbox execution attempt."""
+
+    request_id: str
+    draft_id: str
+    test_case_id: str
+    file_name: str
+    method: str
+    base_url: str
+    endpoint: str
+    headers: Dict[str, Any] = field(default_factory=dict)
+    payload: Dict[str, Any] = field(default_factory=dict)
+    timeout_seconds: int = 30
+    policy_id: str = ""
+    preflight_id: str = ""
+    dry_run: bool = True
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class APIExecutionLogEntry:
+    """Log entry captured during a sandbox-only API execution attempt."""
+
+    log_id: str
+    level: str
+    message: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class APIExecutionResult:
+    """Sandbox-only API execution result kept separate from Manual QA run state."""
+
+    execution_id: str
+    request: APIExecutionRequest
+    status: str
+    http_status_code: int | None = None
+    duration_ms: int = 0
+    response_excerpt: str = ""
+    error_type: str = ""
+    error_message: str = ""
+    assertion_expected_status: int | None = None
+    assertion_passed: bool | None = None
+    logs: List[APIExecutionLogEntry] = field(default_factory=list)
+    executed_at: str | None = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "execution_id": self.execution_id,
+            "request": self.request.to_dict(),
+            "status": self.status,
+            "http_status_code": self.http_status_code,
+            "duration_ms": self.duration_ms,
+            "response_excerpt": self.response_excerpt,
+            "error_type": self.error_type,
+            "error_message": self.error_message,
+            "assertion_expected_status": self.assertion_expected_status,
+            "assertion_passed": self.assertion_passed,
+            "logs": [item.to_dict() for item in self.logs],
+            "executed_at": self.executed_at,
+            "metadata": dict(self.metadata),
+        }
+
+
 def count_result_statuses(results: List[TestResult]) -> Dict[str, int]:
     """Count result statuses in a stable shape."""
 

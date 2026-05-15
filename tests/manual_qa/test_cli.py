@@ -949,6 +949,64 @@ def test_execution_preflight_does_not_execute_drafts(tmp_path, monkeypatch):
     assert exit_code == 0
 
 
+def test_execute_api_sandbox_dry_run_writes_json_and_markdown(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+
+    exit_code = main(["execute-api-sandbox", "--workspace", str(workspace), "--dry-run"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "script_drafts" / "api" / "api_execution_results.json").exists()
+    assert (workspace / "script_drafts" / "api" / "api_execution_results.md").exists()
+    assert "API sandbox execution:" in captured.out
+
+
+def test_execute_api_sandbox_default_behavior_does_not_execute_live_requests(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+
+    def _blocked_session(self):
+        raise AssertionError("Default CLI behavior must not create a live HTTP session.")
+
+    monkeypatch.setattr(
+        "orchestrator.manual_qa.api_execution_sandbox_service.APIExecutionSandboxService._create_default_session",
+        _blocked_session,
+    )
+
+    exit_code = main(["execute-api-sandbox", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+
+
+def test_execute_api_sandbox_missing_drafts_file_handled_clearly(tmp_path):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["execute-api-sandbox", "--workspace", str(workspace), "--dry-run"])
+
+    assert exit_code == 1
+
+
+def test_execute_api_sandbox_summary_includes_status_counts(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_execution_api_draft_package(workspace)
+
+    exit_code = main(["execute-api-sandbox", "--workspace", str(workspace), "--dry-run"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "total=1" in captured.out
+    assert "dry_run=1" in captured.out
+    assert "blocked=0" in captured.out
+    assert "passed=0" in captured.out
+    assert "failed=0" in captured.out
+    assert "error=0" in captured.out
+
+
 def test_invalid_missing_file_returns_non_zero(tmp_path):
     workspace = tmp_path / "manual_qa_demo"
     assert main(["init-workspace", "--path", str(workspace)]) == 0

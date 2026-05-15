@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from orchestrator.manual_qa.api_execution_sandbox_service import (
+    APIExecutionSandboxService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -53,6 +56,7 @@ from orchestrator.manual_qa.web_playwright_validation_service import WebPlaywrig
 from orchestrator.manual_qa.ui_helpers import (
     format_artifact_count_summary,
     get_artifact_preview,
+    get_api_execution_results_preview,
     get_draft_package_summary_preview,
     get_execution_preflight_preview,
     get_next_recommended_actions,
@@ -68,6 +72,7 @@ from orchestrator.manual_qa.ui_helpers import (
     list_web_playwright_draft_files,
     list_web_playwright_validation_files,
     load_automation_candidates,
+    load_api_execution_results,
     load_bugs,
     load_checklist,
     load_draft_package_summary,
@@ -113,6 +118,7 @@ class ManualQAStreamlitUI:
         self.evidence_service = EvidenceService()
         self.bug_service = BugDraftService()
         self.automation_service = AutomationCandidateService()
+        self.api_execution_sandbox_service = APIExecutionSandboxService()
         self.api_script_generator = APITestScriptGenerator()
         self.api_script_validation_service = APIScriptValidationService()
         self.api_script_packaging_service = APIScriptPackagingService()
@@ -747,6 +753,49 @@ class ManualQAStreamlitUI:
                 )
             else:
                 st.info("No execution preflight plan found yet.")
+
+            api_execution_results = load_api_execution_results(workspace)
+            if st.button("Generate API sandbox dry-run results"):
+                if not load_api_script_drafts(workspace):
+                    st.warning("No API drafts found yet. Generate API drafts first.")
+                else:
+                    policy = self.execution_safety_service.create_default_execution_safety_policy(dry_run_only=True)
+                    results = self.api_execution_sandbox_service.execute_api_sandbox_from_workspace(
+                        workspace,
+                        policy=policy,
+                        dry_run=True,
+                        approved=False,
+                    )
+                    self.exporter.export_json_file(
+                        results,
+                        workspace / "script_drafts" / "api" / "api_execution_results.json",
+                    )
+                    self.exporter.export_markdown_file(
+                        results,
+                        workspace / "script_drafts" / "api" / "api_execution_results.md",
+                    )
+                    self.workspace_service.update_workspace_manifest(workspace)
+                    api_execution_results = [item.to_dict() for item in results]
+                    st.success(f"Generated {len(results)} API sandbox dry-run result(s).")
+
+            if api_execution_results:
+                with st.container(border=True):
+                    st.write(
+                        "API sandbox results: "
+                        f"{len(api_execution_results)} total / "
+                        f"{len([item for item in api_execution_results if item.get('status') == 'Dry Run'])} dry-run / "
+                        f"{len([item for item in api_execution_results if item.get('status') == 'Blocked'])} blocked / "
+                        f"{len([item for item in api_execution_results if item.get('status') == 'Passed'])} passed / "
+                        f"{len([item for item in api_execution_results if item.get('status') == 'Failed'])} failed / "
+                        f"{len([item for item in api_execution_results if item.get('status') == 'Error'])} error"
+                    )
+                    st.caption("Sandbox-only results. Manual QA run status is unchanged.")
+                st.expander("API sandbox results preview").code(
+                    get_api_execution_results_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No API sandbox execution results found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:

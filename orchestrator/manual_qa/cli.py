@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from orchestrator.manual_qa.api_execution_sandbox_service import (
+    APIExecutionSandboxService,
+)
 from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
@@ -93,6 +97,7 @@ class ManualQACLI:
         self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
         self.execution_safety_service = ExecutionSafetyService()
         self.execution_preflight_service = ExecutionPreflightService()
+        self.api_execution_sandbox_service = APIExecutionSandboxService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -223,6 +228,16 @@ class ManualQACLI:
         execution_preflight_parser.add_argument("--allow-localhost-only", action="store_true")
         execution_preflight_parser.add_argument("--dry-run-only", action="store_true")
         execution_preflight_parser.set_defaults(handler=self._handle_execution_preflight)
+
+        execute_api_sandbox_parser = subparsers.add_parser("execute-api-sandbox")
+        execute_api_sandbox_parser.add_argument("--workspace", required=True)
+        execute_api_sandbox_parser.add_argument("--dry-run", action="store_true")
+        execute_api_sandbox_parser.add_argument("--allow-localhost", action="store_true")
+        execute_api_sandbox_parser.add_argument("--allow-write-methods", action="store_true")
+        execute_api_sandbox_parser.add_argument("--allow-delete-methods", action="store_true")
+        execute_api_sandbox_parser.add_argument("--override-base-url", default="")
+        execute_api_sandbox_parser.add_argument("--approve", action="store_true")
+        execute_api_sandbox_parser.set_defaults(handler=self._handle_execute_api_sandbox)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -694,6 +709,53 @@ class ManualQACLI:
         )
         if plan.overall_decision == "Missing Draft Packages":
             print("No draft packages were found. Generate and validate API/Web draft packages first.")
+        return 0
+
+    def _handle_execute_api_sandbox(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        base_policy = self.execution_safety_service.create_default_execution_safety_policy(
+            allow_localhost_only=bool(args.allow_localhost),
+            dry_run_only=True,
+        )
+        localhost_prefixes = ("http://localhost", "http://127.0.0.1")
+        actual_execution_enabled = (
+            not bool(args.dry_run)
+            and bool(args.approve)
+            and bool(args.allow_localhost)
+            and str(args.override_base_url or "").startswith(localhost_prefixes)
+        )
+        policy = replace(
+            base_policy,
+            allow_execution=actual_execution_enabled,
+            allow_write_methods=bool(args.allow_write_methods),
+            allow_delete_methods=bool(args.allow_delete_methods),
+            dry_run_only=not actual_execution_enabled,
+            metadata={
+                **dict(base_policy.metadata),
+                "cli_actual_execution_enabled": actual_execution_enabled,
+            },
+        )
+        results = self.api_execution_sandbox_service.execute_api_sandbox_from_workspace(
+            workspace,
+            policy=policy,
+            override_base_url=str(args.override_base_url or "") or None,
+            dry_run=not actual_execution_enabled or bool(args.dry_run),
+            approved=bool(args.approve),
+        )
+        json_path = workspace / "script_drafts" / "api" / "api_execution_results.json"
+        md_path = workspace / "script_drafts" / "api" / "api_execution_results.md"
+        self.exporter.export_json_file(results, json_path)
+        self.exporter.export_markdown_file(results, md_path)
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "API sandbox execution:"
+            f" total={len(results)}"
+            f" dry_run={len([item for item in results if item.status == 'Dry Run'])}"
+            f" blocked={len([item for item in results if item.status == 'Blocked'])}"
+            f" passed={len([item for item in results if item.status == 'Passed'])}"
+            f" failed={len([item for item in results if item.status == 'Failed'])}"
+            f" error={len([item for item in results if item.status == 'Error'])}"
+        )
         return 0
 
     def _handle_demo_workflow(self, args: argparse.Namespace) -> int:

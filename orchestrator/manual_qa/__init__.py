@@ -5,6 +5,13 @@ from orchestrator.manual_qa.automation_candidate_service import (
     score_automation_candidate,
     score_automation_candidates,
 )
+from orchestrator.manual_qa.api_execution_sandbox_service import (
+    APIExecutionSandboxService,
+    build_api_execution_request,
+    execute_api_sandbox_from_draft,
+    execute_api_sandbox_from_workspace,
+    execute_api_sandbox_request,
+)
 from orchestrator.manual_qa.api_script_generator import (
     APITestScriptGenerator,
     generate_api_script_draft,
@@ -54,6 +61,18 @@ from orchestrator.manual_qa.failure_memory_service import (
 )
 from orchestrator.manual_qa.exporters import (
     ManualQAExporter,
+    export_api_execution_request_to_json_file,
+    export_api_execution_request_to_json_string,
+    export_api_execution_request_to_markdown_file,
+    export_api_execution_request_to_markdown_string,
+    export_api_execution_result_to_json_file,
+    export_api_execution_result_to_json_string,
+    export_api_execution_result_to_markdown_file,
+    export_api_execution_result_to_markdown_string,
+    export_api_execution_results_to_json_file,
+    export_api_execution_results_to_json_string,
+    export_api_execution_results_to_markdown_file,
+    export_api_execution_results_to_markdown_string,
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
     export_automation_candidate_to_markdown_file,
@@ -202,6 +221,9 @@ from orchestrator.manual_qa.exporters import (
     export_web_playwright_package_manifest_to_markdown_string,
 )
 from orchestrator.manual_qa.models import (
+    APIExecutionLogEntry,
+    APIExecutionRequest,
+    APIExecutionResult,
     APIScriptPackageManifest,
     APIScriptValidationIssue,
     APIScriptValidationResult,
@@ -251,6 +273,8 @@ from orchestrator.manual_qa.script_readiness_service import (
 )
 from orchestrator.manual_qa.testcase_generator import ManualTestCaseGenerator
 from orchestrator.manual_qa.ui_helpers import (
+    get_api_execution_results_preview,
+    load_api_execution_results,
     format_artifact_count_summary,
     get_execution_preflight_preview,
     get_workspace_summary,
@@ -312,6 +336,10 @@ from orchestrator.manual_qa.workspace_service import (
 )
 
 __all__ = [
+    "APIExecutionLogEntry",
+    "APIExecutionRequest",
+    "APIExecutionResult",
+    "APIExecutionSandboxService",
     "APIScriptPackageManifest",
     "APIScriptPackagingService",
     "APIScriptValidationIssue",
@@ -375,6 +403,7 @@ __all__ = [
     "ManualQAWorkspaceService",
     "build_api_script_package",
     "build_api_script_package_from_workspace",
+    "build_api_execution_request",
     "build_web_playwright_package",
     "build_web_playwright_package_from_workspace",
     "generate_api_script_draft",
@@ -403,6 +432,7 @@ __all__ = [
     "classify_execution_risk",
     "format_artifact_count_summary",
     "generate_bug_draft",
+    "get_api_execution_results_preview",
     "get_execution_preflight_preview",
     "get_draft_package_summary_preview",
     "get_workspace_summary",
@@ -414,6 +444,7 @@ __all__ = [
     "list_web_playwright_validation_files",
     "list_workspace_artifacts",
     "load_automation_candidates",
+    "load_api_execution_results",
     "load_api_script_drafts",
     "load_api_script_package_manifest",
     "load_api_script_validation_results",
@@ -441,6 +472,9 @@ __all__ = [
     "build_execution_plan",
     "build_execution_plan_from_workspace",
     "preflight_execution_target",
+    "execute_api_sandbox_from_draft",
+    "execute_api_sandbox_from_workspace",
+    "execute_api_sandbox_request",
     "summarize_api_package",
     "summarize_draft_packages",
     "summarize_test_run",
@@ -457,6 +491,18 @@ __all__ = [
     "export_automation_candidates_to_json_string",
     "export_automation_candidates_to_markdown_file",
     "export_automation_candidates_to_markdown_string",
+    "export_api_execution_request_to_json_file",
+    "export_api_execution_request_to_json_string",
+    "export_api_execution_request_to_markdown_file",
+    "export_api_execution_request_to_markdown_string",
+    "export_api_execution_result_to_json_file",
+    "export_api_execution_result_to_json_string",
+    "export_api_execution_result_to_markdown_file",
+    "export_api_execution_result_to_markdown_string",
+    "export_api_execution_results_to_json_file",
+    "export_api_execution_results_to_json_string",
+    "export_api_execution_results_to_markdown_file",
+    "export_api_execution_results_to_markdown_string",
     "export_api_script_draft_to_json_file",
     "export_api_script_draft_to_json_string",
     "export_api_script_draft_to_markdown_file",

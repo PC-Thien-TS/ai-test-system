@@ -188,6 +188,30 @@ def get_execution_preflight_preview(workspace_path: str | Path | None) -> str:
     return "\n".join(lines)
 
 
+def get_api_execution_results_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "script_drafts" / "api" / "api_execution_results.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    results = load_api_execution_results(workspace)
+    if not results:
+        return "No API sandbox execution results generated yet."
+
+    lines = [
+        "# API Sandbox Execution Results",
+        "",
+        f"- Total Results: {len(results)}",
+        f"- Passed: {len([item for item in results if item.get('status') == 'Passed'])}",
+        f"- Failed: {len([item for item in results if item.get('status') == 'Failed'])}",
+        f"- Blocked: {len([item for item in results if item.get('status') == 'Blocked'])}",
+        f"- Dry Run: {len([item for item in results if item.get('status') == 'Dry Run'])}",
+        f"- Error: {len([item for item in results if item.get('status') == 'Error'])}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -302,6 +326,10 @@ def load_api_script_package_manifest(workspace_path: str | Path | None) -> dict[
     return safe_load_json_artifact(
         resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_script_package_manifest.json"
     )
+
+
+def load_api_execution_results(workspace_path: str | Path | None) -> list[dict[str, Any]]:
+    return _safe_read_list(resolve_workspace(workspace_path) / "script_drafts" / "api" / "api_execution_results.json")
 
 
 def load_web_playwright_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:

@@ -7,6 +7,18 @@ from orchestrator.manual_qa.api_script_generator import APITestScriptGenerator
 from orchestrator.manual_qa.api_script_packaging_service import APIScriptPackagingService
 from orchestrator.manual_qa.api_script_validation_service import APIScriptValidationService
 from orchestrator.manual_qa.exporters import (
+    export_api_execution_request_to_json_file,
+    export_api_execution_request_to_json_string,
+    export_api_execution_request_to_markdown_file,
+    export_api_execution_request_to_markdown_string,
+    export_api_execution_result_to_json_file,
+    export_api_execution_result_to_json_string,
+    export_api_execution_result_to_markdown_file,
+    export_api_execution_result_to_markdown_string,
+    export_api_execution_results_to_json_file,
+    export_api_execution_results_to_json_string,
+    export_api_execution_results_to_markdown_file,
+    export_api_execution_results_to_markdown_string,
     export_automation_candidate_to_json_file,
     export_automation_candidate_to_json_string,
     export_automation_candidate_to_markdown_file,
@@ -134,6 +146,9 @@ from orchestrator.manual_qa.bug_service import BugDraftService
 from orchestrator.manual_qa.evidence_service import EvidenceService
 from orchestrator.manual_qa.failure_memory_service import FailureMemoryService
 from orchestrator.manual_qa.models import (
+    APIExecutionLogEntry,
+    APIExecutionRequest,
+    APIExecutionResult,
     ChecklistItem,
     DraftPackageGroupSummary,
     ExecutionPlan,
@@ -1351,3 +1366,106 @@ def test_exports_execution_plan_json_and_markdown(tmp_path):
     export_execution_plan_to_markdown_file(plan, md_path)
     assert json.loads(json_path.read_text(encoding="utf-8"))["total_targets"] == 1
     assert "Execution Preflight Plan" in md_path.read_text(encoding="utf-8")
+
+
+def _build_api_execution_request() -> APIExecutionRequest:
+    return APIExecutionRequest(
+        request_id="API-EXEC-REQ-001",
+        draft_id="API-DRAFT-001",
+        test_case_id="TC-900",
+        file_name="test_api_tc_001.py",
+        method="GET",
+        base_url="http://localhost:8000",
+        endpoint="/api/orders",
+        headers={},
+        payload={},
+        timeout_seconds=30,
+        policy_id="EXEC-POLICY-DEFAULT",
+        preflight_id="EXEC-PREFLIGHT-001",
+        dry_run=True,
+        metadata={"approved": False},
+        created_at="2024-01-18T00:00:00Z",
+    )
+
+
+def _build_api_execution_result(status: str = "Dry Run") -> APIExecutionResult:
+    request = _build_api_execution_request()
+    logs = [
+        APIExecutionLogEntry(
+            log_id="API-EXEC-LOG-001",
+            level="Info",
+            message="Dry-run only mode; request was not sent.",
+            metadata={},
+            created_at="2024-01-18T00:01:00Z",
+        )
+    ]
+    return APIExecutionResult(
+        execution_id="API-EXEC-RESULT-001",
+        request=request,
+        status=status,
+        http_status_code=200 if status == "Passed" else None,
+        duration_ms=12,
+        response_excerpt="ok" if status == "Passed" else "",
+        error_type="",
+        error_message="",
+        assertion_expected_status=200,
+        assertion_passed=True if status == "Passed" else None,
+        logs=logs,
+        executed_at="2024-01-18T00:02:00Z",
+        metadata={"sandbox_only": True},
+    )
+
+
+def test_exports_api_execution_request_json_and_markdown(tmp_path):
+    request = _build_api_execution_request()
+    payload = json.loads(export_api_execution_request_to_json_string(request))
+    markdown = export_api_execution_request_to_markdown_string(request)
+
+    assert payload["request_id"] == "API-EXEC-REQ-001"
+    assert payload["dry_run"] is True
+    assert "Method: GET" in markdown
+    assert "Base URL: http://localhost:8000" in markdown
+
+    json_path = tmp_path / "api_execution_request.json"
+    md_path = tmp_path / "api_execution_request.md"
+    export_api_execution_request_to_json_file(request, json_path)
+    export_api_execution_request_to_markdown_file(request, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["draft_id"] == "API-DRAFT-001"
+    assert "Policy ID: EXEC-POLICY-DEFAULT" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_result_json_and_markdown(tmp_path):
+    result = _build_api_execution_result(status="Passed")
+    payload = json.loads(export_api_execution_result_to_json_string(result))
+    markdown = export_api_execution_result_to_markdown_string(result)
+
+    assert payload["execution_id"] == "API-EXEC-RESULT-001"
+    assert payload["request"]["request_id"] == "API-EXEC-REQ-001"
+    assert "Sandbox Warning" in markdown
+    assert "Status: Passed" in markdown
+    assert "Assertion Passed: True" in markdown
+
+    json_path = tmp_path / "api_execution_result.json"
+    md_path = tmp_path / "api_execution_result.md"
+    export_api_execution_result_to_json_file(result, json_path)
+    export_api_execution_result_to_markdown_file(result, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["status"] == "Passed"
+    assert "HTTP Status Code: 200" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_api_execution_result_list_json_and_markdown(tmp_path):
+    results = [_build_api_execution_result(status="Dry Run"), _build_api_execution_result(status="Blocked")]
+    payload = json.loads(export_api_execution_results_to_json_string(results))
+    markdown = export_api_execution_results_to_markdown_string(results)
+
+    assert len(payload) == 2
+    assert payload[0]["execution_id"] == "API-EXEC-RESULT-001"
+    assert "API Sandbox Execution Results" in markdown
+    assert "Status: Dry Run" in markdown
+
+    json_path = tmp_path / "api_execution_results.json"
+    md_path = tmp_path / "api_execution_results.md"
+    export_api_execution_results_to_json_file(results, json_path)
+    export_api_execution_results_to_markdown_file(results, md_path)
+    assert len(json.loads(json_path.read_text(encoding="utf-8"))) == 2
+    assert "sandbox-only" in md_path.read_text(encoding="utf-8").lower()
