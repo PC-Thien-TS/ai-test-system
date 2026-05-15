@@ -265,6 +265,31 @@ def get_api_execution_history_preview(workspace_path: str | Path | None) -> str:
     return "\n".join(lines)
 
 
+def get_web_execution_preflight_preview(workspace_path: str | Path | None) -> str:
+    workspace = resolve_workspace(workspace_path)
+    markdown_path = workspace / "reports" / "web_execution_preflight_plan.md"
+    if markdown_path.exists():
+        return get_artifact_preview(markdown_path)
+
+    plan = load_web_execution_preflight_plan(workspace)
+    if not plan:
+        return "No Web execution preflight plan generated yet."
+
+    lines = [
+        "# Web Execution Preflight Plan",
+        "",
+        f"- Overall Decision: {plan.get('overall_decision', 'Missing Web Draft Packages')}",
+        f"- Recommended Next Step: {plan.get('recommended_next_step', '') or 'N/A'}",
+        f"- Total Targets: {plan.get('total_targets', 0)}",
+        f"- Allowed Count: {plan.get('allowed_count', 0)}",
+        f"- Blocked Count: {plan.get('blocked_count', 0)}",
+        f"- Needs Approval Count: {plan.get('needs_approval_count', 0)}",
+        f"- Dry Run Only: {plan.get('dry_run_only', True)}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def safe_load_json_artifact(path: str | Path) -> dict[str, Any]:
     artifact_path = Path(path)
     try:
@@ -399,6 +424,10 @@ def load_api_execution_history(workspace_path: str | Path | None) -> list[dict[s
 
 def load_api_execution_trend_summary(workspace_path: str | Path | None) -> dict[str, Any]:
     return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "api_execution_trend_summary.json")
+
+
+def load_web_execution_preflight_plan(workspace_path: str | Path | None) -> dict[str, Any]:
+    return safe_load_json_artifact(resolve_workspace(workspace_path) / "reports" / "web_execution_preflight_plan.json")
 
 
 def load_web_playwright_script_drafts(workspace_path: str | Path | None) -> list[dict[str, Any]]:

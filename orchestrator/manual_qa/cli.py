@@ -34,6 +34,12 @@ from orchestrator.manual_qa.execution_preflight_service import (
 from orchestrator.manual_qa.execution_safety_service import (
     ExecutionSafetyService,
 )
+from orchestrator.manual_qa.web_execution_preflight_service import (
+    WebExecutionPreflightService,
+)
+from orchestrator.manual_qa.web_execution_safety_service import (
+    WebExecutionSafetyService,
+)
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
@@ -106,6 +112,8 @@ class ManualQACLI:
         self.api_execution_sandbox_service = APIExecutionSandboxService()
         self.api_execution_evidence_service = APIExecutionEvidenceService()
         self.api_execution_history_service = APIExecutionHistoryService()
+        self.web_execution_safety_service = WebExecutionSafetyService()
+        self.web_execution_preflight_service = WebExecutionPreflightService()
         self.exporter = ManualQAExporter()
         self.demo_service = DemoWorkflowService()
 
@@ -254,6 +262,13 @@ class ManualQACLI:
         api_execution_history_parser = subparsers.add_parser("api-execution-history")
         api_execution_history_parser.add_argument("--workspace", required=True)
         api_execution_history_parser.set_defaults(handler=self._handle_api_execution_history)
+
+        web_execution_preflight_parser = subparsers.add_parser("web-execution-preflight")
+        web_execution_preflight_parser.add_argument("--workspace", required=True)
+        web_execution_preflight_parser.add_argument("--policy", choices=["default", "strict"], default="default")
+        web_execution_preflight_parser.add_argument("--allow-localhost-only", action="store_true")
+        web_execution_preflight_parser.add_argument("--dry-run-only", action="store_true")
+        web_execution_preflight_parser.set_defaults(handler=self._handle_web_execution_preflight)
 
         demo_parser = subparsers.add_parser("demo-workflow")
         demo_parser.add_argument("--workspace", required=True)
@@ -807,6 +822,38 @@ class ManualQACLI:
             f" trend_status={trend_summary.trend_status}"
             f" repeated_failure_count={trend_summary.repeated_failure_count}"
             f" flaky_candidate_count={trend_summary.flaky_candidate_count}"
+        )
+        return 0
+
+    def _handle_web_execution_preflight(self, args: argparse.Namespace) -> int:
+        workspace = self._workspace(args.workspace)
+        if args.policy == "strict":
+            policy = self.web_execution_safety_service.create_strict_web_execution_safety_policy(
+                dry_run_only=bool(args.dry_run_only) or True,
+            )
+        else:
+            policy = self.web_execution_safety_service.create_default_web_execution_safety_policy(
+                allow_localhost_only=bool(args.allow_localhost_only),
+                dry_run_only=bool(args.dry_run_only) or True,
+            )
+        plan = self.web_execution_preflight_service.build_web_execution_plan_from_workspace(
+            workspace,
+            policy=policy,
+        )
+        json_path = workspace / "reports" / "web_execution_preflight_plan.json"
+        md_path = workspace / "reports" / "web_execution_preflight_plan.md"
+        self.exporter.export_json_file(plan, json_path)
+        self.exporter.export_markdown_file(plan, md_path)
+        self.workspace_service.update_workspace_manifest(workspace)
+        print(
+            "Web execution preflight:"
+            f" overall_decision={plan.overall_decision}"
+            f" total_targets={plan.total_targets}"
+            f" allowed_count={plan.allowed_count}"
+            f" blocked_count={plan.blocked_count}"
+            f" needs_approval_count={plan.needs_approval_count}"
+            f" dry_run_only={plan.dry_run_only}"
+            f" recommended_next_step={plan.recommended_next_step}"
         )
         return 0
 

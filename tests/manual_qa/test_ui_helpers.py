@@ -15,6 +15,7 @@ from orchestrator.manual_qa.ui_helpers import (
     get_artifact_preview,
     get_draft_package_summary_preview,
     get_execution_preflight_preview,
+    get_web_execution_preflight_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -41,6 +42,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_script_readiness_items,
     load_web_playwright_readiness_items,
     load_testcases,
+    load_web_execution_preflight_plan,
     resolve_workspace,
     safe_load_json_artifact,
     summarize_bugs_for_ui,
@@ -418,6 +420,20 @@ def test_get_api_execution_history_preview_returns_friendly_state(tmp_path):
     preview = get_api_execution_history_preview(workspace)
 
     assert "no api execution history report generated yet" in preview.lower()
+
+
+def test_load_web_execution_preflight_plan_handles_missing_file(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    assert load_web_execution_preflight_plan(workspace) == {}
+
+
+def test_get_web_execution_preflight_preview_returns_friendly_state(tmp_path):
+    workspace = ManualQAWorkspaceService().create_workspace(tmp_path / "manual_qa_demo")
+
+    preview = get_web_execution_preflight_preview(workspace)
+
+    assert "no web execution preflight plan generated yet" in preview.lower()
 
 
 def test_summarize_run_for_ui_handles_empty_missing_data():

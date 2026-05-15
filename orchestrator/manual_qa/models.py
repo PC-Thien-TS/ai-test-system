@@ -832,6 +832,152 @@ class ExecutionPlan:
 
 
 @dataclass
+class WebExecutionSafetyPolicy:
+    """Deterministic web execution safety policy for future browser sandbox work."""
+
+    policy_id: str
+    name: str
+    allow_browser_execution: bool
+    dry_run_only: bool = True
+    require_human_approval: bool = True
+    require_valid_package: bool = True
+    require_no_critical_todos: bool = True
+    allowed_base_urls: List[str] = field(default_factory=list)
+    blocked_base_urls: List[str] = field(default_factory=list)
+    allowed_browsers: List[str] = field(default_factory=list)
+    headless_only: bool = True
+    allow_file_upload: bool = False
+    allow_file_download: bool = False
+    allow_external_navigation: bool = False
+    allow_payment_flows: bool = False
+    allow_captcha_or_otp_flows: bool = False
+    timeout_seconds: int = 30
+    max_scripts_per_run: int = 3
+    capture_screenshot: bool = True
+    capture_trace: bool = True
+    capture_video: bool = False
+    capture_console_log: bool = True
+    capture_network_log: bool = True
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class WebExecutionTarget:
+    """Static web execution target discovered from a Web Playwright draft package."""
+
+    target_id: str
+    script_type: str
+    draft_id: str
+    test_case_id: str
+    file_name: str
+    package_status: str
+    validation_status: str
+    base_url: str
+    page_url: str
+    has_todos: bool = False
+    has_critical_todos: bool = False
+    requires_login: bool = False
+    requires_file_upload: bool = False
+    requires_file_download: bool = False
+    has_external_navigation: bool = False
+    has_payment_flow: bool = False
+    has_captcha_or_otp: bool = False
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class WebExecutionPreflightIssue:
+    """Static web preflight issue found before any browser sandbox exists."""
+
+    issue_id: str
+    target_id: str
+    severity: str
+    issue_type: str
+    message: str
+    recommendation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class WebExecutionPreflightResult:
+    """Static web preflight decision for one web execution target."""
+
+    preflight_id: str
+    target_id: str
+    decision: str
+    is_allowed: bool
+    issues: List[WebExecutionPreflightIssue] = field(default_factory=list)
+    risk_level: str = "High"
+    recommended_action: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "preflight_id": self.preflight_id,
+            "target_id": self.target_id,
+            "decision": self.decision,
+            "is_allowed": self.is_allowed,
+            "issues": [issue.to_dict() for issue in self.issues],
+            "risk_level": self.risk_level,
+            "recommended_action": self.recommended_action,
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
+class WebExecutionPlan:
+    """Static web execution plan assembled from Web Playwright draft artifacts."""
+
+    plan_id: str
+    workspace_path: str
+    policy: WebExecutionSafetyPolicy
+    targets: List[WebExecutionTarget] = field(default_factory=list)
+    preflight_results: List[WebExecutionPreflightResult] = field(default_factory=list)
+    total_targets: int = 0
+    allowed_count: int = 0
+    blocked_count: int = 0
+    needs_approval_count: int = 0
+    dry_run_only: bool = True
+    evidence_capture_plan: Dict[str, Any] = field(default_factory=dict)
+    overall_decision: str = "Missing Web Draft Packages"
+    recommended_next_step: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "workspace_path": self.workspace_path,
+            "policy": self.policy.to_dict(),
+            "targets": [target.to_dict() for target in self.targets],
+            "preflight_results": [result.to_dict() for result in self.preflight_results],
+            "total_targets": self.total_targets,
+            "allowed_count": self.allowed_count,
+            "blocked_count": self.blocked_count,
+            "needs_approval_count": self.needs_approval_count,
+            "dry_run_only": self.dry_run_only,
+            "evidence_capture_plan": dict(self.evidence_capture_plan),
+            "overall_decision": self.overall_decision,
+            "recommended_next_step": self.recommended_next_step,
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
 class APIExecutionRequest:
     """Static request built for a gated API sandbox execution attempt."""
 

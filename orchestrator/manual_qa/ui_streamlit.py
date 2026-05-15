@@ -31,6 +31,12 @@ from orchestrator.manual_qa.execution_preflight_service import (
 from orchestrator.manual_qa.execution_safety_service import (
     ExecutionSafetyService,
 )
+from orchestrator.manual_qa.web_execution_preflight_service import (
+    WebExecutionPreflightService,
+)
+from orchestrator.manual_qa.web_execution_safety_service import (
+    WebExecutionSafetyService,
+)
 from orchestrator.manual_qa.exporters import ManualQAExporter
 from orchestrator.manual_qa.failure_memory_service import FailureRecord, FailureSignature
 from orchestrator.manual_qa.models import (
@@ -67,6 +73,7 @@ from orchestrator.manual_qa.ui_helpers import (
     get_api_execution_results_preview,
     get_draft_package_summary_preview,
     get_execution_preflight_preview,
+    get_web_execution_preflight_preview,
     get_next_recommended_actions,
     get_workspace_health,
     get_workspace_summary,
@@ -99,6 +106,7 @@ from orchestrator.manual_qa.ui_helpers import (
     load_script_readiness_items,
     load_web_playwright_readiness_items,
     load_web_playwright_script_drafts,
+    load_web_execution_preflight_plan,
     load_web_playwright_validation_results,
     load_web_playwright_package_manifest,
     load_testcases,
@@ -139,6 +147,8 @@ class ManualQAStreamlitUI:
         self.draft_package_dashboard_service = UnifiedDraftPackageDashboardService()
         self.execution_safety_service = ExecutionSafetyService()
         self.execution_preflight_service = ExecutionPreflightService()
+        self.web_execution_safety_service = WebExecutionSafetyService()
+        self.web_execution_preflight_service = WebExecutionPreflightService()
         self.web_playwright_readiness_service = WebPlaywrightReadinessService()
         self.web_playwright_script_generator = WebPlaywrightScriptGenerator()
         self.web_playwright_validation_service = WebPlaywrightValidationService()
@@ -870,6 +880,42 @@ class ManualQAStreamlitUI:
                 )
             else:
                 st.info("No API execution history report found yet.")
+
+            web_execution_preflight = load_web_execution_preflight_plan(workspace)
+            if st.button("Generate Web execution preflight plan"):
+                plan = self.web_execution_preflight_service.build_web_execution_plan_from_workspace(
+                    workspace,
+                    policy=self.web_execution_safety_service.create_default_web_execution_safety_policy(dry_run_only=True),
+                )
+                self.exporter.export_json_file(plan, workspace / "reports" / "web_execution_preflight_plan.json")
+                self.exporter.export_markdown_file(plan, workspace / "reports" / "web_execution_preflight_plan.md")
+                self.workspace_service.update_workspace_manifest(workspace)
+                web_execution_preflight = plan.to_dict()
+                st.success(f"Generated Web execution preflight plan for {plan.total_targets} target(s).")
+
+            if web_execution_preflight:
+                with st.container(border=True):
+                    capture_plan = web_execution_preflight.get("evidence_capture_plan", {})
+                    st.write(
+                        "Web execution preflight: "
+                        f"{web_execution_preflight.get('overall_decision', 'Missing Web Draft Packages')} / "
+                        f"{web_execution_preflight.get('total_targets', 0)} targets / "
+                        f"{web_execution_preflight.get('allowed_count', 0)} allowed / "
+                        f"{web_execution_preflight.get('blocked_count', 0)} blocked / "
+                        f"{web_execution_preflight.get('needs_approval_count', 0)} needs approval"
+                    )
+                    st.caption(
+                        "Design only. No browser execution is performed. "
+                        f"Evidence plan: screenshot={capture_plan.get('capture_screenshot', False)}, "
+                        f"trace={capture_plan.get('capture_trace', False)}, "
+                        f"console={capture_plan.get('capture_console_log', False)}."
+                    )
+                st.expander("Web execution preflight preview").code(
+                    get_web_execution_preflight_preview(workspace),
+                    language="markdown",
+                )
+            else:
+                st.info("No Web execution preflight plan found yet.")
 
             report_files = list_report_files(workspace)
             if report_files:

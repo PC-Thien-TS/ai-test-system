@@ -138,6 +138,18 @@ from orchestrator.manual_qa.exporters import (
     export_unified_draft_package_summary_to_json_string,
     export_unified_draft_package_summary_to_markdown_file,
     export_unified_draft_package_summary_to_markdown_string,
+    export_web_execution_plan_to_json_file,
+    export_web_execution_plan_to_json_string,
+    export_web_execution_plan_to_markdown_file,
+    export_web_execution_plan_to_markdown_string,
+    export_web_execution_preflight_result_to_json_file,
+    export_web_execution_preflight_result_to_json_string,
+    export_web_execution_preflight_result_to_markdown_file,
+    export_web_execution_preflight_result_to_markdown_string,
+    export_web_execution_safety_policy_to_json_file,
+    export_web_execution_safety_policy_to_json_string,
+    export_web_execution_safety_policy_to_markdown_file,
+    export_web_execution_safety_policy_to_markdown_string,
     export_web_playwright_readiness_list_to_json_file,
     export_web_playwright_readiness_list_to_json_string,
     export_web_playwright_readiness_list_to_markdown_file,
@@ -191,6 +203,11 @@ from orchestrator.manual_qa.models import (
     NormalizedRequirement,
     ProjectProfile,
     UnifiedDraftPackageSummary,
+    WebExecutionPlan,
+    WebExecutionPreflightIssue,
+    WebExecutionPreflightResult,
+    WebExecutionSafetyPolicy,
+    WebExecutionTarget,
 )
 from orchestrator.manual_qa.result_service import TestResultService
 from orchestrator.manual_qa.run_service import TestRunService
@@ -1396,6 +1413,160 @@ def test_exports_execution_plan_json_and_markdown(tmp_path):
     export_execution_plan_to_markdown_file(plan, md_path)
     assert json.loads(json_path.read_text(encoding="utf-8"))["total_targets"] == 1
     assert "Execution Preflight Plan" in md_path.read_text(encoding="utf-8")
+
+
+def _build_web_execution_safety_policy() -> WebExecutionSafetyPolicy:
+    return WebExecutionSafetyPolicy(
+        policy_id="WEB-EXEC-POLICY-DEFAULT",
+        name="default",
+        allow_browser_execution=False,
+        dry_run_only=True,
+        require_human_approval=True,
+        require_valid_package=True,
+        require_no_critical_todos=True,
+        allowed_base_urls=["http://localhost", "http://127.0.0.1"],
+        blocked_base_urls=["production", "prod", "live", "payment-live", "real-bank"],
+        allowed_browsers=["chromium"],
+        headless_only=True,
+        allow_file_upload=False,
+        allow_file_download=False,
+        allow_external_navigation=False,
+        allow_payment_flows=False,
+        allow_captcha_or_otp_flows=False,
+        timeout_seconds=30,
+        max_scripts_per_run=3,
+        capture_screenshot=True,
+        capture_trace=True,
+        capture_video=False,
+        capture_console_log=True,
+        capture_network_log=True,
+        metadata={"sandbox_only": True},
+        created_at="2024-01-22T00:00:00Z",
+    )
+
+
+def _build_web_execution_target() -> WebExecutionTarget:
+    return WebExecutionTarget(
+        target_id="WEB-TARGET-001",
+        script_type="web_playwright",
+        draft_id="WEB-DRAFT-001",
+        test_case_id="TC-901",
+        file_name="test_web_tc_001.py",
+        package_status="Ready for Review",
+        validation_status="Ready for Review",
+        base_url="http://localhost:3000",
+        page_url="/login",
+        requires_login=True,
+        metadata={"source": "web_playwright"},
+        created_at="2024-01-23T00:00:00Z",
+    )
+
+
+def _build_web_execution_preflight_result() -> WebExecutionPreflightResult:
+    issue = WebExecutionPreflightIssue(
+        issue_id="WEB-PREFLIGHT-ISSUE-001",
+        target_id="WEB-TARGET-001",
+        severity="High",
+        issue_type="browser_execution_disabled_by_policy",
+        message="Browser execution is disabled by the current web safety policy.",
+        recommendation="Keep this plan static until a later sandbox phase intentionally enables browser execution.",
+        metadata={},
+    )
+    return WebExecutionPreflightResult(
+        preflight_id="WEB-PREFLIGHT-001",
+        target_id="WEB-TARGET-001",
+        decision="Dry Run Only",
+        is_allowed=False,
+        issues=[issue],
+        risk_level="High",
+        recommended_action="Keep this target in design-only dry-run mode for now.",
+        metadata={"package_status": "Ready for Review"},
+        created_at="2024-01-23T00:01:00Z",
+    )
+
+
+def _build_web_execution_plan() -> WebExecutionPlan:
+    policy = _build_web_execution_safety_policy()
+    target = _build_web_execution_target()
+    result = _build_web_execution_preflight_result()
+    return WebExecutionPlan(
+        plan_id="WEB-EXEC-PLAN-001",
+        workspace_path="artifacts/manual_qa_demo",
+        policy=policy,
+        targets=[target],
+        preflight_results=[result],
+        total_targets=1,
+        allowed_count=0,
+        blocked_count=0,
+        needs_approval_count=1,
+        dry_run_only=True,
+        evidence_capture_plan={
+            "capture_screenshot": True,
+            "capture_trace": True,
+            "capture_video": False,
+            "capture_console_log": True,
+            "capture_network_log": True,
+        },
+        overall_decision="Ready for Browser Sandbox Design Review",
+        recommended_next_step="Review web sandbox preflight before implementing browser execution gates",
+        metadata={"sandbox_only": True},
+        created_at="2024-01-23T00:02:00Z",
+    )
+
+
+def test_exports_web_execution_safety_policy_json_and_markdown(tmp_path):
+    policy = _build_web_execution_safety_policy()
+    payload = json.loads(export_web_execution_safety_policy_to_json_string(policy))
+    markdown = export_web_execution_safety_policy_to_markdown_string(policy)
+
+    assert payload["policy_id"] == "WEB-EXEC-POLICY-DEFAULT"
+    assert payload["dry_run_only"] is True
+    assert "Allow Browser Execution: False" in markdown
+    assert "Evidence Capture" in markdown
+
+    json_path = tmp_path / "web_execution_policy.json"
+    md_path = tmp_path / "web_execution_policy.md"
+    export_web_execution_safety_policy_to_json_file(policy, json_path)
+    export_web_execution_safety_policy_to_markdown_file(policy, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["name"] == "default"
+    assert "Allowed Browsers: chromium" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_web_execution_preflight_result_json_and_markdown(tmp_path):
+    result = _build_web_execution_preflight_result()
+    payload = json.loads(export_web_execution_preflight_result_to_json_string(result))
+    markdown = export_web_execution_preflight_result_to_markdown_string(result)
+
+    assert payload["preflight_id"] == "WEB-PREFLIGHT-001"
+    assert payload["issues"][0]["issue_type"] == "browser_execution_disabled_by_policy"
+    assert "Decision: Dry Run Only" in markdown
+    assert "Risk Level: High" in markdown
+
+    json_path = tmp_path / "web_execution_preflight_result.json"
+    md_path = tmp_path / "web_execution_preflight_result.md"
+    export_web_execution_preflight_result_to_json_file(result, json_path)
+    export_web_execution_preflight_result_to_markdown_file(result, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["target_id"] == "WEB-TARGET-001"
+    assert "WEB-PREFLIGHT-ISSUE-001" in md_path.read_text(encoding="utf-8")
+
+
+def test_exports_web_execution_plan_json_and_markdown(tmp_path):
+    plan = _build_web_execution_plan()
+    payload = json.loads(export_web_execution_plan_to_json_string(plan))
+    markdown = export_web_execution_plan_to_markdown_string(plan)
+
+    assert payload["plan_id"] == "WEB-EXEC-PLAN-001"
+    assert payload["policy"]["policy_id"] == "WEB-EXEC-POLICY-DEFAULT"
+    assert payload["preflight_results"][0]["decision"] == "Dry Run Only"
+    assert "Overall Decision: Ready for Browser Sandbox Design Review" in markdown
+    assert "Evidence Capture Plan" in markdown
+
+    json_path = tmp_path / "web_execution_plan.json"
+    md_path = tmp_path / "web_execution_plan.md"
+    export_web_execution_plan_to_json_file(plan, json_path)
+    export_web_execution_plan_to_markdown_file(plan, md_path)
+    assert json.loads(json_path.read_text(encoding="utf-8"))["total_targets"] == 1
+    assert "Web Execution Preflight Plan" in md_path.read_text(encoding="utf-8")
 
 
 def _build_api_execution_request() -> APIExecutionRequest:

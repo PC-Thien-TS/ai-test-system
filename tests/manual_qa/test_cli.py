@@ -232,6 +232,109 @@ def _write_web_package_manifest(workspace: Path, *, status: str = "Ready for Rev
     )
 
 
+def _write_web_execution_draft_package(
+    workspace: Path,
+    *,
+    base_url: str = "http://localhost:3000",
+    page_url: str = "/login",
+    selector_hint: str = "data-testid=login-email",
+    package_status: str = "Ready for Review",
+    validation_flags: dict[str, bool] | None = None,
+    title: str = "Portal login draft",
+    extra_script_lines: list[str] | None = None,
+) -> None:
+    draft_dir = workspace / "script_drafts" / "web_playwright"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    script_lines = [
+        "import os",
+        "from playwright.sync_api import Page, expect",
+        "",
+        f'BASE_URL = os.getenv("WEB_BASE_URL", "{base_url}")',
+        "",
+        "def test_web_draft(page: Page):",
+        f'    page.goto(BASE_URL + "{page_url}")',
+        f'    page.locator("{selector_hint}").click()',
+    ]
+    script_lines.extend(extra_script_lines or [])
+    script_lines.append("")
+    script_content = "\n".join(script_lines)
+    (draft_dir / "web_playwright_script_drafts.json").write_text(
+        json.dumps(
+            [
+                {
+                    "draft_id": "WEB-DRAFT-001",
+                    "test_case_id": "TC-901",
+                    "requirement_ids": ["REQ-901"],
+                    "module": "Portal UI",
+                    "title": title,
+                    "readiness_id": "WPREAD-001",
+                    "framework": "playwright-python",
+                    "language": "python",
+                    "file_name": "test_web_tc_001.py",
+                    "script_content": script_content,
+                    "status": "Draft",
+                    "warnings": [],
+                    "assumptions": [],
+                    "metadata": {
+                        "page_url": page_url,
+                        "selector_hints": [selector_hint],
+                        "base_url_env_var": "WEB_BASE_URL",
+                    },
+                    "created_at": "2024-01-12T00:00:00Z",
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (draft_dir / "web_playwright_package_manifest.json").write_text(
+        json.dumps(
+            {
+                "package_id": "WPPKG-001",
+                "package_name": "web-playwright-script-drafts",
+                "draft_count": 1,
+                "valid_count": 1,
+                "invalid_count": 0,
+                "warning_count": 0,
+                "draft_files": ["test_web_tc_001.py"],
+                "validation_report_files": ["script_drafts/web_playwright/web_playwright_validation.json"],
+                "generated_at": "2024-01-14T00:00:00Z",
+                "status": package_status,
+                "metadata": {},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    validation_payload = {
+        "validation_id": "WPVAL-001",
+        "draft_id": "WEB-DRAFT-001",
+        "test_case_id": "TC-901",
+        "file_name": "test_web_tc_001.py",
+        "is_valid": True,
+        "syntax_valid": True,
+        "has_draft_warning": True,
+        "has_no_execution_marker": True,
+        "has_playwright_import": True,
+        "has_test_function": True,
+        "has_page_goto": True,
+        "has_locator_or_todo": True,
+        "has_action_or_todo": True,
+        "has_assertion_or_todo": True,
+        "has_todo_page_url": False,
+        "has_todo_selector": False,
+        "has_todo_assertion": False,
+        "issues": [],
+        "metadata": {},
+        "created_at": "2024-01-13T00:00:00Z",
+    }
+    validation_payload.update(validation_flags or {})
+    (draft_dir / "web_playwright_validation.json").write_text(
+        json.dumps([validation_payload], indent=2),
+        encoding="utf-8",
+    )
+
+
 def _write_execution_api_draft_package(
     workspace: Path,
     *,
@@ -1270,6 +1373,73 @@ def test_api_execution_history_command_does_not_execute_scripts(tmp_path, monkey
     monkeypatch.setattr(Path, "read_text", _guarded_read_text)
 
     exit_code = main(["api-execution-history", "--workspace", str(workspace)])
+
+    assert exit_code == 0
+
+
+def test_web_execution_preflight_writes_json_and_markdown(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_web_execution_draft_package(workspace)
+
+    exit_code = main(["web-execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert (workspace / "reports" / "web_execution_preflight_plan.json").exists()
+    assert (workspace / "reports" / "web_execution_preflight_plan.md").exists()
+    assert "Web execution preflight:" in captured.out
+
+
+def test_web_execution_preflight_handles_missing_packages(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+
+    exit_code = main(["web-execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "overall_decision=Missing Web Draft Packages" in captured.out
+    assert (workspace / "reports" / "web_execution_preflight_plan.json").exists()
+
+
+def test_web_execution_preflight_prints_summary(tmp_path, capsys):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_web_execution_draft_package(workspace)
+
+    exit_code = main(["web-execution-preflight", "--workspace", str(workspace)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "total_targets=1" in captured.out
+    assert "dry_run_only=True" in captured.out
+    assert "needs_approval_count=" in captured.out
+
+
+def test_web_execution_preflight_command_does_not_execute_scripts_or_launch_browser(tmp_path, monkeypatch):
+    workspace = tmp_path / "manual_qa_demo"
+    assert main(["init-workspace", "--path", str(workspace)]) == 0
+    _write_web_execution_draft_package(workspace)
+    (workspace / "script_drafts" / "web_playwright" / "test_web_tc_001.py").write_text(
+        "raise RuntimeError('should not run')",
+        encoding="utf-8",
+    )
+
+    original_read_text = Path.read_text
+
+    def _guarded_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".py":
+            raise AssertionError("Web preflight CLI must not read or execute Playwright script files.")
+        return original_read_text(self, *args, **kwargs)
+
+    def _blocked_browser(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Web preflight CLI must not launch browsers.")
+
+    monkeypatch.setattr(Path, "read_text", _guarded_read_text)
+    monkeypatch.setattr("webbrowser.open", _blocked_browser)
+
+    exit_code = main(["web-execution-preflight", "--workspace", str(workspace)])
 
     assert exit_code == 0
 

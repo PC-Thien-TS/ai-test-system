@@ -36,6 +36,11 @@ from orchestrator.manual_qa.models import (
     TestRun,
     TestSuite,
     UnifiedDraftPackageSummary,
+    WebExecutionPlan,
+    WebExecutionPreflightIssue,
+    WebExecutionPreflightResult,
+    WebExecutionSafetyPolicy,
+    WebExecutionTarget,
     WebPlaywrightGap,
     WebPlaywrightPackageManifest,
     WebPlaywrightReadiness,
@@ -102,6 +107,10 @@ class ManualQAExporter:
                 return self._export_execution_target_list_markdown(payload, title=title)
             if isinstance(first_item, ExecutionPreflightResult):
                 return self._export_execution_preflight_result_list_markdown(payload, title=title)
+            if isinstance(first_item, WebExecutionTarget):
+                return self._export_web_execution_target_list_markdown(payload, title=title)
+            if isinstance(first_item, WebExecutionPreflightResult):
+                return self._export_web_execution_preflight_result_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightReadiness):
                 return self._export_web_playwright_readiness_list_markdown(payload, title=title)
             if isinstance(first_item, WebPlaywrightScriptDraft):
@@ -163,6 +172,16 @@ class ManualQAExporter:
             return self._export_execution_preflight_result_markdown(payload, title=title)
         if isinstance(payload, ExecutionPlan):
             return self._export_execution_plan_markdown(payload, title=title)
+        if isinstance(payload, WebExecutionSafetyPolicy):
+            return self._export_web_execution_safety_policy_markdown(payload, title=title)
+        if isinstance(payload, WebExecutionTarget):
+            return self._export_web_execution_target_markdown(payload, title=title)
+        if isinstance(payload, WebExecutionPreflightIssue):
+            return self._export_web_execution_preflight_issue_markdown(payload, title=title)
+        if isinstance(payload, WebExecutionPreflightResult):
+            return self._export_web_execution_preflight_result_markdown(payload, title=title)
+        if isinstance(payload, WebExecutionPlan):
+            return self._export_web_execution_plan_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightGap):
             return self._export_web_playwright_gap_markdown(payload, title=title)
         if isinstance(payload, WebPlaywrightReadiness):
@@ -1922,6 +1941,232 @@ class ManualQAExporter:
         lines.append("")
         return "\n".join(lines)
 
+    def _export_web_execution_safety_policy_markdown(
+        self,
+        policy: WebExecutionSafetyPolicy,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Execution Safety Policy - {policy.policy_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Policy",
+            f"- Policy ID: {policy.policy_id}",
+            f"- Name: {policy.name}",
+            f"- Allow Browser Execution: {policy.allow_browser_execution}",
+            f"- Dry Run Only: {policy.dry_run_only}",
+            f"- Require Human Approval: {policy.require_human_approval}",
+            f"- Require Valid Package: {policy.require_valid_package}",
+            f"- Require No Critical TODOs: {policy.require_no_critical_todos}",
+            f"- Allowed Base URLs: {', '.join(policy.allowed_base_urls) if policy.allowed_base_urls else 'None'}",
+            f"- Blocked Base URLs: {', '.join(policy.blocked_base_urls) if policy.blocked_base_urls else 'None'}",
+            f"- Allowed Browsers: {', '.join(policy.allowed_browsers) if policy.allowed_browsers else 'None'}",
+            f"- Headless Only: {policy.headless_only}",
+            f"- Allow File Upload: {policy.allow_file_upload}",
+            f"- Allow File Download: {policy.allow_file_download}",
+            f"- Allow External Navigation: {policy.allow_external_navigation}",
+            f"- Allow Payment Flows: {policy.allow_payment_flows}",
+            f"- Allow Captcha Or OTP Flows: {policy.allow_captcha_or_otp_flows}",
+            f"- Timeout Seconds: {policy.timeout_seconds}",
+            f"- Max Scripts Per Run: {policy.max_scripts_per_run}",
+            "",
+            "## Evidence Capture",
+            f"- Capture Screenshot: {policy.capture_screenshot}",
+            f"- Capture Trace: {policy.capture_trace}",
+            f"- Capture Video: {policy.capture_video}",
+            f"- Capture Console Log: {policy.capture_console_log}",
+            f"- Capture Network Log: {policy.capture_network_log}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_web_execution_target_markdown(
+        self,
+        target: WebExecutionTarget,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Execution Target - {target.target_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Target",
+            f"- Target ID: {target.target_id}",
+            f"- Script Type: {target.script_type}",
+            f"- Draft ID: {target.draft_id}",
+            f"- Test Case ID: {target.test_case_id}",
+            f"- File Name: {target.file_name}",
+            f"- Package Status: {target.package_status}",
+            f"- Validation Status: {target.validation_status}",
+            f"- Base URL: {target.base_url or 'N/A'}",
+            f"- Page URL: {target.page_url or 'N/A'}",
+            f"- Has TODOs: {target.has_todos}",
+            f"- Has Critical TODOs: {target.has_critical_todos}",
+            f"- Requires Login: {target.requires_login}",
+            f"- Requires File Upload: {target.requires_file_upload}",
+            f"- Requires File Download: {target.requires_file_download}",
+            f"- Has External Navigation: {target.has_external_navigation}",
+            f"- Has Payment Flow: {target.has_payment_flow}",
+            f"- Has Captcha Or OTP: {target.has_captcha_or_otp}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_web_execution_target_list_markdown(
+        self,
+        targets: list[WebExecutionTarget],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Web Execution Targets"
+        lines = [f"# {heading}", ""]
+        for target in targets:
+            lines.extend(
+                [
+                    f"## {target.target_id}",
+                    f"- Draft ID: {target.draft_id}",
+                    f"- Test Case ID: {target.test_case_id}",
+                    f"- Package Status: {target.package_status}",
+                    f"- Validation Status: {target.validation_status}",
+                    f"- Base URL: {target.base_url or 'N/A'}",
+                    f"- Page URL: {target.page_url or 'N/A'}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_web_execution_preflight_issue_markdown(
+        self,
+        issue: WebExecutionPreflightIssue,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Execution Preflight Issue - {issue.issue_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Issue",
+            f"- Issue ID: {issue.issue_id}",
+            f"- Target ID: {issue.target_id}",
+            f"- Severity: {issue.severity}",
+            f"- Issue Type: {issue.issue_type}",
+            f"- Message: {issue.message}",
+            f"- Recommendation: {issue.recommendation}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _export_web_execution_preflight_result_markdown(
+        self,
+        result: WebExecutionPreflightResult,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or f"Web Execution Preflight Result - {result.preflight_id}"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Result",
+            f"- Preflight ID: {result.preflight_id}",
+            f"- Target ID: {result.target_id}",
+            f"- Decision: {result.decision}",
+            f"- Is Allowed: {result.is_allowed}",
+            f"- Risk Level: {result.risk_level}",
+            f"- Recommended Action: {result.recommended_action or 'N/A'}",
+            "",
+            "## Issues",
+        ]
+        if not result.issues:
+            lines.append("- None")
+        for issue in result.issues:
+            lines.append(
+                f"- {issue.issue_id} [{issue.severity}] {issue.issue_type}: {issue.message} | Recommendation: {issue.recommendation}"
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _export_web_execution_preflight_result_list_markdown(
+        self,
+        results: list[WebExecutionPreflightResult],
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Web Execution Preflight Results"
+        lines = [f"# {heading}", ""]
+        for result in results:
+            lines.extend(
+                [
+                    f"## {result.preflight_id}",
+                    f"- Target ID: {result.target_id}",
+                    f"- Decision: {result.decision}",
+                    f"- Risk Level: {result.risk_level}",
+                    f"- Issue Count: {len(result.issues)}",
+                    "",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _export_web_execution_plan_markdown(
+        self,
+        plan: WebExecutionPlan,
+        *,
+        title: Optional[str] = None,
+    ) -> str:
+        heading = title or "Web Execution Preflight Plan"
+        lines = [
+            f"# {heading}",
+            "",
+            "## Warning",
+            "This plan is design-only and does not execute Web Playwright drafts or overwrite Manual QA TestResult state.",
+            "",
+            "## Policy Summary",
+            f"- Policy ID: {plan.policy.policy_id}",
+            f"- Name: {plan.policy.name}",
+            f"- Allow Browser Execution: {plan.policy.allow_browser_execution}",
+            f"- Dry Run Only: {plan.dry_run_only}",
+            f"- Headless Only: {plan.policy.headless_only}",
+            f"- Allowed Browsers: {', '.join(plan.policy.allowed_browsers) if plan.policy.allowed_browsers else 'None'}",
+            "",
+            "## Plan",
+            f"- Overall Decision: {plan.overall_decision}",
+            f"- Total Targets: {plan.total_targets}",
+            f"- Allowed Count: {plan.allowed_count}",
+            f"- Blocked Count: {plan.blocked_count}",
+            f"- Needs Approval Count: {plan.needs_approval_count}",
+            f"- Recommended Next Step: {plan.recommended_next_step or 'N/A'}",
+            "",
+            "## Evidence Capture Plan",
+        ]
+        if not plan.evidence_capture_plan:
+            lines.append("- None")
+        for key, value in plan.evidence_capture_plan.items():
+            lines.append(f"- {key}: {value}")
+        lines.extend(["", "## Targets"])
+        if not plan.targets:
+            lines.append("- None")
+        for target in plan.targets:
+            lines.append(
+                f"- {target.target_id} [{target.validation_status}] {target.test_case_id}: "
+                f"{target.base_url or 'N/A'}{target.page_url or ''}"
+            )
+        lines.extend(["", "## Risk Levels"])
+        if not plan.preflight_results:
+            lines.append("- None")
+        for result in plan.preflight_results:
+            lines.append(f"- {result.preflight_id}: {result.risk_level} ({result.decision})")
+        lines.extend(["", "## Issues"])
+        if not plan.preflight_results or not any(result.issues for result in plan.preflight_results):
+            lines.append("- None")
+        else:
+            for result in plan.preflight_results:
+                for issue in result.issues:
+                    lines.append(
+                        f"- {issue.issue_id} [{issue.severity}] {issue.issue_type}: {issue.message}"
+                    )
+        lines.append("")
+        return "\n".join(lines)
+
     def export_markdown_file(
         self,
         payload: ExportBundle | TestSuite | TestRun | RunSummary | Evidence | BugDraft | FailureSignature | FailureRecord | AutomationCandidate | ScriptGenerationGap | ScriptGenerationReadiness | APITestScriptDraft | APIScriptValidationIssue | APIScriptValidationResult | APIScriptPackageManifest | WebPlaywrightGap | WebPlaywrightReadiness | WebPlaywrightScriptDraft | WebPlaywrightValidationIssue | WebPlaywrightValidationResult | WebPlaywrightPackageManifest | list[FailureRecord] | list[AutomationCandidate] | list[ScriptGenerationReadiness] | list[APITestScriptDraft] | list[APIScriptValidationResult] | list[WebPlaywrightReadiness] | list[WebPlaywrightScriptDraft] | list[WebPlaywrightValidationResult],
@@ -2886,6 +3131,140 @@ def export_execution_plan_to_markdown_string(
 
 def export_execution_plan_to_markdown_file(
     plan: ExecutionPlan,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(plan, path, title=title)
+
+
+def export_web_execution_safety_policy_to_json_string(policy: WebExecutionSafetyPolicy) -> str:
+    return ManualQAExporter().export_json_string(policy)
+
+
+def export_web_execution_safety_policy_to_json_file(
+    policy: WebExecutionSafetyPolicy,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(policy, path)
+
+
+def export_web_execution_safety_policy_to_markdown_string(
+    policy: WebExecutionSafetyPolicy,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(policy, title=title)
+
+
+def export_web_execution_safety_policy_to_markdown_file(
+    policy: WebExecutionSafetyPolicy,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(policy, path, title=title)
+
+
+def export_web_execution_target_to_json_string(target: WebExecutionTarget) -> str:
+    return ManualQAExporter().export_json_string(target)
+
+
+def export_web_execution_target_to_json_file(target: WebExecutionTarget, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(target, path)
+
+
+def export_web_execution_target_to_markdown_string(
+    target: WebExecutionTarget,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(target, title=title)
+
+
+def export_web_execution_target_to_markdown_file(
+    target: WebExecutionTarget,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(target, path, title=title)
+
+
+def export_web_execution_preflight_issue_to_json_string(issue: WebExecutionPreflightIssue) -> str:
+    return ManualQAExporter().export_json_string(issue)
+
+
+def export_web_execution_preflight_issue_to_json_file(
+    issue: WebExecutionPreflightIssue,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(issue, path)
+
+
+def export_web_execution_preflight_issue_to_markdown_string(
+    issue: WebExecutionPreflightIssue,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(issue, title=title)
+
+
+def export_web_execution_preflight_issue_to_markdown_file(
+    issue: WebExecutionPreflightIssue,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(issue, path, title=title)
+
+
+def export_web_execution_preflight_result_to_json_string(result: WebExecutionPreflightResult) -> str:
+    return ManualQAExporter().export_json_string(result)
+
+
+def export_web_execution_preflight_result_to_json_file(
+    result: WebExecutionPreflightResult,
+    path: Path | str,
+) -> Path:
+    return ManualQAExporter().export_json_file(result, path)
+
+
+def export_web_execution_preflight_result_to_markdown_string(
+    result: WebExecutionPreflightResult,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(result, title=title)
+
+
+def export_web_execution_preflight_result_to_markdown_file(
+    result: WebExecutionPreflightResult,
+    path: Path | str,
+    *,
+    title: Optional[str] = None,
+) -> Path:
+    return ManualQAExporter().export_markdown_file(result, path, title=title)
+
+
+def export_web_execution_plan_to_json_string(plan: WebExecutionPlan) -> str:
+    return ManualQAExporter().export_json_string(plan)
+
+
+def export_web_execution_plan_to_json_file(plan: WebExecutionPlan, path: Path | str) -> Path:
+    return ManualQAExporter().export_json_file(plan, path)
+
+
+def export_web_execution_plan_to_markdown_string(
+    plan: WebExecutionPlan,
+    *,
+    title: Optional[str] = None,
+) -> str:
+    return ManualQAExporter().export_markdown_string(plan, title=title)
+
+
+def export_web_execution_plan_to_markdown_file(
+    plan: WebExecutionPlan,
     path: Path | str,
     *,
     title: Optional[str] = None,
