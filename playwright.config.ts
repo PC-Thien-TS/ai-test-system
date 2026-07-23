@@ -57,6 +57,7 @@ export default defineConfig({
       dependencies: ['setup-N13'],
       testMatch: [
         /.*[\\/]smoke[\\/]role-session\.spec\.ts/,
+        /.*[\\/]smoke[\\/]patient\.spec\.ts/,
         /.*[\\/]critical-flows[\\/].*\.spec\.ts/,
         /.*[\\/]regression[\\/].*\.spec\.ts/,
       ],
