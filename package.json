@@ -1,0 +1,41 @@
+{
+  "name": "ai-test-system",
+  "version": "1.0.0",
+  "description": "Version 3.0.0 is a major upgrade that transforms the platform from configurable orchestration into adaptive quality intelligence with AI-assisted analysis, predictive capabilities, and advanced analytics.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:list": "playwright test --list",
+    "test:login": "playwright test e2e/smoke/login.spec.ts --project=chromium",
+    "test:N13": "playwright test e2e/smoke/role-session.spec.ts --project=N13",
+    "test:N03": "playwright test e2e/smoke/role-session.spec.ts --project=N03",
+    "test:N02": "playwright test e2e/smoke/role-session.spec.ts --project=N02",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PC-Thien-TS/ai-test-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/PC-Thien-TS/ai-test-system/issues"
+  },
+  "homepage": "https://github.com/PC-Thien-TS/ai-test-system#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

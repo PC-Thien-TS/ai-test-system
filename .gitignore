@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.env/
 
 # Requirements KB input docs
 requirements/**/**/*.docx
@@ -39,11 +40,13 @@ outputs/
 evidence_sources.yaml
 .env
 .env.*
+!.env.example
 danhsach.txt
 
 # Node
 node_modules/
 package-lock.json
+!/package-lock.json
 
 # Next.js
 dashboard/.next/
@@ -51,3 +54,13 @@ dashboard/out/
 
 # JSON artifacts
 *.json
+!/package.json
+!/package-lock.json
+!/tsconfig.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
