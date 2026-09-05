@@ -1,0 +1,69 @@
+project: MED315
+
+branches:
+  DEV:
+    purpose: developer_validation
+    tests:
+      impact_analysis: true
+      smoke: false
+      targeted_regression: false
+      full_system: false
+      post_release_validation: false
+
+  QA:
+    purpose: qc_functional_testing
+    tests:
+      impact_analysis: true
+      smoke: true
+      targeted_regression: true
+      full_system: false
+      post_release_validation: false
+
+  STAG:
+    purpose: release_candidate_validation
+    tests:
+      impact_analysis: true
+      smoke: true
+      targeted_regression: true
+      full_system: true
+      post_release_validation: false
+
+  PROD:
+    purpose: production_validation
+    tests:
+      impact_analysis: false
+      smoke: true
+      targeted_regression: false
+      full_system: false
+      post_release_validation: true
+    restrictions:
+      destructive_tests: false
+      inventory_mutation: false
+      price_mutation: false
+      real_financial_transaction: false
+      irreversible_patient_data_change: false
+
+quality_gate:
+  block_release_when:
+    - any_p0_failed
+    - any_critical_bug_open
+    - core_smoke_not_completed
+    - data_consistency_failure_on_core_flow
+    - permission_failure_on_critical_role
+  warn_when:
+    - p1_failed_with_accepted_risk
+    - non_core_print_layout_issue
+    - flaky_case_without_business_impact
+
+ownership:
+  ai_agent:
+    - propose_test_plan
+    - select_regression_candidates
+    - summarize_results
+  qc:
+    - review_test_plan
+    - execute_or_validate_tests
+    - confirm_defects
+  qc_lead:
+    - approve_regression_scope
+    - final_release_signoff
