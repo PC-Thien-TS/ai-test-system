@@ -1,0 +1,287 @@
+{
+  "project": "MED315",
+  "version": "0.1.0",
+  "status": "draft_qc_review",
+  "tiers": {
+    "tier_1": "core_smoke",
+    "tier_2": "core_regression",
+    "tier_3": "release_impact_regression"
+  },
+  "testcases": [
+    {
+      "id": "MED315-SYS-001",
+      "module": "Authentication",
+      "title": "Login successfully with Reception role",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Login succeeds", "Authorized menus are displayed"]
+    },
+    {
+      "id": "MED315-SYS-002",
+      "module": "Authentication",
+      "title": "Login successfully with Doctor role",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Login succeeds", "Doctor functions are accessible"]
+    },
+    {
+      "id": "MED315-SYS-003",
+      "module": "Patient",
+      "title": "Search an existing patient",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Correct patient is returned", "Patient identity data is correct"]
+    },
+    {
+      "id": "MED315-SYS-004",
+      "module": "Patient",
+      "title": "Create a new patient",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Patient is saved successfully", "Saved patient can be searched again"]
+    },
+    {
+      "id": "MED315-SYS-005",
+      "module": "Reception",
+      "title": "Receive patient into examination workflow",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Visit is created", "Assigned room and doctor are correct"]
+    },
+    {
+      "id": "MED315-SYS-006",
+      "module": "Reception",
+      "title": "Patient appears in doctor queue after reception",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception", "Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Patient is visible in the correct doctor queue", "Visit information is consistent across roles"]
+    },
+    {
+      "id": "MED315-SYS-007",
+      "module": "Examination",
+      "title": "Doctor opens the correct patient examination",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Correct patient record opens", "Visit context is correct"]
+    },
+    {
+      "id": "MED315-SYS-008",
+      "module": "Vital Signs",
+      "title": "Enter and save vital signs",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor", "Clinical Staff"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Vital signs are saved", "Values remain after reload"]
+    },
+    {
+      "id": "MED315-SYS-009",
+      "module": "Examination",
+      "title": "Enter and save diagnosis",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Diagnosis is saved", "Diagnosis remains after reopening the visit"]
+    },
+    {
+      "id": "MED315-SYS-010",
+      "module": "Service Order",
+      "title": "Create a service indication",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Service order is created", "Patient and diagnosis information are correct"]
+    },
+    {
+      "id": "MED315-SYS-011",
+      "module": "Prescription",
+      "title": "Create a prescription",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Prescription is saved", "Medicine, quantity and instructions are retained"]
+    },
+    {
+      "id": "MED315-SYS-012",
+      "module": "Examination",
+      "title": "Reopen saved visit and verify data persistence",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Previously saved clinical data is retained", "No unexpected data loss occurs"]
+    },
+    {
+      "id": "MED315-SYS-013",
+      "module": "Print",
+      "title": "Print core examination document with correct data",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Doctor"],
+      "type": "smoke",
+      "automation_candidate": false,
+      "expected": ["Document can be generated", "Patient, doctor, date and clinical data are correct"]
+    },
+    {
+      "id": "MED315-SYS-014",
+      "module": "Permission",
+      "title": "Reception user cannot modify doctor-only clinical information",
+      "priority": "P0",
+      "tier": "tier_1",
+      "roles": ["Reception"],
+      "type": "smoke",
+      "automation_candidate": true,
+      "expected": ["Restricted operation is blocked", "No unauthorized clinical data change occurs"]
+    },
+    {
+      "id": "MED315-SYS-015",
+      "module": "CRM",
+      "title": "Update patient information and verify persistence",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Reception"],
+      "type": "regression",
+      "automation_candidate": true,
+      "expected": ["Patient data is updated", "Updated information remains after reload"]
+    },
+    {
+      "id": "MED315-SYS-016",
+      "module": "Warehouse",
+      "title": "Receive stock and verify inventory increase",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Warehouse"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Receipt completes successfully", "Inventory quantity increases correctly"]
+    },
+    {
+      "id": "MED315-SYS-017",
+      "module": "Warehouse",
+      "title": "Issue stock and verify inventory decrease",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Warehouse"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Stock issue completes successfully", "Inventory quantity decreases correctly"]
+    },
+    {
+      "id": "MED315-SYS-018",
+      "module": "Inventory Transfer",
+      "title": "Complete inter-warehouse transfer and verify both inventories",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Warehouse"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Source inventory decreases", "Destination inventory increases", "Lot and expiry data remain consistent"]
+    },
+    {
+      "id": "MED315-SYS-019",
+      "module": "GDP Transfer",
+      "title": "Approve GDP transfer before destination receipt",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Pharmacist", "Warehouse Approver"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Transfer enters approval state", "Destination cannot receive before approval", "Approved transfer can proceed to receipt"]
+    },
+    {
+      "id": "MED315-SYS-020",
+      "module": "GDP Transfer",
+      "title": "Reject GDP transfer and verify stock rollback",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Warehouse Approver"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Transfer is rejected", "Stock is restored correctly", "Destination cannot receive rejected transfer"]
+    },
+    {
+      "id": "MED315-SYS-021",
+      "module": "Price Update",
+      "title": "Update price and generate adjustment record",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Authorized Pricing User"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["New price is applied", "Adjustment report contains correct old and new values"]
+    },
+    {
+      "id": "MED315-SYS-022",
+      "module": "Return",
+      "title": "Confirm product return without double inventory update",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Warehouse"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Return is confirmed once", "Inventory is updated once", "Repeated confirmation does not duplicate stock"]
+    },
+    {
+      "id": "MED315-SYS-023",
+      "module": "Customer Allocation",
+      "title": "Allocate customer to branch and verify persistence",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["Authorized CRM User"],
+      "type": "regression",
+      "automation_candidate": true,
+      "expected": ["Customer is allocated to selected branch", "Allocation remains after reload", "No duplicate allocation is created"]
+    },
+    {
+      "id": "MED315-SYS-024",
+      "module": "Medicine Catalog",
+      "title": "Synchronize medicine catalog without duplicate records",
+      "priority": "P1",
+      "tier": "tier_2",
+      "roles": ["System", "Pharmacy"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Catalog changes are synchronized", "Repeated synchronization does not create duplicates", "Updated data is available downstream"]
+    },
+    {
+      "id": "MED315-SYS-025",
+      "module": "Data Consistency",
+      "title": "Verify clinical data consistency across screen, downstream module and print",
+      "priority": "P0",
+      "tier": "tier_2",
+      "roles": ["Doctor"],
+      "type": "regression",
+      "automation_candidate": false,
+      "expected": ["Saved clinical data is identical across relevant views", "Printed data matches stored data"]
+    }
+  ]
+}
